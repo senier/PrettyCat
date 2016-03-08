@@ -1,0 +1,253 @@
+\documentclass[a4paper]{article}
+\usepackage[pagebackref=true]{hyperref}
+\usepackage[hyperref]{xcolor}
+\usepackage{geometry}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{dot2texi}
+\usepackage{algorithm2e}
+\usepackage{pdflscape}
+
+\setlength{\parskip}{.5em}
+\setlength{\parindent}{0em}
+
+\DeclareMathOperator{\hash}{Hash}
+\DeclareMathOperator{\hashvrfy}{Verify_{Hash}}
+\DeclareMathOperator{\hmac}{HMAC}
+\DeclareMathOperator{\hmacvrfy}{Verify_{HMAC}}
+\DeclareMathOperator{\enc}{Encrypt}
+\DeclareMathOperator{\dec}{Decrypt}
+\DeclareMathOperator{\sign}{Sign}
+\DeclareMathOperator{\signvrfy}{Verify_{Sig}}
+\DeclareMathOperator{\id}{Id}
+\DeclareMathOperator{\trans}{Transform}
+\DeclareMathOperator{\rand}{Rand}
+\DeclareMathOperator{\power}{Power}
+\DeclareMathOperator{\send}{Send}
+\DeclareMathOperator{\recv}{Receive}
+
+\newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
+
+\newcommand{\emptysec}{\varnothing}
+\newcommand{\secminus}{\smallsetminus}
+
+\definecolor{myblue}{HTML}{0091FF}
+\hypersetup
+{
+    colorlinks = true,
+    linkcolor  = myblue,
+    citecolor  = myblue
+}
+
+\begin{document}
+
+\section{\label{sec:notation}Notation}
+
+Security requirements are denoted by $c$ (Confidentiality), $i$ (Integrity) and
+$f$ (Freshness). The overall security requirement some domain $D$ must fulfill
+is denoted by a set $S_D$ over these properties. For a domain $D_1$ which has
+to guarantee integrity, but no other properties, this would be:
+
+$$S_{D_1} = \{i\}$$
+
+A domain $D_2$ which does not (need) to fulfill any security requirements has
+the following set:
+
+$$S_{D_2} = \emptysec$$
+
+Operations that make up a cryptographic protocol impose preconditions on the
+requirement set of their input parameters. These preconditions need to be
+guaranteed by the calling domain. Likewise, the results of an operation may
+impose security requirements on the receiving domain.
+
+Note, that this is opposite to e.g. Hoard logic (citation needed) where the
+execution of a program is guaranteed to establish some postcondition, given its
+precondition is satisfied. In our logic we rather remove the requirements that
+an operation guarantees from the resulting security requirements set only
+leaving those that still need to be guaranteed by the receiving domain. This
+enables us to reason about domain-wide requirements and to split up domains
+with equal into isolated partitions to reduce the trusted computing base.
+
+An operation $O$ has input parameters $i_k$ and output parameters $o_j$ which
+each have an associated security requirement set $\iota_k$ and $\omega_j$
+respectively:
+
+$$P(i_1^{\iota_1}, \cdots, i_n^{\iota_n}) \mapsto (o_1^{\omega_1}, \cdots, o_m^{\omega_m})$$
+
+How the resulting security requirements sets relate to the sets of the input
+parameters depends on the semantics of an operation $O$. The most important
+primitives used in cryptographic protocols are detailed in the following
+section.
+
+% TODO mention $\sigma$ as placeholder
+% TODO examples
+
+\section{Primitives}
+\subsection{Messaging}
+
+Send the message $msg$ through a domain guaranteeing the security properties $\sigma$:
+
+$$\send^\sigma(msg^\sigma) \mapsto \emptysec$$
+
+Receive a message $msg$ from a domain guaranteeing the security properties $\sigma$:
+
+$$\recv^\sigma \mapsto msg^\sigma$$
+
+\subsection{Data processing}
+
+$$const^{\sigma} \mapsto const^{\sigma}$$
+
+$$\trans(in_1^{\sigma_1}, \cdots, in_n^{\sigma_n}) \mapsto (out_1^{\cup\sigma_i},\cdots,out_m^{\cup\sigma_i})$$
+
+\subsection{Random Numbers}
+
+$$\rand(len^{\{i\}}) \mapsto data^{\{c,i,f\}}$$
+
+\subsection{Hashing}
+
+A cryptographic hash function efficiently computes a fixed-length hash value
+$h$ for any message $m$ of arbitrary length. They are often called one-way hash
+functions, as it is infeasible for an attacker to recreate the input message
+from it hash value or to find two different messages resulting in the same hash
+value. Furthermore, even smallest changes in an input message result in
+significant changes in the resulting hash.
+
+As a hash $h$ uniquely identifies an input message $m$, it can be used to prove
+knowledge of $m$ without revealing it. A hash function thus eliminates a
+potential confidentiality requirement in the input security set, but does not
+influence integrity or freshness requirements:
+
+$$\hash(msg^\sigma) \mapsto hash^{\sigma\secminus\{c\}}$$
+
+\TODO{Is freshness really not influenced by a hash function?}
+
+The inverse function\footnote{Obviously, an efficient inverse function to a
+one-way hash should not exist. We rather refer to an inverse function as the
+operation that is typically used by the receiver of a hash to validate that a
+message yields a specific hash value.} takes a message $m$ and a hash
+value $h$ as input and returns the boolean value of $hash(m) = h$.
+
+$$\hashvrfy(hash^{i}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
+
+\TODO{How does $\hashvrfy$ influence the security requirement sets?}
+
+\subsection{Message authentication}
+
+$$\hmac(key^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus{\{i\}}}$$
+
+$$\hmacvrfy(key^{\{c,i\}}, auth^\emptysec, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
+
+% While it looked interesting to never pass input data back in those functions,
+% this does not seem to work consistently. If hmacvrfy() only returns a
+% verdict on whether the MAC was valid for a message msg and we get pass on the
+% message from the original source (i.e. the source hmacvrfy() got msg from,
+% then we need to model a case where hmacvrfy() fails and msg does NOT flow
+% from source to destination. This looks very ugly.
+%
+% Alternative idea: Never pass on explicit verdict, but the data or NIL.
+
+\subsection{Digital Signatures}
+
+$$\sign(skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\{i\}}$$
+
+$$\signvrfy(pkey^{\{i\}}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
+
+\subsection{Diffie-Hellman Key Exchange}
+
+$$\power(g^{\{i\}}, x^{\{c,i\}}) \mapsto gx^\emptysec$$
+
+$$\power(r^\emptysec, x^{\{c,i\}}) \mapsto sec^{\{c,i\}} $$
+
+\subsection{Symmetric Encryption}
+
+$$\enc((iv^{\{i\}}, key^{\{c,i\}})^{\{f\}}, plaintext^\sigma) \mapsto ciphertext^{\sigma\secminus\{c\}}$$
+
+\TODO{The freshness notation still looks a bit quirky}
+
+$$\dec(iv^{\{i\}}, key^{\{c,i\}}, ciphertext^\sigma) \mapsto plaintext^{\sigma\cup\{c\}}$$
+
+\section{Security Requirements Graph}
+
+Security requirements are not constant during a security protocol run. While
+user input to a security messaging protocol must by kept confidential,
+symmetric encryption operations remove this requirement such that the
+information can be passed to a domain that does not guarantee confidentiality,
+like the Internet. To identify different domains implied by a security protocol
+and to know what guarantees each part of the needs to provide, a security
+requirements graph for that protocol must be created systematically.
+
+As we are interested in splitting up security protocols into components, we do
+not associated a security level with the data flowing through the protocol
+elements, as done in data flow analysis. Instead, data is tagged with a set of
+security requirements (confidentiality, integrity, freshness) the environment
+processing this data has to meet. Operations such as the primitives described
+in the previous section take tagged data as their input and output tagged data
+with potentially different sets of security requirements.
+
+A security requirements graph consists of a set of nodes each of which
+represents an operation as defined in \autoref{sec:notation}. Directed edges
+between two nodes are labeled with a tuple $(src, dst, sec)$. The element $src$
+denotes the output parameter of the sending node and $dst$ the respective input
+parameter of the receiving node. The last element, $sec$, is the set of
+security requirements the \emph{environment} storing or transferring the data
+must guarantee.
+
+\begin{figure}[ht]
+    \centering
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            #rankdir=LR;
+            node[shape=rect];
+            rbits [label="128^{\{i\}}"];
+            iv [label="0^{\{i\}}"];
+            rand [label="Rand"];
+            encrypt [label="Encrypt"];
+            receive [label="Receive^{\{c\}}"];
+            send [label="Send^\emptysec"];
+
+            rbits -> rand [label="(const, len, ?)"];
+            rand -> encrypt [label="(data, key, ?)"];
+            receive -> encrypt [label="(msg, plaintext, ?)"];
+            iv -> encrypt [label="(const, iv, ?)"];
+            encrypt -> send [label="(ciphertext, msg, ?)"];
+        }
+    \end{dot2tex}
+    \caption{Security requirements graph for a simplistic encryption scheme}
+\end{figure}
+
+\section{Algorithm}
+
+In the initial graph, nodes may still have undetermined security requirements
+set. This is true for operations like $\enc$ which take an unspecified set and
+perform some transformation on it (like removing the confidentiality
+requirement in the case of $\enc$). What is also missing initially, are the
+security requirements sets for the edges which are later used to partition the
+graph. The following algorithm calculates all undetermined requirements sets
+and assigns requirements sets to all edges.
+
+\TODO{Define undetermined}
+
+\begin{algorithm}
+    \SetKwData{Start}{start}
+    \KwData{Graph $G = \{V, A\}$}
+    \KwResult{Graph G with all security sets determined}
+    \Start $\leftarrow$ \emph{source nodes of G}\;
+    \For{}
+    {
+    }
+\end{algorithm}
+
+\begin{landscape}
+\thispagestyle{empty}
+    \begin{figure}[ht]
+        \centering
+        \begin{dot2tex}[mathmode,scale=0.4]
+            \input{initiator.dot}
+        \end{dot2tex}
+        \caption{OTR initiator}
+    \end{figure}
+\end{landscape}
+
+\end{document}

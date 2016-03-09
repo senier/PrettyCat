@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<spg>
+    <receive id="input">
+        <msg sink="dhcm" arg="*"/>
+    </receive>
+
+    <xform id="dhcm">
+        <gxmpi sink="gxmpi" arg="ciphertext"/>
+        <hashed_gx sink="verify_gxmpi" arg="msg"/>
+    </xform>
+
+    <decrypt id="gxmpi">
+        <gxmpi sink="verify_gxmpi" arg="hash"/>
+    </decrypt>
+
+    <verify_hash id="verify_gxmpi">
+    </verify_hash>
+
+</spg>

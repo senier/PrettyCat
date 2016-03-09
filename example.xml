@@ -1,0 +1,23 @@
+<spg>
+    <const id="keylen" value="128" integrity="true">
+        <const sink="keygen" arg="len"/>
+    </const>
+
+    <rand id="keygen">
+        <data sink="encrypt" arg="key"/>
+    </rand>
+
+    <const id="iv" value="0" integrity="true">
+        <const sink="encrypt" arg="iv"/>
+    </const>
+
+    <receive id="input" confidentiality="true">
+        <msg sink="encrypt" arg="plaintext"/>
+    </receive>
+
+    <encrypt id="encrypt">
+        <ciphertext sink="output" arg="msg"/>
+    </encrypt>
+
+    <send id="output"/>
+</spg>

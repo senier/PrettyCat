@@ -23,7 +23,8 @@
 \DeclareMathOperator{\id}{Id}
 \DeclareMathOperator{\trans}{Transform}
 \DeclareMathOperator{\rand}{Rand}
-\DeclareMathOperator{\power}{Power}
+\DeclareMathOperator{\dhsec}{DH_{Sec}}
+\DeclareMathOperator{\dhpub}{DH_{Pub}}
 \DeclareMathOperator{\send}{Send}
 \DeclareMathOperator{\recv}{Receive}
 
@@ -155,9 +156,9 @@ $$\signvrfy(pkey^{\{i\}}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$
 
 \subsection{Diffie-Hellman Key Exchange}
 
-$$\power(g^{\{i\}}, x^{\{c,i\}}) \mapsto gx^\emptysec$$
+$$\dhpub(gen^{\{i\}}, sec^{\{c,i\}}) \mapsto pub^\emptysec$$
 
-$$\power(r^\emptysec, x^{\{c,i\}}) \mapsto sec^{\{c,i\}} $$
+$$\dhsec(pub^\emptysec, sec^{\{c,i\}}) \mapsto sec^{\{c,i\}} $$
 
 \subsection{Symmetric Encryption}
 

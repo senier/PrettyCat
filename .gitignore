@@ -1,2 +1,10 @@
 test.dot
 test.pdf
+*dot2tex-fig*.*
+*.aux
+*.fls
+*.fdb_latexmk
+*.log
+*.out
+*.pdf
+*.dot

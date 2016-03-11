@@ -1,16 +1,81 @@
 <?xml version="1.0"?>
 <spg>
-    <receive id="input">
-        <msg sink="dhcm" arg="*"/>
+    <!-- Input -->
+    <receive id="input" confidentiality="True" integrity="False" freshness="False">
+        <flow sarg="msg" sink="dhcm" darg="msg"/>
+        <flow sarg="msg" sink="rvsm" darg="msg"/>
     </receive>
 
+    <!-- Output -->
+    <send id="output" confidentiality="False" integrity="False" freshness="False"/>
+
+    <!-- Receive a DH-Commit message -->
     <xform id="dhcm">
-        <gxmpi sink="gxmpi" arg="ciphertext"/>
-        <hashed_gx sink="verify_gxmpi" arg="msg"/>
+        <flow sarg="encrypted_gx" sink="gxmpi"        darg="ciphertext"/>
+        <flow sarg="hashed_gx"    sink="verify_gxmpi" darg="msg"/>
+        <arg name="msg"/>
     </xform>
 
+    <!-- Sending a DH-Key message -->
+    <xform id="dhkm">
+        <flow sarg="dhkm" sink="output" darg="msg"/>
+        <arg name="proto_ver"/>
+        <arg name="msg_type"/>
+        <arg name="send_inst"/>
+        <arg name="recv_inst"/>
+        <arg name="gympi"/>
+    </xform>
+
+    <const id="pv">
+        <flow sink="dhkm" darg="proto_ver"/>
+    </const>
+
+    <const id="mt">
+        <flow sink="dhkm" darg="msg_type"/>
+    </const>
+
+    <const id="si">
+        <flow sink="dhkm" darg="send_inst"/>
+    </const>
+
+    <const id="ri">
+        <flow sink="dhkm" darg="recv_inst"/>
+    </const>
+
+    <xform id="mpi">
+        <flow sarg="gympi" sink="dhkm" darg="gympi"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <dhpub id="gy">
+        <flow sarg="pub" sink="mpi" darg="mpi"/>
+    </dhpub>
+
+    <const id="g">
+        <flow sink="gy" darg="gen"/>
+    </const>
+
+    <rand id="y">
+        <flow sarg="data" sink="gy" darg="sec"/>
+    </rand>
+
+    <const id="320">
+        <flow sink="y" darg="len"/>
+    </const>
+
+    <!-- Receiving a Reveal Signature message -->
+    <xform id="rvsm">
+        <flow sarg="revealed_key" sink="gxmpi"       darg="ciphertext"/>
+        <flow sarg="enc_sig"      sink="assert_hmac" darg="msg"/>
+        <flow sarg="macd_sig"     sink="assert_hmac" darg="auth"/>
+        <arg name="msg"/>
+    </xform>
+
+    <verify_hmac id="assert_hmac">
+    </verify_hmac>
+
     <decrypt id="gxmpi">
-        <gxmpi sink="verify_gxmpi" arg="hash"/>
+        <flow sarg="plaintext" sink="verify_gxmpi" darg="msg"/>
     </decrypt>
 
     <verify_hash id="verify_gxmpi">

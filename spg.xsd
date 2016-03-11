@@ -1,6 +1,12 @@
 <?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
+<!-- TODO:
+    * Constrain boolean attributes to true/false
+    * Enforce non-empty sarg/sink/darg
+    * Check references for sarg/sing/darg
+-->
+
 <xs:complexType name="flowElement">
     <xs:attribute name="sarg"/>
     <xs:attribute name="sink"/>
@@ -64,10 +70,15 @@
             <xs:element name="send"        type="sendElement"/>
             <xs:element name="receive"     type="receiveElement"/>
             <xs:element name="dhpub"       type="forwardElement"/>
+            <xs:element name="dhsec"       type="forwardElement"/>
             <xs:element name="rand"        type="forwardElement"/>
+            <xs:element name="hmac"        type="forwardElement"/>
+            <xs:element name="sign"        type="forwardElement"/>
+            <xs:element name="verify_sig"  type="forwardElement"/>
             <xs:element name="verify_hmac" type="forwardElement"/>
             <xs:element name="verify_hash" type="forwardElement"/>
             <xs:element name="decrypt"     type="forwardElement"/>
+            <xs:element name="encrypt"     type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>

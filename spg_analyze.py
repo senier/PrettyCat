@@ -47,16 +47,16 @@ def analyze(G, start):
             node['sec'][s] = sec
     elif kind == "hash":
         sec = out_sec_union (G, start)
-        node['sec']['msg'] = sec + set(("c"))
-    elif kind == "verify_hash" or kind == "verify_hmac":
+        node['sec']['msg'] = sec | set(("c"))
+    elif kind == "verify_hash" or kind == "verify_hmac" or kind == "verify_sig":
         sec = out_sec_union (G, start)
         node['sec']['msg'] = sec - set(("i"))
-    elif kind == "hmac":
+    elif kind == "hmac" or kind == "sign":
         sec = out_sec_union (G, start)
-        node['sec']['msg'] = sec + set(("i"))
+        node['sec']['msg'] = sec | set(("i"))
     elif kind == "encrypt":
         sec = out_sec_union (G, start)
-        node['sec']['plaintext'] = sec + set(("c"))
+        node['sec']['plaintext'] = sec | set(("c"))
     elif kind == "decrypt":
         sec = out_sec_union (G, start)
         node['sec']['ciphertext'] = sec - set(("c"))
@@ -64,7 +64,7 @@ def analyze(G, start):
         sec = set(("c", "i"))
         pass
     else:
-        raise Exception, "Unknown kind: " + kind
+        raise Exception, "Unknown kind: " + str(kind)
 
     for i in G.in_edges(nbunch=start):
         analyze(G, i[0]);
@@ -83,7 +83,11 @@ def out_sec_union (G, start):
     sec = set(())
     for o in G.out_edges(nbunch=start):
         dest = G[o[0]][o[1]][0]['dest']
-        sec = sec | G.node[o[1]]['sec'][dest]
+        try:
+            sec = sec | G.node[o[1]]['sec'][dest]
+        except (TypeError, KeyError):
+            print "Node '" + o[1] + "/" + str(dest) + "' has no sec set"
+            sys.exit()
     return sec;
 
 try:

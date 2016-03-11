@@ -28,27 +28,33 @@
 
     <const id="pv">
         <flow sink="dhkm" darg="proto_ver"/>
+        <flow sink="sigm" darg="proto_ver"/>
     </const>
 
     <const id="mt">
         <flow sink="dhkm" darg="msg_type"/>
+        <flow sink="sigm" darg="msg_type"/>
     </const>
 
     <const id="si">
         <flow sink="dhkm" darg="send_inst"/>
+        <flow sink="sigm" darg="send_inst"/>
     </const>
 
     <const id="ri">
         <flow sink="dhkm" darg="recv_inst"/>
+        <flow sink="sigm" darg="recv_inst"/>
     </const>
 
     <xform id="mpi">
         <flow sarg="gympi" sink="dhkm" darg="gympi"/>
-        <arg name="mpi"/>
+        <flow sarg="gympi" sink="min" darg="gympi"/>
+        <flow sarg="gympi" sink="hmac_input" darg="gympi"/>
+        <arg name="gy"/>
     </xform>
 
     <dhpub id="gy">
-        <flow sarg="pub" sink="mpi" darg="mpi"/>
+        <flow sarg="pub" sink="mpi" darg="gy"/>
     </dhpub>
 
     <const id="g">
@@ -57,6 +63,7 @@
 
     <rand id="y">
         <flow sarg="data" sink="gy" darg="sec"/>
+        <flow sarg="data" sink="s" darg="sec"/>
     </rand>
 
     <const id="320">
@@ -72,13 +79,130 @@
     </xform>
 
     <verify_hmac id="assert_hmac">
+        <flow sarg="msg" sink="decrypt_sig" darg="ciphertext"/>
     </verify_hmac>
+    
+    <decrypt id="decrypt_sig">
+        <flow sarg="plaintext" sink="decode_sig" darg="sig"/>
+    </decrypt>
+
+    <xform id="decode_sig">
+        <flow sarg="pub_A"   sink="hmac_input" darg="pub_A"/>
+        <flow sarg="keyid_A" sink="hmac_input" darg="keyid_A"/>
+        <flow sarg="sig_A"   sink="check_sig"  darg="msg"/>
+        <arg name="sig"/>
+    </xform>
+
+    <!-- HMAC -->
+    <xform id="hmac_input">
+        <flow sarg="hmac_input" sink="ma" darg="msg"/>
+        <arg name="gympi"/>
+        <arg name="gxmpi"/>
+        <arg name="pub_A"/>
+        <arg name="keyid_A"/>
+    </xform>
+
+    <hmac id="ma">
+        <flow sarg="M_A" sink="check_sig" darg="msg"/>
+    </hmac>
+
+    <verify_sig id="check_sig">
+        <flow sarg="msg" sink="sigm" darg="macd_sig"/>
+    </verify_sig>
+
+    <!-- Sending a signature message -->
+    <xform id="sigm">
+        <flow sarg="sigm" sink="output" darg="msg"/>
+        <arg name="proto_ver"/>
+        <arg name="msg_type"/>
+        <arg name="send_inst"/>
+        <arg name="recv_inst"/>
+        <arg name="enc_sig"/>
+        <arg name="macd_sig"/>
+    </xform>
+
+    <encrypt id="encsig">
+        <flow sarg="ciphertext" sink="sigm" darg="enc_sig"/>
+        <flow sarg="ciphertext" sink="macdsig" darg="msg"/>
+    </encrypt>
+
+    <const id="sigm_iv">
+        <flow sarg="const" sink="encsig" darg="iv"/>
+    </const>
+
+    <xform id="sigm_keys">
+        <flow sarg="c" sink="encsig" darg="key"/>
+        <flow sarg="c" sink="decrypt_sig" darg="key"/>
+        <flow sarg="m1" sink="ma" darg="key"/>
+        <flow sarg="m1" sink="mb" darg="key"/>
+        <flow sarg="m2" sink="macdsig" darg="key"/>
+        <flow sarg="m2" sink="assert_hmac" darg="key"/>
+        <arg name="s"/>
+    </xform>
+
+    <hmac id="macdsig">
+        <flow sarg="auth" sink="sigm" darg="macd_sig"/>
+    </hmac>
+
+    <const id="iv">
+        <flow sarg="const" sink="gxmpi" darg="iv"/>
+    </const>
 
     <decrypt id="gxmpi">
+        <flow sarg="plaintext" sink="min"          darg="gxmpi"/>
         <flow sarg="plaintext" sink="verify_gxmpi" darg="msg"/>
+        <flow sarg="plaintext" sink="hmac_input"   darg="gxmpi"/>
     </decrypt>
 
     <verify_hash id="verify_gxmpi">
+        <flow sarg="msg" sink="gx" darg="mpi"/>
     </verify_hash>
+
+    <xform id="gx">
+        <flow sarg="gx" sink="s" darg="pub"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <dhsec id="s">
+        <flow sarg="sec" sink="sigm_keys" darg="s"/>
+    </dhsec>
+
+    <xform id="xb">
+        <flow sarg="X_B" sink="encsig" darg="plaintext"/>
+        <arg name="pub_B"/>
+        <arg name="keyid_B"/>
+        <arg name="sig_B"/>
+    </xform>
+
+    <const id="sigmpubb">
+        <flow sarg="const" sink="xb" darg="pub_B"/>
+        <flow sarg="const" sink="sigm_sig" darg="skey"/>
+        <flow sarg="const" sink="min" darg="pub_B"/>
+    </const>
+
+    <const id="sigmsecb">
+        <flow sarg="const" sink="sigm_sig" darg="skey"/>
+    </const>
+
+    <const id="sigmkeyid">
+        <flow sarg="const" sink="xb" darg="keyid_B"/>
+        <flow sarg="const" sink="min" darg="keyid_B"/>
+    </const>
+
+    <hmac id="mb">
+        <flow sarg="M_B" sink="sigm_sig" darg="msg"/>
+    </hmac>
+
+    <xform id="min">
+        <flow sarg="M_in" sink="mb" darg="msg"/>
+        <arg name="gxmpi"/>
+        <arg name="gympi"/>
+        <arg name="pub_B"/>
+        <arg name="keyid_B"/>
+    </xform>
+
+    <sign id="sigm_sig">
+        <flow sarg="sig_B" sink="xb" darg="sig_B"/>
+    </sign>
 
 </spg>

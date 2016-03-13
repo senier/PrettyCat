@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+# TODO:
+#   Check for nodes with unassigned arguments
+#   Check for incompatible sec sets between argument source/dest
+
 import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
@@ -42,13 +46,13 @@ def analyze(G, start):
     kind = node["kind"]
 
     if kind == "xform" or kind == "const":
-        sec = out_sec_union (G, start)
+        sec = out_sec_intersection (G, start)
         for s in node['sec']:
             node['sec'][s] = sec
     elif kind == "hash":
         sec = out_sec_union (G, start)
         node['sec']['msg'] = sec | set(("c"))
-    elif kind == "verify_hash" or kind == "verify_hmac" or kind == "verify_sig":
+    elif kind == "verify_hmac" or kind == "verify_sig":
         sec = out_sec_union (G, start)
         node['sec']['msg'] = sec - set(("i"))
     elif kind == "hmac" or kind == "sign":
@@ -84,20 +88,31 @@ def convert_setset (attrib):
 
 def out_sec_union (G, start):
     sec = set(())
-    for o in G.out_edges(nbunch=start):
-        dest = G[o[0]][o[1]][0]['dest']
+    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
+        dest = data['dest']
         try:
-            sec = sec | G.node[o[1]]['sec'][dest]
+            sec = sec | G.node[child]['sec'][dest]
         except (TypeError, KeyError):
-            print "Node '" + o[1] + "/" + str(dest) + "' has no sec set"
-            sys.exit()
+            print "Node '" + child + "/" + str(dest) + "' has no sec set"
+            sys.exit(1)
+    return sec;
+
+def out_sec_intersection (G, start):
+    sec = set(("c", "i", "f"))
+    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
+        dest = data['dest']
+        try:
+            sec = sec & G.node[child]['sec'][dest]
+        except (TypeError, KeyError):
+            print "Node '" + child + "/" + str(dest) + "' has no sec set"
+            sys.exit(1)
     return sec;
 
 try:
     root = ET.parse(sys.argv[1]).getroot()
 except IOError as e:
     print("Error opening XML file: " + str(e))
-    sys.exit()
+    sys.exit(1)
 
 G = nx.MultiDiGraph();
 
@@ -129,6 +144,7 @@ for child in root:
         sec['msg']  = None
     elif child.tag == "sign":
         sec['skey'] = set(("c", "i"))
+        sec['pkey'] = set(("i"))
         sec['msg']  = None
     elif child.tag == "verify_sig":
         sec['pkey'] = set(("i"))
@@ -150,7 +166,16 @@ for child in root:
     else:
         raise Exception, "Unknown tag: " + child.tag
     
-    G.add_node(child.attrib["id"], kind=child.tag, sec=sec)
+    label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
+
+    G.add_node \
+        (child.attrib["id"], \
+         kind=child.tag, \
+         sec=sec, \
+         label = label, \
+         shape = "rectangle", \
+         width = "2.5", \
+         height = "0.8")
 
     for element in child.findall('flow'):
 
@@ -161,13 +186,20 @@ for child in root:
 
         darg = element.attrib["darg"]
 
+        if source == None:
+            slabel = "" 
+        else:
+            slabel = source
+
         G.add_edge \
             (child.attrib["id"], \
              element.attrib["sink"], \
              source = source, \
-             dest = darg)
-
-nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);
+             dest = darg,
+             labelfontsize = 8,
+             labelangle = 180,
+             taillabel = slabel,
+             headlabel = darg)
 
 # Find some node to start with
 for i in G.nodes():

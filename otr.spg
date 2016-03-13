@@ -47,9 +47,9 @@
     </const>
 
     <xform id="mpi">
-        <flow sarg="gympi" sink="dhkm" darg="gympi"/>
-        <flow sarg="gympi" sink="min" darg="gympi"/>
-        <flow sarg="gympi" sink="hmac_input" darg="gympi"/>
+        <flow sarg="gympi" sink="dhkm"        darg="gympi"/>
+        <flow sarg="gympi" sink="min"         darg="gympi"/>
+        <flow sarg="gympi" sink="M_remote_in" darg="gympi"/>
         <arg name="gy"/>
     </xform>
 
@@ -82,27 +82,32 @@
         <flow sarg="msg" sink="dec_x_remote" darg="ciphertext"/>
     </verify_hmac>
     
+    <const id="iv_x_remote">
+        <flow sarg="const" sink="dec_x_remote" darg="iv"/>
+    </const>
+
     <decrypt id="dec_x_remote">
-        <flow sarg="plaintext" sink="X_remote" darg="sig"/>
+        <flow sarg="plaintext" sink="X_remote" darg="X"/>
     </decrypt>
 
     <xform id="X_remote">
-        <flow sarg="pub_remote"   sink="hmac_input" darg="pub_remote"/>
-        <flow sarg="keyid_remote" sink="hmac_input" darg="keyid_remote"/>
-        <flow sarg="sig_remote"   sink="sig_remote"  darg="pkey"/>
-        <arg name="sig"/>
+        <flow sarg="pub_remote"   sink="sig_remote"  darg="pkey"/>
+        <flow sarg="pub_remote"   sink="M_remote_in" darg="pub_remote"/>
+        <flow sarg="keyid_remote" sink="M_remote_in" darg="keyid_remote"/>
+        <flow sarg="sig_remote"   sink="sig_remote"  darg="auth"/>
+        <arg name="X"/>
     </xform>
 
     <!-- HMAC -->
-    <xform id="hmac_input">
-        <flow sarg="hmac_input" sink="M_remote" darg="msg"/>
+    <xform id="M_remote_in">
+        <flow sarg="M_remote_in" sink="HMAC_M_remote" darg="msg"/>
         <arg name="gympi"/>
         <arg name="gxmpi"/>
         <arg name="pub_remote"/>
         <arg name="keyid_remote"/>
     </xform>
 
-    <hmac id="M_remote">
+    <hmac id="HMAC_M_remote">
         <flow sarg="M_remote" sink="sig_remote" darg="msg"/>
     </hmac>
 
@@ -132,7 +137,7 @@
     <xform id="sigm_keys">
         <flow sarg="c" sink="enc_x_local" darg="key"/>
         <flow sarg="c" sink="dec_x_remote" darg="key"/>
-        <flow sarg="m1" sink="M_remote" darg="key"/>
+        <flow sarg="m1" sink="HMAC_M_remote" darg="key"/>
         <flow sarg="m1" sink="M_local" darg="key"/>
         <flow sarg="m2" sink="macdsig" darg="key"/>
         <flow sarg="m2" sink="assert_hmac" darg="key"/>
@@ -143,18 +148,18 @@
         <flow sarg="auth" sink="sigm" darg="macd_sig"/>
     </hmac>
 
-    <const id="iv">
+    <const id="iv_gxmpi">
         <flow sarg="const" sink="decrypt_gxmpi" darg="iv"/>
     </const>
 
     <decrypt id="decrypt_gxmpi">
-        <flow sarg="plaintext" sink="min"          darg="gxmpi"/>
         <flow sarg="plaintext" sink="verify_gxmpi" darg="msg"/>
-        <flow sarg="plaintext" sink="hmac_input"   darg="gxmpi"/>
     </decrypt>
 
     <verify_hash id="verify_gxmpi">
-        <flow sarg="msg" sink="unmpi" darg="mpi"/>
+        <flow sarg="msg"       sink="unmpi"       darg="mpi"/>
+        <flow sarg="plaintext" sink="min"         darg="gxmpi"/>
+        <flow sarg="plaintext" sink="M_remote_in" darg="gxmpi"/>
     </verify_hash>
 
     <xform id="unmpi">

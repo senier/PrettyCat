@@ -133,14 +133,14 @@ for child in root:
     elif child.tag == "hash":
         sec['msg'] = None
     elif child.tag == "verify_hash":
-        sec['hash'] = set(("i"))
+        sec['hash'] = set(())
         sec['msg']  = None
     elif child.tag == "hmac":
         sec['key'] = set(("c", "i"))
         sec['msg']  = None
     elif child.tag == "verify_hmac":
         sec['key']  = set(("c", "i"))
-        sec['auth'] = set(()) 
+        sec['auth'] = set(())
         sec['msg']  = None
     elif child.tag == "sign":
         sec['skey'] = set(("c", "i"))
@@ -148,6 +148,7 @@ for child in root:
         sec['msg']  = None
     elif child.tag == "verify_sig":
         sec['pkey'] = set(("i"))
+        sec['auth'] = set(())
         sec['msg']  = None
     elif child.tag == "dhpub":
         sec['gen'] = set(("i"))
@@ -165,7 +166,7 @@ for child in root:
         sec['ciphertext'] = None
     else:
         raise Exception, "Unknown tag: " + child.tag
-    
+
     label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
 
     G.add_node \
@@ -187,7 +188,7 @@ for child in root:
         darg = element.attrib["darg"]
 
         if source == None:
-            slabel = "" 
+            slabel = ""
         else:
             slabel = source
 

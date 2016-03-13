@@ -31,8 +31,8 @@ def analyze(G, start):
         return
 
     # Only continue if all children have be processed already
-    for o in G.out_edges(nbunch=start):
-        if not 'processed' in G.node[o[1]]:
+    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
+        if not 'processed' in G.node[child]:
             return
 
     # Mark current node as processed
@@ -60,14 +60,17 @@ def analyze(G, start):
     elif kind == "decrypt":
         sec = out_sec_union (G, start)
         node['sec']['ciphertext'] = sec - set(("c"))
+    elif kind == "verify_hash":
+        sec = out_sec_union (G, start)
+        node['sec']['msg'] = sec
     elif kind == "send" or kind == "receive" or kind == "rand" or kind == "dhpub" or kind == "dhsec":
         sec = set(("c", "i"))
         pass
     else:
         raise Exception, "Unknown kind: " + str(kind)
 
-    for i in G.in_edges(nbunch=start):
-        analyze(G, i[0]);
+    for (parent, current, data) in G.in_edges(nbunch=start, data=True):
+        analyze(G, parent);
 
 def convert_setset (attrib):
     result = set()
@@ -172,19 +175,12 @@ for i in G.nodes():
         analyze(G, i)
 
 # create all edge labels
-for edge in G.edges():
-    attr = G[edge[0]][edge[1]][0]
+for (parent, child, data) in G.out_edges(data=True):
     try:
-        sec = G.node[edge[1]]['sec'][attr['dest']]
+        sec = G.node[child]['sec'][data['dest']]
     except KeyError:
-        print "Node '" + str(edge[1]) + "' does not have paramter '" + attr['dest'] + "' as referenced by node '" + str(edge[0]) + "'"
+        print "Node '" + str(child) + "' does not have paramter '" + data['dest'] + "' as referenced by node '" + str(parent) + "'"
         raise
-    G[edge[0]][edge[1]][0]["label"] = fmtsec(sec)
-
-# create all node labels
-for node in G.nodes(data=True):
-    n = node[1]
-    label = n['kind'] + "<sub>" + node[0] + "</sub>"
-    n['label'] = "<" + label + ">"
+    data['label'] = fmtsec(sec)
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);

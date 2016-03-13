@@ -129,7 +129,7 @@ operation that is typically used by the receiver of a hash to validate that a
 message yields a specific hash value.} takes a message $m$ and a hash
 value $h$ as input and returns the boolean value of $hash(m) = h$.
 
-$$\hashvrfy(hash^{i}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
+$$\hashvrfy(hash^{i}, msg^\sigma) \mapsto msg^{\sigma} | \emptysec$$
 
 \TODO{How does $\hashvrfy$ influence the security requirement sets?}
 
@@ -150,7 +150,7 @@ $$\hmacvrfy(key^{\{c,i\}}, auth^\emptysec, msg^\sigma) \mapsto msg^{\sigma\cup\{
 
 \subsection{Digital Signatures}
 
-$$\sign(skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\{i\}}$$
+$$\sign(pkey^{\{i\}}, skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\{i\}}$$
 
 $$\signvrfy(pkey^{\{i\}}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
 

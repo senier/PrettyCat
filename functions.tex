@@ -27,6 +27,7 @@
 \DeclareMathOperator{\dhpub}{DH_{Pub}}
 \DeclareMathOperator{\send}{Send}
 \DeclareMathOperator{\recv}{Receive}
+\DeclareMathOperator{\guard}{Guard}
 
 \newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
 
@@ -85,6 +86,7 @@ section.
 % TODO examples
 
 \section{Primitives}
+
 \subsection{Messaging}
 
 Send the message $msg$ through a domain guaranteeing the security properties $\sigma$:
@@ -100,6 +102,12 @@ $$\recv^\sigma \mapsto msg^\sigma$$
 $$const^{\sigma} \mapsto const^{\sigma}$$
 
 $$\trans(in_1^{\sigma_1}, \cdots, in_n^{\sigma_n}) \mapsto (out_1^{\cup\sigma_i},\cdots,out_m^{\cup\sigma_i})$$
+
+The guard primitive outputs $data$ unmodified if $cond$ does not equal
+$\emptysec$. This can be used to model situations where some data, e.g. key
+material, must only be used after the key exchange has been validated.
+
+$$\guard(data^{\sigma}, cond^{\{i\}}) \mapsto data^{\sigma} | \emptysec$$
 
 \subsection{Random Numbers}
 
@@ -152,7 +160,7 @@ $$\hmacvrfy(key^{\{c,i\}}, auth^\emptysec, msg^\sigma) \mapsto msg^{\sigma\cup\{
 
 $$\sign(pkey^{\{i\}}, skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\{i\}}$$
 
-$$\signvrfy(pkey^{\{i\}}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
+$$\signvrfy(pkey^{\{i\}}, auth^{\emptysec}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
 
 \subsection{Diffie-Hellman Key Exchange}
 

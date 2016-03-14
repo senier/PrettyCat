@@ -107,7 +107,13 @@ The guard primitive outputs $data$ unmodified if $cond$ does not equal
 $\emptysec$. This can be used to model situations where some data, e.g. key
 material, must only be used after the key exchange has been validated.
 
-$$\guard(data^{\sigma}, cond^{\{i\}}) \mapsto data^{\sigma} | \emptysec$$
+\begin{equation*}
+\guard(data^{\sigma}, cond^{\{i\}}) \mapsto
+    \begin{cases}
+        \emptysec,      & \text{if $cond = \emptysec$} \\
+        data^{\sigma},  & \text{otherwise}
+    \end{cases}
+\end{equation*}
 
 \subsection{Random Numbers}
 

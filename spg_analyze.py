@@ -67,6 +67,9 @@ def analyze(G, start):
     elif kind == "verify_hash":
         sec = out_sec_union (G, start)
         node['sec']['msg'] = sec
+    elif kind == "guard":
+        sec = out_sec_union (G, start)
+        node['sec']['data'] = sec
     elif kind == "send" or kind == "receive" or kind == "rand" or kind == "dhpub" or kind == "dhsec":
         sec = set(("c", "i"))
         pass
@@ -164,6 +167,9 @@ for child in root:
         sec['iv']  = set(("i"))
         sec['key'] = set(("c", "i"))
         sec['ciphertext'] = None
+    elif child.tag == "guard":
+        sec['data'] = None
+        sec['cond'] = set(("i"))
     else:
         raise Exception, "Unknown tag: " + child.tag
 

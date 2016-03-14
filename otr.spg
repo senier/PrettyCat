@@ -112,7 +112,12 @@
     </hmac>
 
     <verify_sig id="sig_remote">
+        <flow sarg="msg" sink="guard_sig_remote" darg="data"/>
     </verify_sig>
+
+    <guard id="guard_sig_remote">
+        <flow sarg="data" sink="enc_x_local" darg="key"/>
+    </guard>
 
     <!-- Sending a signature message -->
     <xform id="sigm">
@@ -135,7 +140,7 @@
     </const>
 
     <xform id="sigm_keys">
-        <flow sarg="c" sink="enc_x_local" darg="key"/>
+        <flow sarg="c" sink="guard_sig_remote" darg="data"/>
         <flow sarg="c" sink="dec_x_remote" darg="key"/>
         <flow sarg="m1" sink="HMAC_M_remote" darg="key"/>
         <flow sarg="m1" sink="M_local" darg="key"/>

@@ -79,6 +79,7 @@
             <xs:element name="verify_hash" type="forwardElement"/>
             <xs:element name="decrypt"     type="forwardElement"/>
             <xs:element name="encrypt"     type="forwardElement"/>
+            <xs:element name="guard"       type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>

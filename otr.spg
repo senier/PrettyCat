@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Input -->
-    <receive id="input" confidentiality="True" integrity="False" freshness="False">
+    <receive id="input" confidentiality="False" integrity="False" freshness="False">
         <flow sarg="msg" sink="dhcm" darg="msg"/>
         <flow sarg="msg" sink="rvsm" darg="msg"/>
     </receive>

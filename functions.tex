@@ -176,11 +176,23 @@ $$\dhsec(pub^\emptysec, sec^{\{c,i\}}) \mapsto sec^{\{c,i\}} $$
 
 \subsection{Symmetric Encryption}
 
-$$\enc((iv^{\{i\}}, key^{\{c,i\}})^{\{f\}}, plaintext^\sigma) \mapsto ciphertext^{\sigma\secminus\{c\}}$$
+\begin{equation*}
+    \enc((iv^{\{i\}}, key^\gamma)^{\{f\}}, plaintext^\sigma) \mapsto
+    \begin{cases}
+        ciphertext^{\sigma\secminus\{c\}}, & \text{if $\{c,i\} \subseteq \gamma$} \\
+        ciphertext^{\sigma},               & \text{otherwise}
+    \end{cases}
+\end{equation*}
 
 \TODO{The freshness notation still looks a bit quirky}
 
-$$\dec(iv^{\{i\}}, key^{\{c,i\}}, ciphertext^\sigma) \mapsto plaintext^{\sigma\cup\{c\}}$$
+\begin{equation*}
+    \dec(iv^{\{i\}}, key^\gamma, ciphertext^\sigma) \mapsto
+    \begin{cases}
+        plaintext^{\sigma\cup\{c\}}, & \text{if $\{c,i\} \subseteq \gamma$} \\
+        plaintext^{\sigma},          & \text{otherwise}
+    \end{cases}
+\end{equation*}
 
 \section{Security Requirements Graph}
 

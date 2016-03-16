@@ -167,7 +167,7 @@ for child in root:
     if child.tag == "send" or child.tag == "receiver":
         sec = convert_setset(child.attrib)
 
-    label = child.tag + "<sub>" + child.attrib['id'] + "</sub>"
+    label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
 
     G.add_node \
         (child.attrib["id"], \
@@ -189,11 +189,6 @@ nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);
 for i in G.nodes():
     if not G.out_edges(nbunch=i):
         analyze(G, i)
-
-for i in G.nodes():
-    if "sec" in G.node[i] and G.node[i]['sec'] != None:
-        G.node[i]['label'] += ": " + fmtsec(G.node[i]['sec'])
-    G.node[i]['label'] = "<" + G.node[i]['label'] + ">"
 
 for (parent, child, data) in G.edges(data=True):
     data['label']     = fmtsec(data['sec'])

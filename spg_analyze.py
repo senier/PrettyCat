@@ -1,12 +1,14 @@
 #!/usr/bin/python
 
-# TODO:
-#   Check for nodes with unassigned arguments
-#   Check for incompatible sec sets between argument source/dest
-
 import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
+
+sec_e   = set(())
+sec_c   = set(("c"))
+sec_i   = set(("i"))
+sec_ci  = set(("c", "i"))
+sec_cif = set(("c", "i", "f"))
 
 def fmtsec(sec):
     if not sec:
@@ -24,6 +26,36 @@ def fmtsec(sec):
                 result += ","
             result += "f"
     return "{" + result + "}";
+
+def get_outputs(G, node, arglist):
+    result = {}
+
+    # retrieve output security sets from out edges
+    for (current, child, data) in G.out_edges (nbunch=node, data=True):
+        sarg = data['sarg']
+        if not sarg in arglist:
+            raise Exception, "Node '" + node + "' has invalid output parameter '" + sarg + "'"
+        result[sarg] = data['sec']
+    
+    # is something missing
+    for arg in arglist:
+        if not arg in result.keys():
+            raise Exception, "Argument '" + arg + "' not found for node '" + node + "'"
+
+    return result
+
+def set_inputs (G, node, argmap):
+
+    # retrieve output security sets from out edges
+    for (parent, current, data) in G.in_edges (nbunch=node, data=True):
+        darg = data['darg']
+        if not darg in argmap:
+            raise Exception, "Node '" + current + "' receives invalid input parameter '" + darg + "' from '" + parent + "'"
+        data['sec'] = argmap[darg]
+        del argmap[darg]
+
+    if argmap:
+        raise Exception, "Node '" + node + "' has no arguments " + list(argmap.keys())
 
 def analyze(G, start):
 
@@ -44,109 +76,67 @@ def analyze(G, start):
 
     kind = node['kind']
 
-    # Calculate sec set for note itself
     if kind == "send":
         for (parent, child, data) in G.in_edges(nbunch=start, data=True):
             G.node[parent]['sec'] = node['sec']
 
     elif kind == "xform":
-        sec = out_sec_intersection (G, start)
+        sec = set(("c", "i", "f"))
+        for (parent, child, data) in G.out_edges(nbunch=start, data=True):
+            sec &= data['sec']
         for (parent, child, data) in G.in_edges(nbunch=start, data=True):
-            G.node[parent]['sec'] = sec
-
-    elif kind == "arg":
-        if not 'sec' in node:
-            node['sec'] = set(())
-
-    elif kind == "sign":
-        (parent, auth) = G.out_edges(nbunch=start)[0]
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "skey":
-                G.node[parent]['sec'] = set(("c", "i"))
-            if G.node[parent]['darg'] == "pkey":
-                G.node[parent]['sec'] = set(("i"))
-            elif G.node[parent]['darg'] == "msg":
-                G.node[parent]['sec'] = G.node[auth]['sec'] | set(("i"))
-
-    elif kind == "hmac":
-        (parent, auth) = G.out_edges(nbunch=start)[0]
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "key":
-                G.node[parent]['sec'] = set(("c", "i"))
-            elif G.node[parent]['darg'] == "msg":
-                G.node[parent]['sec'] = G.node[auth]['sec'] | set(("i"))
-
-    elif kind == "encrypt":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "key":
-                G.node[parent]['sec'] = set(("c", "i"))
-            elif G.node[parent]['darg'] == "iv":
-                G.node[parent]['sec'] = G.node[child]['sec'] | set(("i"))
-
-    elif kind == "verify_hmac" or kind == "verify_sig":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "key" or G.node[parent]['darg'] == "pkey":
-                G.node[parent]['sec'] = set(("c", "i"))
-            elif G.node[parent]['darg'] == "auth":
-                G.node[parent]['sec'] = set(())
-            elif G.node[parent]['darg'] == "msg":
-                G.node[parent]['sec'] = G.node[child]['sec'] - set(("i"))
-
-    elif kind == "decrypt":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "iv":
-                G.node[parent]['sec'] = set(("i"))
-            if G.node[parent]['darg'] == "key":
-                G.node[parent]['sec'] = set(("c", "i"))
-            elif G.node[parent]['darg'] == "ciphertext":
-                G.node[parent]['sec'] = G.node[child]['sec'] - set(("c"))
+            data['sec'] = sec
 
     elif kind == "guard":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "cond":
-                G.node[parent]['sec'] = set(("i"))
-            elif G.node[parent]['darg'] == "data":
-                G.node[parent]['sec'] = G.node[child]['sec']
+        out = get_outputs (G, start, ['data'])
+        set_inputs (G, start, {'data': out['data'], 'cond': sec_i})
 
-    elif kind == "verify_hash":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "hash":
-                G.node[parent]['sec'] = set(())
-            elif G.node[parent]['darg'] == "msg":
-                G.node[parent]['sec'] = G.node[child]['sec']
+    elif kind == "sign":
+        out = get_outputs (G, start, ['auth'])
+        set_inputs (G, start, {'skey': sec_ci, 'pkey': sec_i, 'msg': out['auth'] | sec_i})
 
-    elif kind == "dhsec":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "pub":
-                G.node[parent]['sec'] = set(())
-            if G.node[parent]['darg'] == "sec":
-                G.node[parent]['sec'] = set(("c", "i"))
+    elif kind == "hmac":
+        out = get_outputs (G, start, ['auth'])
+        set_inputs (G, start, {'key': sec_ci, 'msg': out['auth'] | sec_i})
 
-    elif kind == "dhpub":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "gen":
-                G.node[parent]['sec'] = set(("i"))
-            if G.node[parent]['darg'] == "sec":
-                G.node[parent]['sec'] = set(("c", "i"))
+    elif kind == "verify_hmac" or kind == "verify_sig":
+        out = get_outputs (G, start, ['msg'])
+        set_inputs (G, start, {'key': sec_ci, 'auth': sec_e, 'msg': out['msg'] - sec_i})
 
-    elif kind == "rand":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "len":
-                G.node[parent]['sec'] = set(("i"))
+    elif kind == "encrypt":
+        out = get_outputs (G, start, ['ciphertext'])
+        set_inputs (G, start, {'key': sec_ci, 'iv': sec_i, 'plaintext': out['ciphertext'] | sec_c})
+
+    elif kind == "decrypt":
+        out = get_outputs (G, start, ['plaintext'])
+        key = sec_ci if sec_c <= out['plaintext'] else sec_e
+        set_inputs (G, start, {'key': key, 'iv': sec_i, 'ciphertext': out['plaintext'] - sec_c})
 
     elif kind == "hash":
-        for (parent, child) in G.in_edges(nbunch=start):
-            if G.node[parent]['darg'] == "msg":
-                G.node[parent]['sec'] = G.node[child]['sec'] | set(("c"))
+        out = get_outputs (G, start, ['hash'])
+        set_inputs (G, start, {'msg': out['hash'] | sec_c})
 
-    elif kind == "const":
-        pass
+    elif kind == "verify_hash":
+        out = get_outputs (G, start, ['msg'])
+        set_inputs (G, start, {'hash': sec_e, 'msg': out['msg']})
 
-    elif kind == "receive":
+    elif kind == "dhsec":
+        out = get_outputs (G, start, ['ssec'])
+        set_inputs (G, start, {'pub': sec_e, 'psec': sec_ci})
+
+    elif kind == "dhpub":
+        out = get_outputs (G, start, ['pub'])
+        set_inputs (G, start, {'gen': sec_i, 'psec': sec_ci})
+
+    elif kind == "rand":
+        out = get_outputs (G, start, ['data'])
+        set_inputs (G, start, {'len': sec_i})
+
+    elif kind == "const" or kind == "receive":
         pass
 
     else:
-        print "Unknown kind: " + str(kind)
+        raise Exeception, "Unknown kind: " + str(kind)
 
     for (parent, current, data) in G.in_edges(nbunch=start, data=True):
         analyze(G, parent);
@@ -161,18 +151,6 @@ def convert_setset (attrib):
         result |= set(("f"))
     return result
 
-def out_sec_union (G, start):
-    sec = set(())
-    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
-        sec |= G.node[child]['sec']
-    return sec;
-
-def out_sec_intersection (G, start):
-    sec = set(("c", "i", "f"))
-    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
-        sec &= G.node[child]['sec']
-    return sec;
-
 try:
     root = ET.parse(sys.argv[1]).getroot()
 except IOError as e:
@@ -184,61 +162,12 @@ G = nx.MultiDiGraph();
 # read in graph
 for child in root:
 
-    sec = set(())
+    sec = None
 
-    if child.tag == "send":
+    if child.tag == "send" or child.tag == "receiver":
         sec = convert_setset(child.attrib)
 
-    # if child.tag == "receive" or child.tag == "send":
-    #     sec['msg'] = convert_setset(child.attrib)
-    # elif child.tag == "const":
-    #     sec['const'] = None
-    # elif child.tag == "xform":
-    #     for arg in child.findall('arg'):
-    #         sec[arg.attrib['name']] = None
-    # elif child.tag == "rand":
-    #     sec['len'] = set(("i"))
-    # elif child.tag == "hash":
-    #     sec['msg'] = None
-    # elif child.tag == "verify_hash":
-    #     sec['hash'] = set(())
-    #     sec['msg']  = None
-    # elif child.tag == "hmac":
-    #     sec['key'] = set(("c", "i"))
-    #     sec['msg']  = None
-    # elif child.tag == "verify_hmac":
-    #     sec['key']  = set(("c", "i"))
-    #     sec['auth'] = set(())
-    #     sec['msg']  = None
-    # elif child.tag == "sign":
-    #     sec['skey'] = set(("c", "i"))
-    #     sec['pkey'] = set(("i"))
-    #     sec['msg']  = None
-    # elif child.tag == "verify_sig":
-    #     sec['pkey'] = set(("i"))
-    #     sec['auth'] = set(())
-    #     sec['msg']  = None
-    # elif child.tag == "dhpub":
-    #     sec['gen'] = set(("i"))
-    #     sec['sec'] = set(("c", "i"))
-    # elif child.tag == "dhsec":
-    #     sec['pub'] = set(())
-    #     sec['sec'] = set(("c", "i"))
-    # elif child.tag == "encrypt":
-    #     sec['iv']  = set(("f", "i"))
-    #     sec['key'] = set(("c", "i"))
-    #     sec['plaintext'] = None
-    # elif child.tag == "decrypt":
-    #     sec['iv']  = set(("i"))
-    #     sec['key'] = set(("c", "i"))
-    #     sec['ciphertext'] = None
-    # elif child.tag == "guard":
-    #     sec['data'] = None
-    #     sec['cond'] = set(("i"))
-    # else:
-    #     raise Exception, "Unknown tag: " + child.tag
-
-    label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
+    label = child.tag + "<sub>" + child.attrib['id'] + "</sub>"
 
     G.add_node \
         (child.attrib["id"], \
@@ -250,15 +179,9 @@ for child in root:
          height = "0.6")
 
     for element in child.findall('flow'):
-        if "sarg" in element.attrib:
-            source = element.attrib["sarg"]
-        else:
-            source = None
-        darg  = element.attrib["darg"]
-        argid = element.attrib["sink"] + "/" + darg
-        G.add_node (argid, kind="arg", darg=darg, sarg=source, label = darg, shape = "circle")
-        G.add_edge (child.attrib["id"], argid)
-        G.add_edge (argid, element.attrib["sink"])
+        source = element.attrib['sarg'] if 'sarg' in element.attrib else None;
+        darg   = element.attrib['darg']
+        G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = set(()))
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);
 
@@ -268,8 +191,11 @@ for i in G.nodes():
         analyze(G, i)
 
 for i in G.nodes():
-    if G.node[i]['kind'] == "arg":
-        if "sec" in G.node[i]:
-            G.node[i]['label'] += "\n" + fmtsec(G.node[i]['sec'])
+    if "sec" in G.node[i] and G.node[i]['sec'] != None:
+        G.node[i]['label'] += ": " + fmtsec(G.node[i]['sec'])
+    G.node[i]['label'] = "<" + G.node[i]['label'] + ">"
+
+for (parent, child, data) in G.edges(data=True):
+    data['label'] = fmtsec(data['sec'])
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);

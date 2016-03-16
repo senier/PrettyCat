@@ -170,9 +170,11 @@ $$\signvrfy(pkey^{\{i\}}, auth^{\emptysec}, msg^\sigma) \mapsto msg^{\sigma\cup\
 
 \subsection{Diffie-Hellman Key Exchange}
 
-$$\dhpub(gen^{\{i\}}, sec^{\{c,i\}}) \mapsto pub^\emptysec$$
+$$\dhpub(gen^{\{i\}}, psec^{\{c,i\}}) \mapsto pub^\emptysec$$
 
-$$\dhsec(pub^\emptysec, sec^{\{c,i\}}) \mapsto sec^{\{c,i\}} $$
+$$\dhsec(pub^\emptysec, psec^{\{c,i\}}) \mapsto ssec^{\{c,i\}} $$
+
+\TODO{Should we make the security set of ssec make depend on psec?}
 
 \subsection{Symmetric Encryption}
 

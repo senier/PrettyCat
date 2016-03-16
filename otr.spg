@@ -62,8 +62,8 @@
     </const>
 
     <rand id="y">
-        <flow sarg="data" sink="gy" darg="sec"/>
-        <flow sarg="data" sink="s" darg="sec"/>
+        <flow sarg="data" sink="gy" darg="psec"/>
+        <flow sarg="data" sink="s" darg="psec"/>
     </rand>
 
     <const id="320">
@@ -91,7 +91,7 @@
     </decrypt>
 
     <xform id="X_remote">
-        <flow sarg="pub_remote"   sink="sig_remote"  darg="pkey"/>
+        <flow sarg="pub_remote"   sink="sig_remote"  darg="key"/>
         <flow sarg="pub_remote"   sink="M_remote_in" darg="pub_remote"/>
         <flow sarg="keyid_remote" sink="M_remote_in" darg="keyid_remote"/>
         <flow sarg="sig_remote"   sink="sig_remote"  darg="auth"/>
@@ -108,11 +108,11 @@
     </xform>
 
     <hmac id="HMAC_M_remote">
-        <flow sarg="M_remote" sink="sig_remote" darg="msg"/>
+        <flow sarg="auth" sink="sig_remote" darg="msg"/>
     </hmac>
 
     <verify_sig id="sig_remote">
-        <flow sarg="msg" sink="guard_sig_remote" darg="data"/>
+        <flow sarg="msg" sink="guard_sig_remote" darg="cond"/>
     </verify_sig>
 
     <guard id="guard_sig_remote">
@@ -162,9 +162,9 @@
     </decrypt>
 
     <verify_hash id="verify_gxmpi">
-        <flow sarg="msg"       sink="unmpi"       darg="mpi"/>
-        <flow sarg="plaintext" sink="min"         darg="gxmpi"/>
-        <flow sarg="plaintext" sink="M_remote_in" darg="gxmpi"/>
+        <flow sarg="msg" sink="unmpi"       darg="mpi"/>
+        <flow sarg="msg" sink="min"         darg="gxmpi"/>
+        <flow sarg="msg" sink="M_remote_in" darg="gxmpi"/>
     </verify_hash>
 
     <xform id="unmpi">
@@ -173,7 +173,7 @@
     </xform>
 
     <dhsec id="s">
-        <flow sarg="sec" sink="sigm_keys" darg="s"/>
+        <flow sarg="ssec" sink="sigm_keys" darg="s"/>
     </dhsec>
 
     <xform id="X_local">
@@ -199,7 +199,7 @@
     </const>
 
     <hmac id="M_local">
-        <flow sarg="M_local" sink="sig_local" darg="msg"/>
+        <flow sarg="auth" sink="sig_local" darg="msg"/>
     </hmac>
 
     <xform id="min">
@@ -211,7 +211,7 @@
     </xform>
 
     <sign id="sig_local">
-        <flow sarg="sig_local" sink="X_local" darg="sig_local"/>
+        <flow sarg="auth" sink="X_local" darg="sig_local"/>
     </sign>
 
 </spg>

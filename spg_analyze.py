@@ -181,7 +181,7 @@ for child in root:
     for element in child.findall('flow'):
         source = element.attrib['sarg'] if 'sarg' in element.attrib else None;
         darg   = element.attrib['darg']
-        G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = set(()))
+        G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = set(()), labelangle = "180", labelfontsize = "8")
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);
 
@@ -196,6 +196,8 @@ for i in G.nodes():
     G.node[i]['label'] = "<" + G.node[i]['label'] + ">"
 
 for (parent, child, data) in G.edges(data=True):
-    data['label'] = fmtsec(data['sec'])
+    data['label']     = fmtsec(data['sec'])
+    data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
+    data['headlabel'] = data['darg']
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);

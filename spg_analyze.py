@@ -68,6 +68,8 @@ def get_inputs(G, node, arglist):
         darg = data['darg']
         if not darg in arglist:
             raise Exception, "Node '" + node + "' has invalid input parameter '" + darg + "'"
+        if darg in result:
+            raise Exception, "Duplicate input for node '" + node + "', argument '" + darg + "'"
         result[darg] = data['sec']
     
     # is something missing
@@ -256,8 +258,12 @@ def forward_adjust (G, node):
         set_outputs (G, node, { 'data': inputs['data']}) 
 
     elif kind == "send":
-        inputs = get_inputs (G, node, ['msg'])
-        # TODO: Check limits
+        sec = G.node[node]['sec']
+        for (parent, current, data) in G.in_edges (nbunch=node, data=True):
+            if data['sec'] > sec:
+                print "ERROR: Node '" + node + "' has input '" + data['sarg'] + \
+                    "' which exceeds security guarantees (" + fmtsec(data['sec']) + " > " + fmtsec(sec) + ")"
+                G.node[node]['color'] = "red"
 
     elif kind == "dhpub" or kind == "dhsec":
         pass

@@ -7,7 +7,10 @@
     </receive>
 
     <!-- Output -->
-    <send id="output" confidentiality="False" integrity="False" freshness="False"/>
+    <send id="output" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg_sigm"/>
+        <arg name="msg_dhkm"/>
+    </send>
 
     <!-- Receive a DH-Commit message -->
     <xform id="dhcm">
@@ -18,7 +21,7 @@
 
     <!-- Sending a DH-Key message -->
     <xform id="dhkm">
-        <flow sarg="dhkm" sink="output" darg="msg"/>
+        <flow sarg="dhkm" sink="output" darg="msg_dhkm"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -121,7 +124,7 @@
 
     <!-- Sending a signature message -->
     <xform id="sigm">
-        <flow sarg="sigm" sink="output" darg="msg"/>
+        <flow sarg="sigm" sink="output" darg="msg_sigm"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>

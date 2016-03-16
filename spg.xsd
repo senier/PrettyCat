@@ -24,6 +24,9 @@
 <xs:complexType name="sendElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:element name="arg" type="argElement"/>
+            </xs:sequence>
             <xs:attribute name="confidentiality" use="required"/>
             <xs:attribute name="integrity" use="required"/>
             <xs:attribute name="freshness" use="required"/>

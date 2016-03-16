@@ -91,7 +91,7 @@
     </decrypt>
 
     <xform id="X_remote">
-        <flow sarg="pub_remote"   sink="sig_remote"  darg="key"/>
+        <flow sarg="pub_remote"   sink="sig_remote"  darg="pkey"/>
         <flow sarg="pub_remote"   sink="M_remote_in" darg="pub_remote"/>
         <flow sarg="keyid_remote" sink="M_remote_in" darg="keyid_remote"/>
         <flow sarg="sig_remote"   sink="sig_remote"  darg="auth"/>

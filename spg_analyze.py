@@ -16,23 +16,14 @@ def sec_c():
 def sec_i():
     return set(("i"))
 
-def sec_a():
-    return set(("a"))
-
 def sec_ci():
     return set(("c", "i"))
-
-def sec_ca():
-    return set(("c", "a"))
-
-def sec_cia():
-    return set(("c", "i", "a"))
 
 def sec_cif():
     return set(("c", "i", "f"))
 
 def sec_max():
-    return set(("f", "c", "i", "a"))
+    return set(("f", "c", "i"))
 
 def fmtsec(sec):
     if not sec:
@@ -169,7 +160,7 @@ def analyze(G, start):
 
     elif kind == "verify_sig":
         out = get_outputs (G, start, ['msg'])
-        set_inputs (G, start, {'pkey': sec_i(), 'auth': sec_empty(), 'msg': out['msg'] - sec_a()})
+        set_inputs (G, start, {'pkey': sec_i(), 'auth': sec_empty(), 'msg': out['msg']})
 
     elif kind == "hmac":
         out = get_outputs (G, start, ['auth'])
@@ -263,7 +254,7 @@ def forward_adjust (G, node):
 
     elif kind == "verify_sig":
         inputs = get_inputs (G, node, ['pkey', 'auth', 'msg'])
-        set_outputs (G, node, { 'msg': inputs['msg'] | sec_a()})
+        set_outputs (G, node, { 'msg': inputs['msg']})
 
     elif kind == "hmac":
         inputs = get_inputs (G, node, ['key', 'msg'])
@@ -321,16 +312,10 @@ def sec_color (sec):
         return "blue"
     if sec == sec_c():
         return "red"
-    if sec == sec_a():
-        return "cyan"
     if sec == sec_ci():
         return "purple"
     if sec == sec_cif():
-        return "green"
-    if sec == sec_cia():
-        return "orange"
-    if sec == sec_ca():
-        return "yellow"
+        return "cyan"
     else:
         print "Missing: " + fmtsec(sec)
         return "white"

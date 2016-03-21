@@ -4,6 +4,36 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
 
+def sec_empty():
+    return set(())
+
+def sec_f():
+    return set(("f"))
+
+def sec_c():
+    return set(("c"))
+
+def sec_i():
+    return set(("i"))
+
+def sec_a():
+    return set(("a"))
+
+def sec_ci():
+    return set(("c", "i"))
+
+def sec_ca():
+    return set(("c", "a"))
+
+def sec_cia():
+    return set(("c", "i", "a"))
+
+def sec_cif():
+    return set(("c", "i", "f"))
+
+def sec_max():
+    return set(("f", "c", "i", "a"))
+
 def fmtsec(sec):
     if not sec:
         return "&empty;"
@@ -30,7 +60,7 @@ def get_outputs(G, node, arglist):
         if not sarg in arglist:
             raise Exception, "Node '" + node + "' has invalid output parameter '" + sarg + "'"
         result[sarg] = data['sec']
-    
+
     # is something missing
     for arg in arglist:
         if not arg in result.keys():
@@ -71,7 +101,7 @@ def get_inputs(G, node, arglist):
         if darg in result:
             raise Exception, "Duplicate input for node '" + node + "', argument '" + darg + "'"
         result[darg] = data['sec']
-    
+
     # is something missing
     for arg in arglist:
         if not arg in result.keys():
@@ -121,7 +151,7 @@ def analyze(G, start):
             G.node[parent]['sec'] = node['sec']
 
     elif kind == "xform":
-        sec = set(("c", "i", "f"))
+        sec = sec_cif()
         for (parent, child, data) in G.out_edges(nbunch=start, data=True):
             sec &= data['sec']
         for (parent, child, data) in G.in_edges(nbunch=start, data=True):
@@ -129,27 +159,27 @@ def analyze(G, start):
 
     elif kind == "guard":
         out = get_outputs (G, start, ['data'])
-        set_inputs (G, start, {'data': out['data'], 'cond': set(("i"))})
+        set_inputs (G, start, {'data': out['data'], 'cond': sec_empty()})
 
     elif kind == "sign":
         out = get_outputs (G, start, ['auth'])
-        set_inputs (G, start, {'skey': set(("c", "i")), 'pkey': set(("i")), 'msg': out['auth'] | set(("i"))})
+        set_inputs (G, start, {'skey': sec_cif(), 'pkey': sec_i(), 'msg': out['auth'] | sec_a()})
 
     elif kind == "verify_sig":
         out = get_outputs (G, start, ['msg'])
-        set_inputs (G, start, {'pkey': set(("c", "i")), 'auth': set(()), 'msg': out['msg'] - set(("i"))})
+        set_inputs (G, start, {'pkey': sec_i(), 'auth': sec_empty(), 'msg': out['msg'] - sec_a()})
 
     elif kind == "hmac":
         out = get_outputs (G, start, ['auth'])
-        set_inputs (G, start, {'key': set(("c", "i")), 'msg': out['auth'] | set(("i"))})
+        set_inputs (G, start, {'key': sec_ci(), 'msg': out['auth'] | sec_i()})
 
     elif kind == "verify_hmac":
         out = get_outputs (G, start, ['msg'])
-        set_inputs (G, start, {'key': set(("c", "i")), 'auth': set(()), 'msg': out['msg'] - set(("i"))})
+        set_inputs (G, start, {'key': sec_ci(), 'auth': sec_empty(), 'msg': out['msg'] - sec_i()})
 
     elif kind == "encrypt":
         out = get_outputs (G, start, ['ciphertext'])
-        set_inputs (G, start, {'key': set(("c", "i")), 'iv': set(("i")), 'plaintext': out['ciphertext'] | set(("c"))})
+        set_inputs (G, start, {'key': sec_ci(), 'iv': sec_i(), 'plaintext': out['ciphertext'] | sec_c()})
 
     elif kind == "decrypt":
         out = get_outputs (G, start, ['plaintext'])
@@ -158,23 +188,23 @@ def analyze(G, start):
 
     elif kind == "hash":
         out = get_outputs (G, start, ['hash'])
-        set_inputs (G, start, {'msg': out['hash'] | set(("c"))})
+        set_inputs (G, start, {'msg': out['hash'] | sec_c()})
 
     elif kind == "verify_hash":
         out = get_outputs (G, start, ['msg'])
-        set_inputs (G, start, {'hash': set(()), 'msg': out['msg']})
+        set_inputs (G, start, {'hash': sec_empty(), 'msg': out['msg']})
 
     elif kind == "dhsec":
         out = get_outputs (G, start, ['ssec'])
-        set_inputs (G, start, {'pub': set(()), 'psec': set(("c", "i"))})
+        set_inputs (G, start, {'pub': sec_empty(), 'psec': sec_empty()})
 
     elif kind == "dhpub":
         out = get_outputs (G, start, ['pub'])
-        set_inputs (G, start, {'gen': set(("i")), 'psec': set(("c", "i"))})
+        set_inputs (G, start, {'gen': sec_i(), 'psec': sec_cif()})
 
     elif kind == "rand":
         out = get_outputs (G, start, ['data'])
-        set_inputs (G, start, {'len': set(("i"))})
+        set_inputs (G, start, {'len': sec_i()})
 
     elif kind == "const" or kind == "receive":
         pass
@@ -186,19 +216,19 @@ def analyze(G, start):
         analyze(G, parent);
 
 def convert_setset (attrib):
-    result = set()
+    result = sec_empty()
     if "confidentiality" in attrib and attrib["confidentiality"] == "True":
-        result |= set(("c"))
+        result |= sec_c()
     if "integrity" in attrib and attrib["integrity"] == "True":
-        result |= set(("i"))
+        result |= sec_i()
     if "freshness" in attrib and attrib["freshness"] == "True":
-        result |= set(("f"))
+        result |= sec_f()
     return result
 
 def forward_adjust (G, node):
 
     n = G.node[node]
-    kind = n['kind'] 
+    kind = n['kind']
 
     if kind == "receive":
         for (parent, current, data) in G.out_edges (nbunch=node, data=True):
@@ -209,7 +239,7 @@ def forward_adjust (G, node):
             data['sec'] = n['sec']
 
     elif kind == "xform":
-        sec = set(())
+        sec = sec_empty()
         for (parent, current, data) in G.in_edges (nbunch=node, data=True):
             sec |= data['sec']
         for (parent, current, data) in G.out_edges (nbunch=node, data=True):
@@ -226,36 +256,36 @@ def forward_adjust (G, node):
 
     elif kind == "encrypt":
         inputs = get_inputs (G, node, ['iv', 'key', 'plaintext'])
-        delta = set(("c")) if set(("c", "i")) <= inputs['key'] else set(())
-        set_outputs (G, node, { 'ciphertext': inputs['plaintext'] - delta }) 
+        delta = sec_c() if sec_ci() <= inputs['key'] else sec_empty()
+        set_outputs (G, node, { 'ciphertext': inputs['plaintext'] - delta })
 
     elif kind == "sign":
         inputs = get_inputs (G, node, ['pkey', 'skey', 'msg'])
-        set_outputs (G, node, { 'auth': inputs['msg'] - set(("i"))}) 
+        set_outputs (G, node, { 'auth': inputs['msg'] - sec_a()})
 
     elif kind == "verify_sig":
         inputs = get_inputs (G, node, ['pkey', 'auth', 'msg'])
-        set_outputs (G, node, { 'msg': inputs['msg'] | set(("i"))}) 
+        set_outputs (G, node, { 'msg': inputs['msg'] | sec_a()})
 
     elif kind == "hmac":
         inputs = get_inputs (G, node, ['key', 'msg'])
-        set_outputs (G, node, { 'auth': inputs['msg'] - set(("i"))}) 
+        set_outputs (G, node, { 'auth': inputs['msg'] - sec_i()})
 
     elif kind == "verify_hmac":
         inputs = get_inputs (G, node, ['key', 'auth', 'msg'])
-        set_outputs (G, node, { 'msg': inputs['msg'] | set(("i"))}) 
+        set_outputs (G, node, { 'msg': inputs['msg'] | sec_i()})
 
     elif kind == "hash":
         inputs = get_inputs (G, node, ['msg'])
-        set_outputs (G, node, { 'msg': inputs['msg'] - set(("c"))}) 
+        set_outputs (G, node, { 'msg': inputs['msg'] - sec_c()})
 
     elif kind == "verify_hash":
         inputs = get_inputs (G, node, ['hash', 'msg'])
-        set_outputs (G, node, { 'msg': inputs['msg']}) 
+        set_outputs (G, node, { 'msg': inputs['msg']})
 
     elif kind == "guard":
         inputs = get_inputs (G, node, ['data', 'cond'])
-        set_outputs (G, node, { 'data': inputs['data']}) 
+        set_outputs (G, node, { 'data': inputs['data'] | inputs['cond']})
 
     elif kind == "send":
         sec = G.node[node]['sec']

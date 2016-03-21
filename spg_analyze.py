@@ -45,6 +45,10 @@ def fmtsec(sec):
             if result:
                 result += ","
             result += "i"
+        if "a" in sec:
+            if result:
+                result += ","
+            result += "a"
         if "f" in sec:
             if result:
                 result += ","
@@ -77,10 +81,8 @@ def set_outputs (G, node, argmap):
         sarg = data['sarg']
         if not sarg in argmap:
             raise Exception, "Node '" + current + "' passes invalid output parameter '" + sarg + "' to '" + child + "'"
-        if argmap[sarg] > data['sec']:
-            print "ERROR: Node '" + current + "' has input '" + data['sarg'] + \
-                "' which exceeds security guarantees (" + fmtsec(argmap[sarg]) + " > " + fmtsec(data['sec']) + ")"
-            data['color'] = "red"
+        if argmap[sarg] != data['sec']:
+            data['oldsec'] = data['sec']
         data['sec'] = argmap[sarg]
         seen[sarg] = True
 
@@ -90,7 +92,7 @@ def set_outputs (G, node, argmap):
     if argmap:
         raise Exception, "Node '" + node + "' has no arguments " + list(argmap.keys())
 
-def get_inputs(G, node, arglist):
+def get_inputs (G, node, arglist):
     result = {}
 
     # retrieve security sets from in edges
@@ -163,7 +165,7 @@ def analyze(G, start):
 
     elif kind == "sign":
         out = get_outputs (G, start, ['auth'])
-        set_inputs (G, start, {'skey': sec_cif(), 'pkey': sec_i(), 'msg': out['auth'] | sec_a()})
+        set_inputs (G, start, {'skey': sec_ci(), 'pkey': sec_i(), 'msg': sec_ci()})
 
     elif kind == "verify_sig":
         out = get_outputs (G, start, ['msg'])
@@ -182,9 +184,8 @@ def analyze(G, start):
         set_inputs (G, start, {'key': sec_ci(), 'iv': sec_i(), 'plaintext': out['ciphertext'] | sec_c()})
 
     elif kind == "decrypt":
-        out = get_outputs (G, start, ['plaintext'])
-        key = set(("c", "i")) if set(("c")) <= out['plaintext'] else set(())
-        set_inputs (G, start, {'key': key, 'iv': set(("i")), 'ciphertext': out['plaintext'] - set(("c"))})
+        out    = get_outputs (G, start, ['plaintext'])
+        set_inputs (G, start, {'key': sec_ci(), 'iv': sec_i(), 'ciphertext': out['plaintext'] - sec_c()})
 
     elif kind == "hash":
         out = get_outputs (G, start, ['hash'])
@@ -233,7 +234,7 @@ def forward_adjust (G, node):
     if kind == "receive":
         for (parent, current, data) in G.out_edges (nbunch=node, data=True):
             if n['sec'] > data['sec']:
-                print "ERROR: Node '" + node + "' has input '" + data['sarg'] + \
+                print "ERROR: Node '" + node + "' has output '" + data['sarg'] + \
                     "' which exceeds security guarantees (" + fmtsec(n['sec']) + " > " + fmtsec(data['sec']) + ")"
                 data['color'] = "red"
             data['sec'] = n['sec']
@@ -243,25 +244,22 @@ def forward_adjust (G, node):
         for (parent, current, data) in G.in_edges (nbunch=node, data=True):
             sec |= data['sec']
         for (parent, current, data) in G.out_edges (nbunch=node, data=True):
-            if sec > data['sec']:
-                print "ERROR: Node '" + node + "' has input '" + data['sarg'] + \
-                    "' which exceeds security guarantees (" + fmtsec(sec) + " > " + fmtsec(data['sec']) + ")"
-                data['color'] = "red"
             data['sec'] = sec
 
     elif kind == "decrypt":
         inputs = get_inputs (G, node, ['iv', 'key', 'ciphertext'])
-        delta = set(("c")) if set(("c", "i")) <= inputs['key'] else set(())
-        set_outputs (G, node, { 'plaintext': inputs['ciphertext'] | delta }) 
+        delta  = sec_c() if sec_ci() <= inputs['key'] else sec_empty()
+#        print ("decrypt (fw) " + node + " plaintext=" + str(out['plaintext'] | delta) + " delta=" + str(delta) + " ciphertext=" + str(inputs['ciphertext']))
+        set_outputs (G, node, { 'plaintext': inputs['ciphertext'] | delta})
 
     elif kind == "encrypt":
         inputs = get_inputs (G, node, ['iv', 'key', 'plaintext'])
-        delta = sec_c() if sec_ci() <= inputs['key'] else sec_empty()
-        set_outputs (G, node, { 'ciphertext': inputs['plaintext'] - delta })
+        #delta = sec_c() if sec_ci() <= inputs['key'] else sec_empty()
+        set_outputs (G, node, { 'ciphertext': inputs['plaintext'] - sec_c()})
 
     elif kind == "sign":
         inputs = get_inputs (G, node, ['pkey', 'skey', 'msg'])
-        set_outputs (G, node, { 'auth': inputs['msg'] - sec_a()})
+        set_outputs (G, node, { 'auth': sec_empty()})
 
     elif kind == "verify_sig":
         inputs = get_inputs (G, node, ['pkey', 'auth', 'msg'])
@@ -269,7 +267,7 @@ def forward_adjust (G, node):
 
     elif kind == "hmac":
         inputs = get_inputs (G, node, ['key', 'msg'])
-        set_outputs (G, node, { 'auth': inputs['msg'] - sec_i()})
+        set_outputs (G, node, { 'auth': sec_empty()})
 
     elif kind == "verify_hmac":
         inputs = get_inputs (G, node, ['key', 'auth', 'msg'])
@@ -285,7 +283,7 @@ def forward_adjust (G, node):
 
     elif kind == "guard":
         inputs = get_inputs (G, node, ['data', 'cond'])
-        set_outputs (G, node, { 'data': inputs['data'] | inputs['cond']})
+        set_outputs (G, node, { 'data': inputs['data']})
 
     elif kind == "send":
         sec = G.node[node]['sec']
@@ -295,16 +293,66 @@ def forward_adjust (G, node):
                     "' which exceeds security guarantees (" + fmtsec(data['sec']) + " > " + fmtsec(sec) + ")"
                 G.node[node]['color'] = "red"
 
-    elif kind == "dhpub" or kind == "dhsec":
+    elif kind == "dhpub" or kind == "dhsec" or kind == "const" or kind == "rand":
         pass
 
     else:
         raise Exception, "Unhandled node kind: " + kind
 
-def analyze_forward (G, start, edgelist):
+def analyze_forward (G, start, nodelist):
     forward_adjust (G, start)
-    for (parent, child) in edgelist:
-        forward_adjust (G, child)
+    for node in nodelist:
+        forward_adjust (G, node)
+
+def analyze_backwards (G, start):
+
+    n = G.node[node]
+    kind = n['kind']
+
+    if kind == "decrypt":
+        inputs = get_inputs (G, node, ['iv', 'key', 'ciphertext'])
+        ivsec = sec_ci() if sec_ci() <= inputs['key'] else sec_empty()
+        set_inputs (G, node, {'iv': ivsec, 'key': inputs['key'], 'ciphertext': inputs['ciphertext']})
+
+def sec_color (sec):
+    if sec == sec_empty():
+        return "black"
+    if sec == sec_i():
+        return "blue"
+    if sec == sec_c():
+        return "red"
+    if sec == sec_a():
+        return "cyan"
+    if sec == sec_ci():
+        return "purple"
+    if sec == sec_cif():
+        return "green"
+    if sec == sec_cia():
+        return "orange"
+    if sec == sec_ca():
+        return "yellow"
+    else:
+        print "Missing: " + fmtsec(sec)
+        return "white"
+
+def sec_colors (insec, outsec):
+    return sec_color (outsec) + ":" + sec_color (insec)
+
+def colorize (G, start, nodelist):
+    for node in nodelist:
+        n = G.node[node]
+        outsec = sec_empty()
+        for (parent, child, data) in G.out_edges(nbunch=node, data=True):
+            outsec |= data['sec']
+        insec = sec_empty()
+        for (parent, child, data) in G.in_edges(nbunch=node, data=True):
+            insec |= data['sec']
+        if n['kind'] == "const":
+            insec = outsec
+        n['fontcolor'] = "gray"
+        n['style'] = "filled"
+        n['gradientangle'] = "90"
+        n['fillcolor'] = "\"" + sec_colors(insec, outsec) + "\""
 
 try:
     root = ET.parse(sys.argv[1]).getroot()
@@ -336,23 +384,28 @@ for child in root:
     for element in child.findall('flow'):
         source = element.attrib['sarg'] if 'sarg' in element.attrib else None;
         darg   = element.attrib['darg']
-        G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = set(()), labelangle = "180", labelfontsize = "8")
+        G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = sec_empty(), labelangle = "180", labelfontsize = "8")
 
-nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);
-
-# Analyze all source nodes
+# Backwards-analyze all source nodes
 for node in G.nodes():
     if not G.out_edges(nbunch=node):
         analyze(G, node)
 
-# Backward analysis
-for node in G.nodes():
-    if not G.in_edges(nbunch=node) and G.node[node]['kind'] != 'const':
-        analyze_forward(G, node, nx.bfs_edges (G, node))
+# Forward analyse
+analyze_forward(G, node, nx.topological_sort (G))
 
+# Backwards analyze
+for node in G.nodes():
+    if G.node[node]['kind'] == "decrypt":
+        analyze_backwards(G, node)
+
+# add edge labels
 for (parent, child, data) in G.edges(data=True):
-    data['label']     = fmtsec(data['sec'])
+    data['label']     = fmtsec(data['sec']) + (" (was: " + fmtsec(data['oldsec'])  + ")" if 'oldsec' in data else "")
     data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
     data['headlabel'] = data['darg']
+
+# color nodes according to security level
+colorize(G, node, nx.topological_sort (G))
 
 nx.drawing.nx_pydot.write_dot(G, sys.argv[2]);

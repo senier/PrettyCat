@@ -72,8 +72,12 @@ def set_outputs (G, node, argmap):
         sarg = data['sarg']
         if not sarg in argmap:
             raise Exception, "Node '" + current + "' passes invalid output parameter '" + sarg + "' to '" + child + "'"
-        if argmap[sarg] != data['sec']:
-            data['oldsec'] = data['sec']
+        if not data['sec'] <= argmap[sarg]:
+            data['color'] = "red"
+            data['linewidth'] = "3"
+            print "ERROR: Node '" + node + "' has output '" + sarg + \
+                "' which exceeds security guarantees (!" + fmtsec(data['sec']) + " <= " + fmtsec(argmap[sarg]) + ")"
+        # FIXME: Can we really downgrade here?
         data['sec'] = argmap[sarg]
         seen[sarg] = True
 
@@ -118,7 +122,7 @@ def set_inputs (G, node, argmap):
         seen[darg] = True
 
     if argmap:
-        raise Exception, "Node '" + node + "' has no arguments " + list(argmap.keys())
+        raise Exception, "Node '" + node + "' has no flow for arguments " + str(list(argmap.keys()))
 
 def analyze(G, start):
 
@@ -326,18 +330,43 @@ def sec_colors (insec, outsec):
 def colorize (G, start, nodelist):
     for node in nodelist:
         n = G.node[node]
-        outsec = sec_empty()
-        for (parent, child, data) in G.out_edges(nbunch=node, data=True):
-            outsec |= data['sec']
-        insec = sec_empty()
-        for (parent, child, data) in G.in_edges(nbunch=node, data=True):
-            insec |= data['sec']
-        if n['kind'] == "const":
+        kind = n['kind']
+
+        if kind == "send":
+            outsec = n['sec']
+        else:
+            outsec = sec_empty()
+            for (parent, child, data) in G.out_edges(nbunch=node, data=True):
+                outsec |= data['sec']
+
+        if kind == "receive":
+            insec = n['sec']
+        elif kind == "const":
             insec = outsec
+        else:
+            insec = sec_empty()
+            for (parent, child, data) in G.in_edges(nbunch=node, data=True):
+                insec |= data['sec']
+
         n['fontcolor'] = "gray"
         n['style'] = "filled"
         n['gradientangle'] = "90"
         n['fillcolor'] = "\"" + sec_colors(insec, outsec) + "\""
+
+def validate_graph (G):
+    for node in G:
+        present_args = {}
+        used_args = {}
+        for pa in G.node[node]['args']:
+            present_args[pa] = True
+        for (parent, current, data) in G.in_edges(nbunch=node, data=True):
+            used_args[data['darg']] = parent
+        for pa in present_args:
+            if not pa in used_args:
+                print "ERROR: Node '" + node + "' has unused argument '" + pa + "'"
+        for ua in used_args:
+            if not ua in present_args:
+                print "ERROR: Parent '" + used_args[ua] + "' uses non-existent argument '" + ua + "' of node '" + node + "'"
 
 try:
     root = ET.parse(sys.argv[1]).getroot()
@@ -351,14 +380,42 @@ G = nx.MultiDiGraph();
 for child in root:
 
     sec = None
+    args = []
 
     if child.tag == "send" or child.tag == "receive":
         sec = convert_setset(child.attrib)
 
     label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
 
+    if child.tag == "guard":
+        args = ['data', 'cond']
+    elif child.tag == "sign":
+        args = ['skey', 'pkey', 'msg']
+    elif child.tag == "verify_sig":
+        args = ['pkey', 'auth', 'msg']
+    elif child.tag == "hmac" or child.tag == "verify_hmac":
+        args = ['key', 'auth', 'msg']
+    elif child.tag == "encrypt":
+        args = ['key', 'iv', 'plaintext']
+    elif child.tag == "decrypt":
+        args = ['key', 'iv', 'ciphertext']
+    elif child.tag == "hash":
+        args = ['msg']
+    elif child.tag == "verify_hash":
+        args = ['hash', 'msg']
+    elif child.tag == "dhsec":
+        args = ['pub', 'psec']
+    elif child.tag == "dhpub":
+        args = ['gen', 'psec']
+    elif child.tag == "rand":
+        args = ['len']
+    else:
+        for arg in child.findall('arg'):
+            args.append (arg.attrib['name'])
+
     G.add_node \
         (child.attrib["id"], \
+         args=args, \
          kind=child.tag, \
          sec=sec, \
          label = label, \
@@ -370,6 +427,8 @@ for child in root:
         source = element.attrib['sarg'] if 'sarg' in element.attrib else None;
         darg   = element.attrib['darg']
         G.add_edge (child.attrib['id'], element.attrib['sink'], darg = darg, sarg = source, sec = sec_empty(), labelangle = "180", labelfontsize = "8")
+
+validate_graph (G)
 
 # Backwards-analyze all source nodes
 for node in G.nodes():
@@ -386,7 +445,7 @@ for node in G.nodes():
 
 # add edge labels
 for (parent, child, data) in G.edges(data=True):
-    data['label']     = fmtsec(data['sec']) + (" (was: " + fmtsec(data['oldsec'])  + ")" if 'oldsec' in data else "")
+    data['label']     = fmtsec(data['sec'])
     data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
     data['headlabel'] = data['darg']
 

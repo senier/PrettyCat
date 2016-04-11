@@ -21,6 +21,10 @@
     <xs:attribute name="id"/>
 </xs:complexType>
 
+<xs:complexType name="unusedElement">
+    <xs:attribute name="sarg"/>
+</xs:complexType>
+
 <xs:complexType name="sendElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
@@ -37,9 +41,12 @@
 <xs:complexType name="forwardElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
-            <xs:sequence minOccurs="0" maxOccurs="unbounded">
-                    <xs:element name="flow" type="flowElement"/>
-            </xs:sequence>
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:choice>
+                        <xs:element name="flow" type="flowElement"/>
+                        <xs:element name="unused" type="unusedElement"/>
+                    </xs:choice>
+                </xs:sequence>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -76,6 +83,7 @@
             <xs:element name="dhsec"       type="forwardElement"/>
             <xs:element name="rand"        type="forwardElement"/>
             <xs:element name="hmac"        type="forwardElement"/>
+            <xs:element name="hmac_inline" type="forwardElement"/>
             <xs:element name="sign"        type="forwardElement"/>
             <xs:element name="verify_sig"  type="forwardElement"/>
             <xs:element name="verify_hmac" type="forwardElement"/>
@@ -83,6 +91,7 @@
             <xs:element name="decrypt"     type="forwardElement"/>
             <xs:element name="encrypt"     type="forwardElement"/>
             <xs:element name="guard"       type="forwardElement"/>
+            <xs:element name="release"     type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>

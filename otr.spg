@@ -1,15 +1,20 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Input -->
-    <receive id="input" confidentiality="False" integrity="False" freshness="False">
+    <receive id="netrecv" confidentiality="False" integrity="False" freshness="False">
         <flow sarg="msg" sink="dhcm" darg="msg"/>
         <flow sarg="msg" sink="rvsm" darg="msg"/>
     </receive>
 
+    <receive id="user" confidentiality="True" integrity="True" freshness="False">
+        <flow sarg="msg" sink="data_encrypt" darg="plaintext"/>
+    </receive>
+
     <!-- Output -->
-    <send id="output" confidentiality="False" integrity="False" freshness="False">
+    <send id="netsend" confidentiality="False" integrity="False" freshness="False">
         <arg name="msg_sigm"/>
         <arg name="msg_dhkm"/>
+        <arg name="msg_data"/>
     </send>
 
     <!-- Receive a DH-Commit message -->
@@ -21,7 +26,7 @@
 
     <!-- Sending a DH-Key message -->
     <xform id="dhkm">
-        <flow sarg="dhkm" sink="output" darg="msg_dhkm"/>
+        <flow sarg="dhkm" sink="netsend" darg="msg_dhkm"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -29,44 +34,75 @@
         <arg name="gympi"/>
     </xform>
 
-    <const id="pv">
+    <const id="pv_dhkm">
         <flow sink="dhkm" darg="proto_ver"/>
+    </const>
+
+    <const id="pv_sigm">
         <flow sink="sigm" darg="proto_ver"/>
     </const>
 
-    <const id="mt">
-        <flow sink="dhkm" darg="msg_type"/>
+    <const id="pv_data">
+        <flow sink="data_mac_input" darg="proto_ver"/>
+    </const>
+
+    <const id="mt_sigm">
         <flow sink="sigm" darg="msg_type"/>
     </const>
 
-    <const id="si">
+    <const id="mt_dhkm">
+        <flow sink="dhkm" darg="msg_type"/>
+    </const>
+
+    <const id="mt_data">
+        <flow sink="data_mac_input" darg="msg_type"/>
+    </const>
+
+    <const id="si_dhkm">
         <flow sink="dhkm" darg="send_inst"/>
+    </const>
+
+    <const id="si_sigm">
         <flow sink="sigm" darg="send_inst"/>
     </const>
 
-    <const id="ri">
+    <const id="si_data">
+        <flow sink="data_mac_input" darg="send_inst"/>
+    </const>
+
+    <const id="ri_dhkm">
         <flow sink="dhkm" darg="recv_inst"/>
+    </const>
+
+    <const id="ri_sigm">
         <flow sink="sigm" darg="recv_inst"/>
+    </const>
+
+    <const id="ri_data">
+        <flow sink="data_mac_input" darg="recv_inst"/>
     </const>
 
     <xform id="mpi">
         <flow sarg="gympi" sink="dhkm"        darg="gympi"/>
         <flow sarg="gympi" sink="min"         darg="gympi"/>
-        <flow sarg="gympi" sink="M_remote_in" darg="gympi"/>
+        <flow sarg="gympi" sink="M_rem_in" darg="gympi"/>
         <arg name="gy"/>
     </xform>
 
     <dhpub id="gy">
         <flow sarg="pub" sink="mpi" darg="gy"/>
+        <flow sarg="pub" sink="session_keys" darg="pub_local"/>
     </dhpub>
 
     <const id="g">
         <flow sink="gy" darg="gen"/>
+        <flow sink="dhy" darg="gen"/>
     </const>
 
     <rand id="y">
         <flow sarg="data" sink="gy" darg="psec"/>
         <flow sarg="data" sink="s" darg="psec"/>
+        <flow sarg="data" sink="session_keys" darg="sec_local"/>
     </rand>
 
     <const id="320">
@@ -82,49 +118,49 @@
     </xform>
 
     <verify_hmac id="assert_hmac">
-        <flow sarg="msg" sink="dec_x_remote" darg="ciphertext"/>
+        <flow sarg="msg" sink="dec_x_rem" darg="ciphertext"/>
     </verify_hmac>
     
-    <const id="iv_x_remote">
-        <flow sarg="const" sink="dec_x_remote" darg="iv"/>
+    <const id="iv_x_rem">
+        <flow sarg="const" sink="dec_x_rem" darg="iv"/>
     </const>
 
-    <decrypt id="dec_x_remote">
-        <flow sarg="plaintext" sink="X_remote" darg="X"/>
+    <decrypt id="dec_x_rem">
+        <flow sarg="plaintext" sink="X_rem" darg="X"/>
     </decrypt>
 
-    <xform id="X_remote">
-        <flow sarg="pub_remote"   sink="sig_remote"  darg="pkey"/>
-        <flow sarg="pub_remote"   sink="M_remote_in" darg="pub_remote"/>
-        <flow sarg="keyid_remote" sink="M_remote_in" darg="keyid_remote"/>
-        <flow sarg="sig_remote"   sink="sig_remote"  darg="auth"/>
+    <xform id="X_rem">
+        <flow sarg="pub_rem"   sink="sig_rem"  darg="pkey"/>
+        <flow sarg="pub_rem"   sink="M_rem_in" darg="pub_rem"/>
+        <flow sarg="keyid_rem" sink="M_rem_in" darg="keyid_rem"/>
+        <flow sarg="sig_rem"   sink="sig_rem"  darg="auth"/>
         <arg name="X"/>
     </xform>
 
     <!-- HMAC -->
-    <xform id="M_remote_in">
-        <flow sarg="M_remote_in" sink="HMAC_M_remote" darg="msg"/>
+    <xform id="M_rem_in">
+        <flow sarg="M_rem_in" sink="HMAC_M_rem" darg="msg"/>
         <arg name="gympi"/>
         <arg name="gxmpi"/>
-        <arg name="pub_remote"/>
-        <arg name="keyid_remote"/>
+        <arg name="pub_rem"/>
+        <arg name="keyid_rem"/>
     </xform>
 
-    <hmac id="HMAC_M_remote">
-        <flow sarg="auth" sink="sig_remote" darg="msg"/>
+    <hmac id="HMAC_M_rem">
+        <flow sarg="auth" sink="sig_rem" darg="msg"/>
     </hmac>
 
-    <verify_sig id="sig_remote">
-        <flow sarg="msg" sink="guard_sig_remote" darg="cond"/>
+    <verify_sig id="sig_rem">
+        <flow sarg="msg" sink="guard_sig_rem" darg="cond"/>
     </verify_sig>
 
-    <guard id="guard_sig_remote">
+    <guard id="guard_sig_rem">
         <flow sarg="data" sink="enc_x_local" darg="key"/>
     </guard>
 
     <!-- Sending a signature message -->
     <xform id="sigm">
-        <flow sarg="sigm" sink="output" darg="msg_sigm"/>
+        <flow sarg="sigm" sink="netsend" darg="msg_sigm"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -134,7 +170,6 @@
     </xform>
 
     <encrypt id="enc_x_local">
-        <flow sarg="ciphertext" sink="sigm" darg="enc_sig"/>
         <flow sarg="ciphertext" sink="macdsig" darg="msg"/>
     </encrypt>
 
@@ -143,18 +178,19 @@
     </const>
 
     <xform id="sigm_keys">
-        <flow sarg="c" sink="guard_sig_remote" darg="data"/>
-        <flow sarg="c" sink="dec_x_remote" darg="key"/>
-        <flow sarg="m1" sink="HMAC_M_remote" darg="key"/>
+        <flow sarg="c" sink="guard_sig_rem" darg="data"/>
+        <flow sarg="c" sink="dec_x_rem" darg="key"/>
+        <flow sarg="m1" sink="HMAC_M_rem" darg="key"/>
         <flow sarg="m1" sink="M_local" darg="key"/>
         <flow sarg="m2" sink="macdsig" darg="key"/>
         <flow sarg="m2" sink="assert_hmac" darg="key"/>
         <arg name="s"/>
     </xform>
 
-    <hmac id="macdsig">
+    <hmac_inline id="macdsig">
+        <flow sarg="msg"  sink="sigm" darg="enc_sig"/>
         <flow sarg="auth" sink="sigm" darg="macd_sig"/>
-    </hmac>
+    </hmac_inline>
 
     <const id="iv_gxmpi">
         <flow sarg="const" sink="decrypt_gxmpi" darg="iv"/>
@@ -167,11 +203,12 @@
     <verify_hash id="verify_gxmpi">
         <flow sarg="msg" sink="unmpi"       darg="mpi"/>
         <flow sarg="msg" sink="min"         darg="gxmpi"/>
-        <flow sarg="msg" sink="M_remote_in" darg="gxmpi"/>
+        <flow sarg="msg" sink="M_rem_in" darg="gxmpi"/>
     </verify_hash>
 
     <xform id="unmpi">
         <flow sarg="gx" sink="s" darg="pub"/>
+        <flow sarg="gx" sink="session_keys" darg="pub_rem"/>
         <arg name="mpi"/>
     </xform>
 
@@ -216,5 +253,83 @@
     <sign id="sig_local">
         <flow sarg="auth" sink="X_local" darg="sig_local"/>
     </sign>
+
+    <!-- message encryption -->
+
+    <const id="flags">
+        <flow sarg="const" sink="data_mac_input" darg="flags"/>
+    </const>
+
+    <const id="dylen">
+        <flow sink="dy" darg="len"/>
+    </const>
+
+    <rand id="dy">
+        <flow sarg="data" sink="dhy" darg="psec"/>
+    </rand>
+
+    <dhpub id="dhy">
+        <flow sarg="pub" sink="dhympi" darg="dhy"/>
+    </dhpub>
+    
+    <xform id="dhympi">
+        <flow sarg="dhympi" sink="data_mac_input" darg="dh_y"/>
+        <arg name="dhy"/>
+    </xform>
+
+    <xform id="session_keys">
+        <flow sarg="mac_key"  sink="data_mac" darg="key"/>
+        <flow sarg="send_key" sink="data_encrypt" darg="key"/>
+        <flow sarg="old_mac_keys" sink="reveal_old_mac_keys" darg="data"/>
+        <arg name="pub_local"/>
+        <arg name="sec_local"/>
+        <arg name="pub_rem"/>
+    </xform>
+
+    <release id="reveal_old_mac_keys">
+        <flow sarg="data" sink="data" darg="old_mac_keys"/>
+    </release>
+
+    <const id="initial_keyid">
+        <flow sink="session_params" darg="initial_keyid"/>
+    </const>
+
+    <xform id="session_params">
+        <flow sarg="skid" sink="data_mac_input" darg="sender_keyid"/>
+        <flow sarg="rkid" sink="data_mac_input" darg="recipient_keyid"/>
+        <flow sarg="ctr" sink="data_mac_input" darg="ctr"/>
+        <flow sarg="ctr" sink="data_encrypt" darg="iv"/>
+        <arg name="initial_keyid"/>
+    </xform>
+
+    <encrypt id="data_encrypt">
+        <flow sarg="ciphertext" sink="data_mac_input" darg="encrypted"/>
+    </encrypt>
+
+    <xform id="data_mac_input">
+        <flow sarg="msg" sink="data_mac" darg="msg"/>
+        <arg name="proto_ver"/>
+        <arg name="msg_type"/>
+        <arg name="send_inst"/>
+        <arg name="recv_inst"/>
+        <arg name="flags"/>
+        <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
+        <arg name="dh_y"/>
+        <arg name="ctr"/>
+        <arg name="encrypted"/>
+    </xform>
+
+    <hmac_inline id="data_mac">
+        <flow sarg="auth" sink="data" darg="auth"/>
+        <flow sarg="msg" sink="data" darg="msg"/>
+    </hmac_inline>
+
+    <xform id="data">
+        <flow sarg="msg" sink="netsend" darg="msg_data"/>
+        <arg name="msg"/>
+        <arg name="auth"/>
+        <arg name="old_mac_keys"/>
+    </xform>
 
 </spg>

@@ -15,6 +15,7 @@
 \DeclareMathOperator{\hash}{Hash}
 \DeclareMathOperator{\hashvrfy}{Verify_{Hash}}
 \DeclareMathOperator{\hmac}{HMAC}
+\DeclareMathOperator{\hmacinline}{HMAC_{Inline}}
 \DeclareMathOperator{\hmacvrfy}{Verify_{HMAC}}
 \DeclareMathOperator{\enc}{Encrypt}
 \DeclareMathOperator{\dec}{Decrypt}
@@ -28,6 +29,7 @@
 \DeclareMathOperator{\send}{Send}
 \DeclareMathOperator{\recv}{Receive}
 \DeclareMathOperator{\guard}{Guard}
+\DeclareMathOperator{\release}{Release}
 
 \newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
 
@@ -91,7 +93,7 @@ section.
 
 Send the message $msg$ through a domain guaranteeing the security properties $\sigma$:
 
-$$\send^\sigma(msg^\sigma) \mapsto \emptysec$$
+$$\send^\sigma(msg_0^\sigma,\dots,msg_n^\sigma) \mapsto \emptysec$$
 
 Receive a message $msg$ from a domain guaranteeing the security properties $\sigma$:
 
@@ -143,13 +145,15 @@ operation that is typically used by the receiver of a hash to validate that a
 message yields a specific hash value.} takes a message $m$ and a hash
 value $h$ as input and returns the boolean value of $hash(m) = h$.
 
-$$\hashvrfy(hash^{i}, msg^\sigma) \mapsto msg^{\sigma} | \emptysec$$
+$$\hashvrfy(hash^\emptysec, msg^\sigma) \mapsto msg^{\sigma} | \emptysec$$
 
 \TODO{How does $\hashvrfy$ influence the security requirement sets?}
 
 \subsection{Message authentication}
 
-$$\hmac(key^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus{\{i\}}}$$
+$$\hmac(key^{\{c,i\}}, msg^\sigma) \mapsto (auth^{\emptysec})$$
+
+$$\hmacinline(key^{\{c,i\}}, msg^\sigma) \mapsto (msg^{\sigma\secminus{\{i\}}}, auth^{\emptysec})$$
 
 $$\hmacvrfy(key^{\{c,i\}}, auth^\emptysec, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
 
@@ -170,9 +174,11 @@ $$\signvrfy(pkey^{\{i\}}, auth^{\emptysec}, msg^\sigma) \mapsto msg^{\sigma\cup\
 
 \subsection{Diffie-Hellman Key Exchange}
 
-$$\dhpub(gen^{\{i\}}, psec^{\{c,i\}}) \mapsto pub^\emptysec$$
+\TODO{Looks like the pub value has an integrity requirement.}
 
-$$\dhsec(pub^\emptysec, psec^{\{c,i\}}) \mapsto ssec^{\{c,i\}} $$
+$$\dhpub(gen^{\{i\}}, psec^{\{c,i,f\}}) \mapsto pub^{\{i\}}$$
+
+$$\dhsec(pub^{\{i\}}, psec^{\{c,i,f\}}) \mapsto ssec^{\{c,i\}} $$
 
 \TODO{Should we make the security set of ssec make depend on psec?}
 
@@ -195,6 +201,15 @@ $$\dhsec(pub^\emptysec, psec^{\{c,i\}}) \mapsto ssec^{\{c,i\}} $$
         plaintext^{\sigma},          & \text{otherwise}
     \end{cases}
 \end{equation*}
+
+\subsection{Declassification}
+
+This can be used to model situations where data with integrity or
+confidentiality requirements is released. In the OTR protocol, this e.g.
+happens when old MAC keys are published after they have been used to achieve
+plausible deniability.
+
+$$\release(data^\sigma) \mapsto data^\emptysec $$
 
 \section{Security Requirements Graph}
 

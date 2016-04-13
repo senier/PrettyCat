@@ -1,23 +1,26 @@
 <spg>
-    <const id="keylen" value="128" integrity="true">
-        <const sink="keygen" arg="len"/>
+    <const id="keylen">
+        <flow sink="key" darg="len"/>
     </const>
 
-    <rand id="keygen">
-        <data sink="encrypt" arg="key"/>
+    <rand id="key">
+        <flow sarg="data" sink="encrypt" darg="key"/>
     </rand>
 
-    <const id="iv" value="0" integrity="true">
-        <const sink="encrypt" arg="iv"/>
+    <const id="iv">
+        <flow sink="encrypt" darg="iv"/>
     </const>
 
-    <receive id="input" confidentiality="true">
-        <msg sink="encrypt" arg="plaintext"/>
+    <receive id="input" confidentiality="True" integrity="False" freshness="False">
+        <flow sink="encrypt" darg="plaintext"/>
     </receive>
 
     <encrypt id="encrypt">
-        <ciphertext sink="output" arg="msg"/>
+        <flow sarg="ciphertext" sink="output" darg="msg"/>
     </encrypt>
 
-    <send id="output"/>
+    <send id="output" integrity="False" confidentiality="False" freshness="False">
+        <arg name="msg"/>
+    </send>
+
 </spg>

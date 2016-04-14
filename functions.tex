@@ -46,7 +46,105 @@
 
 \begin{document}
 
-\section{\label{sec:notation}Notation}
+\section{\label{sec:cbs}Component-based systems}
+
+- all software has errors, bug-free software is impossible
+
+- the larger the software/system, the more bugs are in there
+
+- many of them are security critical, bad especially for protection systems like chat encryption, VPNs etc
+
+
+- solution: component-based systems, use of micro kernel/SK, isolation of different components
+
+- Emerging trend: SGX etc. which also motivates isolated implementation of components
+
+- Mechanisms are well understood, but arbitrary segregation of a systems may not even improve security
+
+- EXAMPLE: VPN gateway with VPN Linux - every attack possible through the network still works there, complexity added by micro kernel etc.
+
+
+- What is relevant for the security then? The trusted computing base!
+
+- TCB: (we use Härtigs modern definition, cite) all software that must be trusted to achieve some security objective
+
+- EXAMPLE: There can be many: One for keeping WiFi password secret, one for confidentiality of my network connection another for integrity of my files
+
+
+- Goal: Minimize the TCB for a particular, implement as much in untrusted legacy components as feasible
+
+- But how is such a system structured to achieve minimal TCB while maintaining security goals?
+
+- EXAMPLE: Untrusted implementation of signature check
+
+- True component-based systems used in various places in industry and academia: uSINA, MLW, TKM, VPFS, Genode
+
+- Despite these examples, we do not seem to understand how the separation is done systematically beyond a gut feeling
+
+- We present another manual segregation of the OTR protocol and an approach to automatically find component-based implementation based the specification of a crypto protocol
+
+\section{\label{sec:manual_modularization}Manual modularization of OTR}
+
+\subsection{Off-the-Record Messaging Protocol}
+
+- security protocol designed to provide security for instant messaging
+
+- Agnostic to the underlying chat protocol, i.e. can be integrated with different messaging clients and protocols
+
+- Security objectives
+
+    - Confidentiality
+    - Authentication
+    - Deniability: Forge messages after conversation has ended
+    - PFS
+
+- Protocol description (AKE part, SMP left out) as described in OTR v3 spec: 
+
+    - based on the SIGMA protocol (citation needed)
+
+    - encrypted channel through unauthenticated DH 
+
+    - perform mutual authentication inside that channel
+
+    - Graphics of protocol messages
+
+    - Connection setup between Alice and Bob consist of 5 messages
+
+        - Query -> Request OTR session over an insecure channel, may also be embedded in regular messages through a whitespace encoding
+        - DH-Commit: First message where Alice commits to a DH encryption key gx without revealing it to Bob, yet. Done by sending it encrypted without reveling the respective key x
+        - DH-Key: Bob sends its DH encryption key gy
+        - Reveal-Signature: Alice reveals its DH encryption key by sending key x and authenticates herself and the channel parameters using a digital signature
+        - Signature: Bob authenticates himself and the channel parameters, again using a digital signature
+
+    - After connection setup data messages convey the actual private messages
+
+        - With every message pair between Alice and Bob, a new DH key exchange is performed
+        - Old MAC keys are revealed when new keys have been negotiated and no messages secured with the old key are in transition anymore
+        - This allows an attacker to forge (but not decrypt) messages *after* the conversation took place
+        - This creates the deniability property
+
+    - From the shared secret, a secure session ID is derived
+
+        - allows for mutual authentication of the connection by comparing the value on a different channel
+        - works even if the identity of the public keys is unknown
+        - Alternative: SMP
+
+- Reference implementation in C and Java exist and are used by most of the existing OTR-capable clients
+
+- To ease integration with existing software, both implementations are monolithic
+
+- Messages are passed to a libotr library function, the finished message are passed to a callback - the client just needs to send it
+
+- Problem: Much functionality is not even security critical (message creation, database lookup) -> unnecessarily large TCB
+
+
+\subsection{Modularization of OTR}
+
+- 
+
+\section{\label{sec:automatic_modularization}Automatic modularization of cryptographic protocols}
+
+\subsection{Notation}
 
 Security requirements are denoted by $c$ (Confidentiality), $i$ (Integrity) and
 $f$ (Freshness). The overall security requirement some domain $D$ must fulfill

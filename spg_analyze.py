@@ -351,7 +351,7 @@ def analyze_backwards (G, start):
 
     if kind == "decrypt":
         inputs = get_inputs (G, start, ['iv', 'key', 'ciphertext'])
-        ivsec = sec_ci() if sec_ci() <= inputs['key'] else sec_empty()
+        ivsec = sec_i() if sec_ci() <= inputs['key'] else sec_empty()
         set_inputs (G, start, {'iv': ivsec, 'key': inputs['key'], 'ciphertext': inputs['ciphertext']})
 
     elif kind == "const":

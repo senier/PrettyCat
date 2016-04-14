@@ -354,6 +354,10 @@ def analyze_backwards (G, start):
         ivsec = sec_ci() if sec_ci() <= inputs['key'] else sec_empty()
         set_inputs (G, start, {'iv': ivsec, 'key': inputs['key'], 'ciphertext': inputs['ciphertext']})
 
+    elif kind == "const":
+        outputs = get_outputs (G, start, ['const'])
+        n['sec'] = outputs['const']
+
     for (parent, current, data) in G.in_edges(nbunch=start, data=True):
         analyze_backwards (G, parent);
 
@@ -655,9 +659,9 @@ for node in G.nodes():
 analyze_forward(G, node, nx.topological_sort (G))
 
 # Backwards-analyze all source nodes
-# for node in G.nodes():
-#     if not G.out_edges(nbunch=node):
-#         analyze_backwards(G, node)
+for node in G.nodes():
+    if not G.out_edges(nbunch=node):
+        analyze_backwards(G, node)
 
 # add edge labels
 for (parent, child, data) in G.edges(data=True):

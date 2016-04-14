@@ -30,6 +30,7 @@
 \DeclareMathOperator{\recv}{Receive}
 \DeclareMathOperator{\guard}{Guard}
 \DeclareMathOperator{\release}{Release}
+\DeclareMathOperator{\const}{Const}
 
 \newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
 
@@ -182,30 +183,46 @@ parameters depends on the semantics of an operation $O$. The most important
 primitives used in cryptographic protocols are detailed in the following
 section.
 
-% TODO mention $\sigma$ as placeholder
-% TODO examples
+\subsection{Primitives}
 
-\section{Primitives}
+\subsubsection{Transformations}
 
-\subsection{Messaging}
-
-Send the message $msg$ through a domain guaranteeing the security properties $\sigma$:
-
-$$\send^\sigma(msg_0^\sigma,\dots,msg_n^\sigma) \mapsto \emptysec$$
-
-Receive a message $msg$ from a domain guaranteeing the security properties $\sigma$:
-
-$$\recv^\sigma \mapsto msg^\sigma$$
-
-\subsection{Data processing}
-
-$$const^{\sigma} \mapsto const^{\sigma}$$
+A transformation simply processes its input parameters leading to a number of
+output parameters. As no cryptography is involved the security sets of output
+parameters can simply be calculated from the union of all input security sets.
 
 $$\trans(in_1^{\sigma_1}, \cdots, in_n^{\sigma_n}) \mapsto (out_1^{\cup\sigma_i},\cdots,out_m^{\cup\sigma_i})$$
 
-The guard primitive outputs $data$ unmodified if $cond$ does not equal
-$\emptysec$. This can be used to model situations where some data, e.g. key
-material, must only be used after the key exchange has been validated.
+A special case of a transformation is the $\send$ operation which passes a
+single input parameter to the environment of the system model. To be able to
+reason about security of that data being send to the environment, the output
+parameter representing the environment is also labeled with a security set.
+
+$$\send(msg^\sigma) \mapsto (env^{\sigma})$$
+
+The receive primitive is a special transformation working the opposite
+direction. It receives one message from outside the modelled system and passes
+it on to its output parameter. The input parameter again is labeled with the
+security set that is assumed about the environment the message is received
+from.
+
+$$\recv(env^\sigma) \mapsto (msg^\sigma)$$
+
+\TODO{Does it make sense to identify same domains by having the same $env$ parameter?}
+
+The third special case of a transformation is the $\const$ primitive which
+transfers a constant input parameter to its output parameter.
+
+$$\const(const^{\sigma}) \mapsto (const^{\sigma})$$
+
+\subsubsection{Data flow dependencies}
+
+In some cryptographic protocols messages may only be sent out after an
+authentication step of a peer has been performed using some independent
+incoming message. To model situations where two independent primitives have
+data flow dependencies without actually exchanging any data, the guard
+primitive can be used. It outputs its $data$ input parameter unmodified if the
+input parameter $cond$ does not equal $\emptysec$. 
 
 \begin{equation*}
 \guard(data^{\sigma}, cond^{\{i\}}) \mapsto
@@ -270,15 +287,11 @@ $$\sign(pkey^{\{i\}}, skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\
 
 $$\signvrfy(pkey^{\{i\}}, auth^{\emptysec}, msg^\sigma) \mapsto msg^{\sigma\cup\{i\}} | \emptysec$$
 
-\subsection{Diffie-Hellman Key Exchange}
+\subsubsection{Diffie-Hellman Key Exchange}
 
-\TODO{Looks like the pub value has an integrity requirement.}
+$$\dhpub(gen^{\{i\}}, psec^{\{c,i,f\}}) \mapsto pub^\sigma$$
 
-$$\dhpub(gen^{\{i\}}, psec^{\{c,i,f\}}) \mapsto pub^{\{i\}}$$
-
-$$\dhsec(pub^{\{i\}}, psec^{\{c,i,f\}}) \mapsto ssec^{\{c,i\}} $$
-
-\TODO{Should we make the security set of ssec make depend on psec?}
+$$\dhsec(pub^\sigma, psec^{\{c,i,f\}}) \mapsto ssec^{\sigma\cup\{c\}} $$
 
 \subsection{Symmetric Encryption}
 

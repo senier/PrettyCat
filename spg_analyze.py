@@ -132,19 +132,6 @@ def analyze(G, start):
 
     # Get node attribute set
     node = G.node[start]
-
-    # Only continue if node was not processed yet
-    if "processed" in node:
-        return
-
-    # Only continue if all children have be processed already
-    for (parent, child, data) in G.out_edges(nbunch=start, data=True):
-        if not 'processed' in G.node[child]:
-            return
-
-    # Mark current node as processed
-    node["processed"] = True;
-
     kind = node['kind']
 
     if kind == "send":

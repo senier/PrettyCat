@@ -232,11 +232,11 @@ input parameter $cond$ does not equal $\emptysec$.
     \end{cases}
 \end{equation*}
 
-\subsection{Random Numbers}
+\subsubsection{Random Numbers}
 
 $$\rand(len^{\{i\}}) \mapsto data^{\{c,i,f\}}$$
 
-\subsection{Hashing}
+\subsubsection{Hashing}
 
 A cryptographic hash function efficiently computes a fixed-length hash value
 $h$ for any message $m$ of arbitrary length. They are often called one-way hash
@@ -264,7 +264,7 @@ $$\hashvrfy(hash^\emptysec, msg^\sigma) \mapsto msg^{\sigma} | \emptysec$$
 
 \TODO{How does $\hashvrfy$ influence the security requirement sets?}
 
-\subsection{Message authentication}
+\subsubsection{Message authentication}
 
 $$\hmac(key^{\{c,i\}}, msg^\sigma) \mapsto (auth^{\emptysec})$$
 
@@ -281,7 +281,7 @@ $$\hmacvrfy(key^{\{c,i\}}, auth^\emptysec, msg^\sigma) \mapsto msg^{\sigma\cup\{
 %
 % Alternative idea: Never pass on explicit verdict, but the data or NIL.
 
-\subsection{Digital Signatures}
+\subsubsection{Digital Signatures}
 
 $$\sign(pkey^{\{i\}}, skey^{\{c,i\}}, msg^\sigma) \mapsto auth^{\sigma\secminus\{i\}}$$
 
@@ -293,7 +293,7 @@ $$\dhpub(gen^{\{i\}}, psec^{\{c,i,f\}}) \mapsto pub^\sigma$$
 
 $$\dhsec(pub^\sigma, psec^{\{c,i,f\}}) \mapsto ssec^{\sigma\cup\{c\}} $$
 
-\subsection{Symmetric Encryption}
+\subsubsection{Symmetric Encryption}
 
 \begin{equation*}
     \enc((iv^{\{i\}}, key^\gamma)^{\{f\}}, plaintext^\sigma) \mapsto
@@ -313,7 +313,7 @@ $$\dhsec(pub^\sigma, psec^{\{c,i,f\}}) \mapsto ssec^{\sigma\cup\{c\}} $$
     \end{cases}
 \end{equation*}
 
-\subsection{Declassification}
+\subsubsection{Declassification}
 
 This can be used to model situations where data with integrity or
 confidentiality requirements is released. In the OTR protocol, this e.g.
@@ -322,7 +322,7 @@ plausible deniability.
 
 $$\release(data^\sigma) \mapsto data^\emptysec $$
 
-\section{Security Requirements Graph}
+\subsection{Security Requirements Graph}
 
 Security requirements are not constant during a security protocol run. While
 user input to a security messaging protocol must by kept confidential,
@@ -372,7 +372,7 @@ must guarantee.
     \caption{Security requirements graph for a simplistic encryption scheme}
 \end{figure}
 
-\section{Algorithm}
+\subsection{Algorithm}
 
 In the initial graph, nodes may still have undetermined security requirements
 set. This is true for operations like $\enc$ which take an unspecified set and

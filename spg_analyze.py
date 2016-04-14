@@ -4,6 +4,23 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
 
+free_arguments = {
+    'xform':        None,
+    'send':         ['msg'],
+    'guard':        ['data'],
+    'hash':         ['msg'],
+    'verify_hash':  ['msg'],
+    'hmac':         ['msg'],
+    'hmac_inline':  ['msg'],
+    'verify_hmac':  ['msg'],
+    'sign':         ['msg'],
+    'verify_sig':   ['msg'],
+    'dhsec':        ['pub'],
+    'encrypt':      ['plaintext'],
+    'decrypt':      ['ciphertext'],
+    'release':      ['data']
+}
+
 def sec_empty():
     return set(())
 
@@ -73,6 +90,7 @@ def set_outputs (G, node, argmap):
     # retrieve output security sets from out edges
     for (current, child, data) in G.out_edges (nbunch=node, data=True):
         sarg = data['sarg']
+        darg = data['darg']
         if not sarg in argmap:
             raise Exception, "Node '" + current + "' passes invalid output parameter '" + sarg + "' to '" + child + "'"
 
@@ -80,10 +98,11 @@ def set_outputs (G, node, argmap):
             # Upgrading is always OK, as it just increases the security requirements imposed on the environment
             data['sec'] = argmap[sarg]
         elif data['sec'] > argmap[sarg]:
-            if G.node[child]['kind'] == "xform":
+            kind = G.node[child]['kind']
+            if kind in free_arguments and (free_arguments[kind] == None or darg in free_arguments[kind]):
                 data['sec'] = argmap[sarg]
             else:
-                # Downgrade is allowed only for xform
+                # Downgrade is allowed only for 'free' parameters
                 print "ERROR: Downgrade required between " + current + " ===> " + child
 
         seen[sarg] = True

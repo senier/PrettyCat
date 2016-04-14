@@ -87,6 +87,7 @@
             <xs:element name="sign"        type="forwardElement"/>
             <xs:element name="verify_sig"  type="forwardElement"/>
             <xs:element name="verify_hmac" type="forwardElement"/>
+            <xs:element name="hash"        type="forwardElement"/>
             <xs:element name="verify_hash" type="forwardElement"/>
             <xs:element name="decrypt"     type="forwardElement"/>
             <xs:element name="encrypt"     type="forwardElement"/>

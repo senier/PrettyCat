@@ -177,16 +177,6 @@
         <flow sarg="const" sink="enc_x_local" darg="iv"/>
     </const>
 
-    <xform id="sigm_keys">
-        <flow sarg="c" sink="enc_x_local" darg="key"/>
-        <flow sarg="c" sink="dec_x_rem" darg="key"/>
-        <flow sarg="m1" sink="HMAC_M_rem" darg="key"/>
-        <flow sarg="m1" sink="M_local" darg="key"/>
-        <flow sarg="m2" sink="macdsig" darg="key"/>
-        <flow sarg="m2" sink="assert_hmac" darg="key"/>
-        <arg name="s"/>
-    </xform>
-
     <hmac_inline id="macdsig">
         <flow sarg="msg"  sink="sigm" darg="enc_sig"/>
         <flow sarg="auth" sink="sigm" darg="macd_sig"/>
@@ -213,8 +203,63 @@
     </xform>
 
     <dhsec id="s">
-        <flow sarg="ssec" sink="sigm_keys" darg="s"/>
+        <flow sarg="ssec" sink="smpi" darg="s"/>
     </dhsec>
+
+    <xform id="smpi">
+        <flow sarg="secbytes" sink="cat_c" darg="secbytes"/>
+        <flow sarg="secbytes" sink="cat_m1" darg="secbytes"/>
+        <flow sarg="secbytes" sink="cat_m2" darg="secbytes"/>
+        <arg name="s"/>
+    </xform>
+
+    <!-- Calculate 'c' -->
+    <const id="b_1">
+        <flow sarg="const" sink="cat_c" darg="b"/>
+    </const>
+
+    <xform id="cat_c">
+        <flow sarg="cat" sink="hash_c" darg="msg"/>
+        <arg name="secbytes"/>
+        <arg name="b"/>
+    </xform>
+
+    <hash id="hash_c">
+        <flow sarg="hash" sink="enc_x_local" darg="key"/>
+        <flow sarg="hash" sink="dec_x_rem" darg="key"/>
+    </hash>
+
+    <!-- Calculate 'm1' -->
+    <const id="b_2">
+        <flow sarg="const" sink="cat_m1" darg="b"/>
+    </const>
+
+    <xform id="cat_m1">
+        <flow sarg="cat" sink="hash_m1" darg="msg"/>
+        <arg name="secbytes"/>
+        <arg name="b"/>
+    </xform>
+
+    <hash id="hash_m1">
+        <flow sarg="hash" sink="HMAC_M_rem" darg="key"/>
+        <flow sarg="hash" sink="M_local" darg="key"/>
+    </hash>
+
+    <!-- Calculate 'm2' -->
+    <const id="b_3">
+        <flow sarg="const" sink="cat_m2" darg="b"/>
+    </const>
+
+    <xform id="cat_m2">
+        <flow sarg="cat" sink="hash_m2" darg="msg"/>
+        <arg name="secbytes"/>
+        <arg name="b"/>
+    </xform>
+
+    <hash id="hash_m2">
+        <flow sarg="hash" sink="macdsig" darg="key"/>
+        <flow sarg="hash" sink="assert_hmac" darg="key"/>
+    </hash>
 
     <xform id="X_local">
         <flow sarg="X_local" sink="enc_x_local" darg="plaintext"/>

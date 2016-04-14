@@ -302,7 +302,7 @@ def forward_adjust (G, node):
 
     elif kind == "hash":
         inputs = get_inputs (G, node, ['msg'])
-        set_outputs (G, node, { 'msg': inputs['msg'] - sec_c()})
+        set_outputs (G, node, { 'hash': inputs['msg'] - sec_c()})
 
     elif kind == "verify_hash":
         inputs = get_inputs (G, node, ['hash', 'msg'])

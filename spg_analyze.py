@@ -363,9 +363,6 @@ def sec_color (sec):
         print "Missing color: " + fmtsec(sec)
         return "white"
 
-def sec_colors (insec, outsec):
-    return { "fill": sec_color (outsec) + ":" + sec_color (insec) }
-
 def colorize (G, start, nodelist):
     for node in nodelist:
         n = G.node[node]
@@ -389,7 +386,7 @@ def colorize (G, start, nodelist):
         n['fontcolor'] = "gray"
         n['style'] = "filled"
         n['gradientangle'] = "90"
-        n['fillcolor'] = "\"" + sec_colors(insec, outsec)['fill'] + "\""
+        n['fillcolor'] = "\"" + sec_color(insec | outsec) + "\""
 
 def check_input (node, args, param, threshold): 
     if args[param] < threshold:

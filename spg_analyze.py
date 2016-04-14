@@ -54,7 +54,10 @@ def get_outputs(G, node, arglist):
         sarg = data['sarg']
         if not sarg in arglist:
             raise Exception, "Node '" + node + "' has invalid output parameter '" + sarg + "'"
-        result[sarg] = data['sec']
+        if sarg in result:
+            result[sarg] |= data['sec']
+        else:
+            result[sarg] = data['sec']
 
     # is something missing
     for arg in arglist:

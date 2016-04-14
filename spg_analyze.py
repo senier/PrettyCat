@@ -70,7 +70,7 @@ def get_outputs(G, node, arglist):
     for (current, child, data) in G.out_edges (nbunch=node, data=True):
         sarg = data['sarg']
         if not sarg in arglist:
-            raise Exception, "Node '" + node + "' has invalid output parameter '" + sarg + "'"
+            raise Exception, "Node '" + node + "' has invalid output parameter '" + str(sarg) + "'"
         if sarg in result:
             result[sarg] |= data['sec']
         else:
@@ -629,11 +629,11 @@ def parse_graph (path):
              height = "0.6")
     
         for element in child.findall('flow'):
-            source = element.attrib['sarg'] if 'sarg' in element.attrib else None;
-            darg   = element.attrib['darg']
+            sarg = element.attrib['sarg']
+            darg = element.attrib['darg']
             G.add_edge (child.attrib['id'], element.attrib['sink'], \
                 darg = darg, \
-                sarg = source, \
+                sarg = sarg, \
                 sec = sec_empty(), \
                 labelfontsize = "8", \
                 labelfontcolor="red", \

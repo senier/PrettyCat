@@ -8,21 +8,21 @@
 -->
 
 <xs:complexType name="flowElement">
-    <xs:attribute name="sarg"/>
-    <xs:attribute name="sink"/>
-    <xs:attribute name="darg"/>
+    <xs:attribute name="sarg" use="required" />
+    <xs:attribute name="sink" use="required" />
+    <xs:attribute name="darg" use="required" />
 </xs:complexType>
 
 <xs:complexType name="argElement">
-    <xs:attribute name="name"/>
+    <xs:attribute name="name" use="required" />
 </xs:complexType>
 
 <xs:complexType name="baseElement">
-    <xs:attribute name="id"/>
+    <xs:attribute name="id" use="required" />
 </xs:complexType>
 
 <xs:complexType name="unusedElement">
-    <xs:attribute name="sarg"/>
+    <xs:attribute name="sarg" use="required" />
 </xs:complexType>
 
 <xs:complexType name="sendElement">

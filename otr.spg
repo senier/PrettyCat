@@ -35,51 +35,51 @@
     </xform>
 
     <const id="pv_dhkm">
-        <flow sink="dhkm" darg="proto_ver"/>
+        <flow sarg="const" sink="dhkm" darg="proto_ver"/>
     </const>
 
     <const id="pv_sigm">
-        <flow sink="sigm" darg="proto_ver"/>
+        <flow sarg="const" sink="sigm" darg="proto_ver"/>
     </const>
 
     <const id="pv_data">
-        <flow sink="data_mac_input" darg="proto_ver"/>
+        <flow sarg="const" sink="data_mac_input" darg="proto_ver"/>
     </const>
 
     <const id="mt_sigm">
-        <flow sink="sigm" darg="msg_type"/>
+        <flow sarg="const" sink="sigm" darg="msg_type"/>
     </const>
 
     <const id="mt_dhkm">
-        <flow sink="dhkm" darg="msg_type"/>
+        <flow sarg="const" sink="dhkm" darg="msg_type"/>
     </const>
 
     <const id="mt_data">
-        <flow sink="data_mac_input" darg="msg_type"/>
+        <flow sarg="const" sink="data_mac_input" darg="msg_type"/>
     </const>
 
     <const id="si_dhkm">
-        <flow sink="dhkm" darg="send_inst"/>
+        <flow sarg="const" sink="dhkm" darg="send_inst"/>
     </const>
 
     <const id="si_sigm">
-        <flow sink="sigm" darg="send_inst"/>
+        <flow sarg="const" sink="sigm" darg="send_inst"/>
     </const>
 
     <const id="si_data">
-        <flow sink="data_mac_input" darg="send_inst"/>
+        <flow sarg="const" sink="data_mac_input" darg="send_inst"/>
     </const>
 
     <const id="ri_dhkm">
-        <flow sink="dhkm" darg="recv_inst"/>
+        <flow sarg="const" sink="dhkm" darg="recv_inst"/>
     </const>
 
     <const id="ri_sigm">
-        <flow sink="sigm" darg="recv_inst"/>
+        <flow sarg="const" sink="sigm" darg="recv_inst"/>
     </const>
 
     <const id="ri_data">
-        <flow sink="data_mac_input" darg="recv_inst"/>
+        <flow sarg="const" sink="data_mac_input" darg="recv_inst"/>
     </const>
 
     <xform id="mpi">
@@ -95,8 +95,8 @@
     </dhpub>
 
     <const id="g">
-        <flow sink="gy" darg="gen"/>
-        <flow sink="dhy" darg="gen"/>
+        <flow sarg="const" sink="gy" darg="gen"/>
+        <flow sarg="const" sink="dhy" darg="gen"/>
     </const>
 
     <rand id="y">
@@ -106,7 +106,7 @@
     </rand>
 
     <const id="320">
-        <flow sink="y" darg="len"/>
+        <flow sarg="const" sink="y" darg="len"/>
     </const>
 
     <!-- Receiving a Reveal Signature message -->
@@ -261,7 +261,7 @@
     </const>
 
     <const id="dylen">
-        <flow sink="dy" darg="len"/>
+        <flow sarg="const" sink="dy" darg="len"/>
     </const>
 
     <rand id="dy">
@@ -291,7 +291,7 @@
     </release>
 
     <const id="initial_keyid">
-        <flow sink="session_params" darg="initial_keyid"/>
+        <flow sarg="const" sink="session_params" darg="initial_keyid"/>
     </const>
 
     <xform id="session_params">

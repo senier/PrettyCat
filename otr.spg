@@ -155,12 +155,12 @@
     </verify_sig>
 
     <guard id="guard_sig_rem">
-        <flow sarg="data" sink="enc_x_local" darg="key"/>
+        <flow sarg="data" sink="netsend" darg="msg_sigm"/>
     </guard>
 
     <!-- Sending a signature message -->
     <xform id="sigm">
-        <flow sarg="sigm" sink="netsend" darg="msg_sigm"/>
+        <flow sarg="sigm" sink="guard_sig_rem" darg="data"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -178,7 +178,7 @@
     </const>
 
     <xform id="sigm_keys">
-        <flow sarg="c" sink="guard_sig_rem" darg="data"/>
+        <flow sarg="c" sink="enc_x_local" darg="key"/>
         <flow sarg="c" sink="dec_x_rem" darg="key"/>
         <flow sarg="m1" sink="HMAC_M_rem" darg="key"/>
         <flow sarg="m1" sink="M_local" darg="key"/>

@@ -291,7 +291,9 @@ $$\signvrfy(pkey^{\{i\}}, auth^{\emptysec}, msg^\sigma) \mapsto msg^{\sigma\cup\
 
 $$\dhpub(gen^{\{i\}}, psec^{\{c,i,f\}}) \mapsto (pub^\sigma, psec^{\{c,i\}})$$
 
-$$\dhsec(pub^\sigma, psec^{\{c,i,f\}}) \mapsto ssec^{\sigma\cup\{c\}} $$
+$$\dhsec(pub^\sigma, psec^{\{c,i\}}) \mapsto ssec^{\sigma\cup\{c\}} $$
+
+\TODO{Is it true that we do not require freshness for psec in the dhsec operation? Intuitively it should be sufficient to require freshness in dhpub...}
 
 \subsubsection{Symmetric Encryption}
 

@@ -217,7 +217,7 @@ def analyze(G, start):
 
     elif kind == "dhsec":
         out = get_outputs (G, start, ['ssec'])
-        set_inputs (G, start, {'pub': sec_i(), 'psec': sec_cif()})
+        set_inputs (G, start, {'pub': sec_i(), 'psec': sec_ci()})
 
     elif kind == "dhpub":
         out = get_outputs (G, start, ['pub', 'psec'])
@@ -545,7 +545,7 @@ def validate_graph (G):
             present_args += ['pub', 'psec']
             inputs = get_inputs(G, node, present_args)
             outputs = get_outputs(G, node, ['ssec'])
-            check_input (node, inputs, 'psec', sec_cif())
+            check_input (node, inputs, 'psec', sec_ci())
 
         elif kind == 'encrypt':
 

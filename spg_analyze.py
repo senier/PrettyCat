@@ -220,7 +220,7 @@ def analyze(G, start):
         set_inputs (G, start, {'pub': sec_i(), 'psec': sec_cif()})
 
     elif kind == "dhpub":
-        out = get_outputs (G, start, ['pub'])
+        out = get_outputs (G, start, ['pub', 'psec'])
         set_inputs (G, start, {'gen': sec_i(), 'psec': sec_cif()})
 
     elif kind == "rand":
@@ -325,7 +325,7 @@ def forward_adjust (G, node):
 
     elif kind == "dhpub":
         inputs = get_inputs (G, node, ['gen', 'psec'])
-        set_outputs (G, node, { 'pub': sec_empty()})
+        set_outputs (G, node, { 'pub': sec_empty(), 'psec': sec_ci()})
 
     elif kind == "sign":
         pass
@@ -535,9 +535,10 @@ def validate_graph (G):
 
             present_args += ['gen', 'psec']
             inputs = get_inputs(G, node, present_args)
-            outputs = get_outputs(G, node, ['pub'])
+            outputs = get_outputs(G, node, ['pub', 'psec'])
             check_input (node, inputs, 'gen', sec_i())
             check_input (node, inputs, 'psec', sec_cif())
+            check_output (node, outputs, 'psec', sec_ci())
 
         elif kind == 'dhsec':
 

@@ -3,6 +3,7 @@
 import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
+import argparse
 
 free_arguments = {
     'xform':        None,
@@ -649,45 +650,58 @@ def parse_graph (path):
 
     return G
 
-G = parse_graph (sys.argv[1])
+def main(args):
 
-# Backwards-analyze all source nodes
-for node in G.nodes():
-    if not G.out_edges(nbunch=node):
-        analyze(G, node)
+    G = parse_graph (args.input[0])
+    
+    # Backwards-analyze all source nodes
+    if not args.nobw:
+        for node in G.nodes():
+            if not G.out_edges(nbunch=node):
+                analyze(G, node)
+    
+    # Forward analyse
+    if not args.nobw and not args.nofw:
+        analyze_forward(G, node, nx.topological_sort (G))
+    
+    # Backwards-analyze all source nodes
+    if not args.nobw and not args.nofw and not args.nobw2:
+        for node in G.nodes():
+            if not G.out_edges(nbunch=node):
+                analyze_backwards(G, node)
+    
+    # add edge labels
+    for (parent, child, data) in G.edges(data=True):
+        data['xlabel']     = fmtsec(data['sec'])
+        data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
+        data['headlabel'] = data['darg']
+        data['color'] = sec_color(data['sec'])
+        data['fontcolor'] = sec_color(data['sec'])
+    
+    # color nodes according to security level
+    colorize(G, node, nx.topological_sort (G))
+    
+    validate_graph (G)
+    
+    # add edge labels
+    for (parent, child, data) in G.edges(data=True):
+        if 'extralabel' in data:
+            data['xlabel'] += data['extralabel']
+    
+    pd = nx.drawing.nx_pydot.to_pydot(G)
+    pd.set_name("sdg")
+    #pd.set ("size", "11.7,8.3")
+    pd.set ("splines", "ortho")
+    pd.set ("forcelabels", "true")
+    pd.set ("nodesep", "0.5")
+    pd.set ("pack", "true")
+    pd.set ("size", "15.6,10.7")
+    pd.write(args.output[0])
 
-# Forward analyse
-analyze_forward(G, node, nx.topological_sort (G))
-
-# Backwards-analyze all source nodes
-for node in G.nodes():
-    if not G.out_edges(nbunch=node):
-        analyze_backwards(G, node)
-
-# add edge labels
-for (parent, child, data) in G.edges(data=True):
-    data['xlabel']     = fmtsec(data['sec'])
-    data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
-    data['headlabel'] = data['darg']
-    data['color'] = sec_color(data['sec'])
-    data['fontcolor'] = sec_color(data['sec'])
-
-# color nodes according to security level
-colorize(G, node, nx.topological_sort (G))
-
-validate_graph (G)
-
-# add edge labels
-for (parent, child, data) in G.edges(data=True):
-    if 'extralabel' in data:
-        data['xlabel'] += data['extralabel']
-
-pd = nx.drawing.nx_pydot.to_pydot(G)
-pd.set_name("sdg")
-#pd.set ("size", "11.7,8.3")
-pd.set ("splines", "ortho")
-pd.set ("forcelabels", "true")
-pd.set ("nodesep", "0.5")
-pd.set ("pack", "true")
-pd.set ("size", "15.6,10.7")
-pd.write(sys.argv[2])
+parser = argparse.ArgumentParser(description='SPG Analyzer')
+parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+parser.add_argument('--no-backward', action='store_true', help='Ommit backward run', dest='nobw');
+parser.add_argument('--no-forward', action='store_true', help='Ommit second (forward) run', dest='nofw');
+parser.add_argument('--no-2nd-backward', action='store_true', help='Ommit second backward run', dest='nobw2');
+main(parser.parse_args ())

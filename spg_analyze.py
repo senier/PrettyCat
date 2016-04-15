@@ -100,11 +100,9 @@ def set_outputs (G, node, argmap):
             data['sec'] = argmap[sarg]
         elif data['sec'] > argmap[sarg]:
             kind = G.node[child]['kind']
+            # Downgrade is only allowed for 'free' parameters
             if kind in free_arguments and (free_arguments[kind] == None or darg in free_arguments[kind]):
                 data['sec'] = argmap[sarg]
-            else:
-                # Downgrade is allowed only for 'free' parameters
-                print "ERROR: Downgrade required between " + current + " ===> " + child
 
         seen[sarg] = True
 
@@ -375,7 +373,7 @@ def sec_color (sec):
         return "cyan"
     else:
         print "Missing color: " + fmtsec(sec)
-        return "white"
+        return "green"
 
 def colorize (G, start, nodelist):
     for node in nodelist:

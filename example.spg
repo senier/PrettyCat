@@ -1,6 +1,6 @@
 <spg>
     <const id="keylen">
-        <flow sink="key" darg="len"/>
+        <flow sarg="const" sink="key" darg="len"/>
     </const>
 
     <rand id="key">
@@ -8,11 +8,11 @@
     </rand>
 
     <const id="iv">
-        <flow sink="encrypt" darg="iv"/>
+        <flow sarg="const" sink="encrypt" darg="iv"/>
     </const>
 
     <receive id="input" confidentiality="True" integrity="False" freshness="False">
-        <flow sink="encrypt" darg="plaintext"/>
+        <flow sarg="plaintext" sink="encrypt" darg="plaintext"/>
     </receive>
 
     <encrypt id="encrypt">

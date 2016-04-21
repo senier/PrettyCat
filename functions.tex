@@ -191,6 +191,19 @@ A transformation simply processes its input parameters leading to a number of
 output parameters. As no cryptography is involved the security sets of output
 parameters can simply be calculated from the union of all input security sets.
 
+\TODO{Integrity and confidentiality are treated independently here. As
+confidentiality requirements are known at the inputs of the system but cannot
+be derived in a backward step (except by largely overapproximating it),
+confidentiality is propagated from the sources of the model. Whenever an input
+of a transformation has a confidentiality requirement, all outputs of that
+transformation inherit it as any of the outputs may have been tainted by a
+confidential input.
+
+Contrary, integrity is derived bottom up starting from the sinks of the model.
+The reason is, that integrity is only maintained if all sources of a
+transformation have an integrity property, which cannot be derived in a forward
+step.}
+
 $$\trans(in_1^{\sigma_1}, \cdots, in_n^{\sigma_n}) \mapsto (out_1^{\cup\sigma_i},\cdots,out_m^{\cup\sigma_i})$$
 
 A special case of a transformation is the $\send$ operation which passes a

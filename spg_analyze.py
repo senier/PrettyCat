@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import networkx as nx
 import sys
 import argparse
+import subprocess
 
 free_arguments = {
     'xform':        None,
@@ -692,6 +693,9 @@ def write_graph(G, output):
     pd.write(output)
     
 def main(args):
+
+    # validate graph
+    print subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]);
 
     G = parse_graph (args.input[0])
 

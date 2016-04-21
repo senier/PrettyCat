@@ -1,0 +1,167 @@
+<?xml version="1.0"?>
+<spg>
+    <!-- Network input -->
+    <receive id="netrecv" confidentiality="False" integrity="False" freshness="False">
+        <flow sarg="msg" sink="I_msg" darg="msg"/>
+        <flow sarg="msg" sink="R_msg" darg="msg"/>
+    </receive>
+
+    <!-- Initiating message -->
+    <xform id="I_msg">
+        <flow sarg="gx" sink="I_unmpi" darg="mpi"/>
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="I_unmpi">
+        <flow sarg="gx" sink="I_secbytes" darg="pub"/>
+        <flow sarg="gx" sink="I_side" darg="pub_remote"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <const id="I_keylen">
+        <flow sarg="const" sink="I_rand" darg="len"/>
+    </const>
+
+    <rand id="I_rand">
+        <flow sarg="data" sink="I_secbytes" darg="psec"/>
+        <flow sarg="data" sink="I_dhpub" darg="psec"/>
+    </rand>
+
+    <dhsec id="I_secbytes">
+        <flow sarg="ssec" sink="I_sbmpi" darg="secbytes"/>
+    </dhsec>
+
+    <xform id="I_sbmpi">
+        <flow sarg="secbytes" sink="I_cat" darg="secbytes"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <xform id="I_cat">
+        <flow sarg="data" sink="I_sendkey" darg="msg"/>
+        <arg name="secbytes"/>
+        <arg name="side"/>
+    </xform>
+
+    <hash id="I_sendkey">
+        <flow sarg="hash" sink="keystore" darg="I_sendkey"/>
+        <flow sarg="hash" sink="I_mackey" darg="msg"/>
+    </hash>
+
+    <hash id="I_mackey">
+        <flow sarg="hash" sink="keystore" darg="I_mackey"/>
+    </hash>
+
+    <const id="I_g">
+        <flow sarg="const" sink="I_dhpub" darg="gen"/>
+    </const>
+
+    <dhpub id="I_dhpub">
+        <flow sarg="pub" sink="I_mpi" darg="mpi"/>
+        <flow sarg="pub" sink="I_side" darg="pub_local"/>
+        <flow sarg="psec" sink="keystore" darg="I_psec"/>
+    </dhpub>
+
+    <xform id="I_mpi">
+        <flow sarg="gx" sink="I_resp" darg="gx"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <xform id="I_resp">
+        <flow sarg="msg" sink="netsend" darg="I_send"/>
+        <arg name="gx"/>
+    </xform>
+
+    <xform id="I_side">
+        <flow sarg="msg" sink="I_cat" darg="side"/>
+        <arg name="pub_local"/>
+        <arg name="pub_remote"/>
+    </xform>
+
+    <!-- Responding message -->
+    <xform id="R_msg">
+        <flow sarg="gx" sink="R_unmpi" darg="mpi"/>
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="R_unmpi">
+        <flow sarg="gx" sink="R_secbytes" darg="pub"/>
+        <flow sarg="gx" sink="R_side" darg="pub_remote"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <const id="R_keylen">
+        <flow sarg="const" sink="R_rand" darg="len"/>
+    </const>
+
+    <rand id="R_rand">
+        <flow sarg="data" sink="R_secbytes" darg="psec"/>
+        <flow sarg="data" sink="R_dhpub" darg="psec"/>
+    </rand>
+
+    <dhsec id="R_secbytes">
+        <flow sarg="ssec" sink="R_sbmpi" darg="secbytes"/>
+    </dhsec>
+
+    <xform id="R_sbmpi">
+        <flow sarg="secbytes" sink="R_cat" darg="secbytes"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <xform id="R_cat">
+        <flow sarg="data" sink="R_sendkey" darg="msg"/>
+        <arg name="secbytes"/>
+        <arg name="side"/>
+    </xform>
+
+    <hash id="R_sendkey">
+        <flow sarg="hash" sink="keystore" darg="R_sendkey"/>
+        <flow sarg="hash" sink="R_mackey" darg="msg"/>
+    </hash>
+
+    <hash id="R_mackey">
+        <flow sarg="hash" sink="keystore" darg="R_mackey"/>
+    </hash>
+
+    <const id="R_g">
+        <flow sarg="const" sink="R_dhpub" darg="gen"/>
+    </const>
+
+    <dhpub id="R_dhpub">
+        <flow sarg="pub" sink="R_mpi" darg="mpi"/>
+        <flow sarg="pub" sink="R_side" darg="pub_local"/>
+        <flow sarg="psec" sink="keystore" darg="R_psec"/>
+    </dhpub>
+
+    <xform id="R_mpi">
+        <flow sarg="gx" sink="R_resp" darg="gx"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <xform id="R_resp">
+        <flow sarg="msg" sink="netsend" darg="R_send"/>
+        <arg name="gx"/>
+    </xform>
+
+    <xform id="R_side">
+        <flow sarg="msg" sink="R_cat" darg="side"/>
+        <arg name="pub_local"/>
+        <arg name="pub_remote"/>
+    </xform>
+
+    <!-- Key store output -->
+    <send id="keystore" confidentiality="True" integrity="True" freshness="False">
+        <arg name="I_sendkey"/>
+        <arg name="I_mackey"/>
+        <arg name="I_psec"/>
+        <arg name="R_sendkey"/>
+        <arg name="R_mackey"/>
+        <arg name="R_psec"/>
+    </send>
+
+    <!-- Network output -->
+    <send id="netsend" confidentiality="False" integrity="False" freshness="False">
+        <arg name="I_send"/>
+        <arg name="R_send"/>
+    </send>
+
+</spg>

@@ -5,9 +5,11 @@ import networkx as nx
 import sys
 import argparse
 import subprocess
+import os
 
 iteration = 0
 output = ""
+pdfs = []
 
 free_arguments = {
     'xform':        None,
@@ -250,15 +252,15 @@ def analyze_backwards (G, incremental):
 def analyze_bw (G, start, incremental):
 
     changes = 0
-    node = G.node[start]
-    kind = node['kind']
+    n = G.node[start]
+    kind = n['kind']
 
     if incremental:
-        node['color'] = 'orange'
-        node['style'] = 'filled, dashed'
+        n['color'] = 'orange'
+        n['style'] = 'filled, dashed'
         write_graph(G, "BW");
-        node['color'] = ''
-        node['style'] = 'filled'
+        n['color'] = ''
+        n['style'] = 'filled'
     
     if kind == "xform":
         sec = sec_empty()
@@ -362,18 +364,23 @@ def analyze_forwards (G, incremental):
 
 def analyze_fw (G, node, incremental):
 
-    if incremental:
-        write_graph(G, "FW");
-    
     changes = 0
     n = G.node[node]
     kind = n['kind']
+
+    if incremental:
+        n['color'] = 'orange'
+        n['style'] = 'filled, dashed'
+        write_graph(G, "FW");
+        n['color'] = ''
+        n['style'] = 'filled'
 
     if kind == "const":
         sec = sec_empty()
         for (current, child, data) in G.out_edges (nbunch=node, data=True):
             sec |= data['sec']
         n['sec'] = sec
+        changes += 1
 
     elif kind == "xform":
         sec = n['sec'] if 'sec' in n else sec_empty()
@@ -438,18 +445,19 @@ def analyze_fw (G, node, incremental):
         inputs = get_inputs (G, node, ['data', 'cond'])
         changes += set_outputs (G, node, { 'data': inputs['data']})
 
+    elif kind == "rand":
+        pass
+
     elif kind == "sign":
         pass
 
     elif kind == "hmac":
         pass
 
-    elif kind == "send":
-        pass
-
     else:
         raise Exception, "Unhandled node kind: " + kind
 
+    changes += freeze_node (G, node)
     return changes
 
 def sec_color (sec):
@@ -734,15 +742,16 @@ def write_graph(G, title):
 
     global iteration
     global output 
+    global pdfs
     out = "graph_" + str(iteration).zfill(4) + "_" + output
     iteration += 1
 
     # add edge labels
     for (parent, child, data) in G.edges(data=True):
-        data['xlabel']     = fmtsec(data['sec'])
+        data['xlabel']    = fmtsec(data['sec'])
         data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
         data['headlabel'] = data['darg']
-        data['color'] = sec_color(data['sec'])
+        data['color']     = sec_color(data['sec'])
         data['fontcolor'] = sec_color(data['sec'])
     
     # color nodes according to security level
@@ -764,7 +773,9 @@ def write_graph(G, title):
     pd.set ("label", title + "/" + str(iteration))
     pd.set ("labelloc", "tl")
     pd.write(out + ".dot")
-    print subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"]);
+    subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"]);
+    pdfs.append(out)
+    os.remove (out + ".dot")
     
 def main(args):
     global output
@@ -786,9 +797,13 @@ def main(args):
     fwc = analyze_forwards(G, args.incremental)
     print "Forwards changes: " + str(fwc)
 
-    write_graph(G, "Final")
     validate_graph (G)
+    write_graph(G, "Final")
 
+    a = ["pdftk"] + pdfs + ["cat", "output", args.output[0]]
+    subprocess.check_output (a)
+    for pdf in pdfs:
+        os.remove (pdf)
 
 parser = argparse.ArgumentParser(description='SPG Analyzer')
 parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');

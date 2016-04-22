@@ -1,10 +1,13 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Network input -->
-    <receive id="netrecv" confidentiality="False" integrity="False" freshness="False">
+    <xform id="recv_I" confidentiality="False" integrity="False" freshness="False">
         <flow sarg="msg" sink="I_msg" darg="msg"/>
+    </xform>
+
+    <xform id="recv_R" confidentiality="False" integrity="False" freshness="False">
         <flow sarg="msg" sink="R_msg" darg="msg"/>
-    </receive>
+    </xform>
 
     <!-- Initiating message -->
     <xform id="I_msg">
@@ -43,12 +46,12 @@
     </xform>
 
     <hash id="I_sendkey">
-        <flow sarg="hash" sink="keystore" darg="I_sendkey"/>
+        <flow sarg="hash" sink="send_sendkey_I" darg="msg"/>
         <flow sarg="hash" sink="I_mackey" darg="msg"/>
     </hash>
 
     <hash id="I_mackey">
-        <flow sarg="hash" sink="keystore" darg="I_mackey"/>
+        <flow sarg="hash" sink="send_mackey_I" darg="msg"/>
     </hash>
 
     <const id="I_g">
@@ -58,7 +61,7 @@
     <dhpub id="I_dhpub">
         <flow sarg="pub" sink="I_mpi" darg="mpi"/>
         <flow sarg="pub" sink="I_side" darg="pub_local"/>
-        <flow sarg="psec" sink="keystore" darg="I_psec"/>
+        <flow sarg="psec" sink="send_psec_I" darg="msg"/>
     </dhpub>
 
     <xform id="I_mpi">
@@ -67,7 +70,7 @@
     </xform>
 
     <xform id="I_resp">
-        <flow sarg="msg" sink="netsend" darg="I_send"/>
+        <flow sarg="msg" sink="send_I" darg="msg"/>
         <arg name="gx"/>
     </xform>
 
@@ -114,12 +117,12 @@
     </xform>
 
     <hash id="R_sendkey">
-        <flow sarg="hash" sink="keystore" darg="R_sendkey"/>
+        <flow sarg="hash" sink="send_sendkey_R" darg="msg"/>
         <flow sarg="hash" sink="R_mackey" darg="msg"/>
     </hash>
 
     <hash id="R_mackey">
-        <flow sarg="hash" sink="keystore" darg="R_mackey"/>
+        <flow sarg="hash" sink="send_mackey_R" darg="msg"/>
     </hash>
 
     <const id="R_g">
@@ -129,7 +132,7 @@
     <dhpub id="R_dhpub">
         <flow sarg="pub" sink="R_mpi" darg="mpi"/>
         <flow sarg="pub" sink="R_side" darg="pub_local"/>
-        <flow sarg="psec" sink="keystore" darg="R_psec"/>
+        <flow sarg="psec" sink="send_psec_R" darg="msg"/>
     </dhpub>
 
     <xform id="R_mpi">
@@ -138,7 +141,7 @@
     </xform>
 
     <xform id="R_resp">
-        <flow sarg="msg" sink="netsend" darg="R_send"/>
+        <flow sarg="msg" sink="send_R" darg="msg"/>
         <arg name="gx"/>
     </xform>
 
@@ -149,19 +152,37 @@
     </xform>
 
     <!-- Key store output -->
-    <send id="keystore" confidentiality="True" integrity="True" freshness="False">
-        <arg name="I_sendkey"/>
-        <arg name="I_mackey"/>
-        <arg name="I_psec"/>
-        <arg name="R_sendkey"/>
-        <arg name="R_mackey"/>
-        <arg name="R_psec"/>
-    </send>
+    <xform id="send_sendkey_I" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_mackey_I" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_psec_I" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_sendkey_R" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_mackey_R" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_psec_R" confidentiality="True" integrity="True" freshness="False">
+        <arg name="msg"/>
+    </xform>
 
     <!-- Network output -->
-    <send id="netsend" confidentiality="False" integrity="False" freshness="False">
-        <arg name="I_send"/>
-        <arg name="R_send"/>
-    </send>
+    <xform id="send_I" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_R" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
 
 </spg>

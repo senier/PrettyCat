@@ -21,19 +21,18 @@
     <xs:attribute name="id" use="required" />
 </xs:complexType>
 
-<xs:complexType name="unusedElement">
-    <xs:attribute name="sarg" use="required" />
-</xs:complexType>
-
-<xs:complexType name="sendElement">
+<xs:complexType name="xformElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
             <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:choice>
+                    <xs:element name="flow" type="flowElement"/>
                     <xs:element name="arg" type="argElement"/>
+                </xs:choice>
             </xs:sequence>
-            <xs:attribute name="confidentiality" use="required"/>
-            <xs:attribute name="integrity" use="required"/>
-            <xs:attribute name="freshness" use="required"/>
+            <xs:attribute name="confidentiality"/>
+            <xs:attribute name="integrity"/>
+            <xs:attribute name="freshness"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -44,30 +43,8 @@
                 <xs:sequence minOccurs="0" maxOccurs="unbounded">
                     <xs:choice>
                         <xs:element name="flow" type="flowElement"/>
-                        <xs:element name="unused" type="unusedElement"/>
-                    </xs:choice>
+                   </xs:choice>
                 </xs:sequence>
-        </xs:extension>
-    </xs:complexContent>
-</xs:complexType>
-
-<xs:complexType name="xformElement">
-    <xs:complexContent>
-        <xs:extension base="forwardElement">
-            <xs:sequence minOccurs="0" maxOccurs="unbounded">
-                    <xs:element name="arg" type="argElement"/>
-            </xs:sequence>
-        </xs:extension>
-    </xs:complexContent>
-</xs:complexType>
-
-
-<xs:complexType name="receiveElement">
-    <xs:complexContent>
-        <xs:extension base="forwardElement">
-            <xs:attribute name="confidentiality" use="required"/>
-            <xs:attribute name="integrity" use="required"/>
-            <xs:attribute name="freshness" use="required"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -77,8 +54,6 @@
         <xs:choice>
             <xs:element name="const"       type="forwardElement"/>
             <xs:element name="xform"       type="xformElement"/>
-            <xs:element name="send"        type="sendElement"/>
-            <xs:element name="receive"     type="receiveElement"/>
             <xs:element name="dhpub"       type="forwardElement"/>
             <xs:element name="dhsec"       type="forwardElement"/>
             <xs:element name="rand"        type="forwardElement"/>

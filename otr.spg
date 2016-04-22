@@ -1,22 +1,34 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Input -->
-    <receive id="netrecv" confidentiality="False" integrity="False" freshness="False">
+    <xform id="recv_dhcm" confidentiality="False" integrity="False" freshness="False">
         <flow sarg="msg" sink="dhcm" darg="msg"/>
-        <flow sarg="msg" sink="rvsm" darg="msg"/>
-        <flow sarg="msg" sink="undata" darg="msg"/>
-    </receive>
+    </xform>
 
-    <receive id="user" confidentiality="True" integrity="True" freshness="False">
+    <xform id="recv_rvsm" confidentiality="False" integrity="False" freshness="False">
+        <flow sarg="msg" sink="rvsm" darg="msg"/>
+    </xform>
+
+    <xform id="recv_data" confidentiality="False" integrity="False" freshness="False">
+        <flow sarg="msg" sink="undata" darg="msg"/>
+    </xform>
+
+    <xform id="recv_user" confidentiality="True" integrity="True" freshness="False">
         <flow sarg="msg" sink="D_encrypt" darg="plaintext"/>
-    </receive>
+    </xform>
 
     <!-- Output -->
-    <send id="netsend" confidentiality="False" integrity="False" freshness="False">
-        <arg name="msg_sigm"/>
-        <arg name="msg_dhkm"/>
-        <arg name="D_msg"/>
-    </send>
+    <xform id="send_sigm" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_dhkm" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_data" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
 
     <!-- Receive a DH-Commit message -->
     <xform id="dhcm">
@@ -27,7 +39,7 @@
 
     <!-- Sending a DH-Key message -->
     <xform id="dhkm">
-        <flow sarg="dhkm" sink="netsend" darg="msg_dhkm"/>
+        <flow sarg="dhkm" sink="send_dhkm" darg="msg"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -160,7 +172,7 @@
     </verify_sig>
 
     <guard id="guard_sig_rem">
-        <flow sarg="data" sink="netsend" darg="msg_sigm"/>
+        <flow sarg="data" sink="send_sigm" darg="msg"/>
     </guard>
 
     <!-- Sending a signature message -->
@@ -413,7 +425,7 @@
     </hmac_inline>
 
     <xform id="data">
-        <flow sarg="msg" sink="netsend" darg="D_msg"/>
+        <flow sarg="msg" sink="send_data" darg="msg"/>
         <arg name="msg"/>
         <arg name="auth"/>
         <arg name="old_mac_keys"/>

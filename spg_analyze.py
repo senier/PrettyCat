@@ -11,7 +11,6 @@ output = ""
 
 free_arguments = {
     'xform':        None,
-    'send':         ['msg'],
     'guard':        ['data'],
     'hash':         ['msg'],
     'verify_hash':  ['msg'],
@@ -261,13 +260,7 @@ def analyze_bw (G, start, incremental):
         node['color'] = ''
         node['style'] = 'filled'
     
-    # Minimum is empty set
-    if kind == "send":
-        for (parent, child, data) in G.in_edges(nbunch=start, data=True):
-            data['sec'] = sec_empty();
-            changes += 1
-
-    elif kind == "xform":
+    if kind == "xform":
         sec = sec_empty()
         for (parent, child, data) in G.out_edges(nbunch=start, data=True):
             if 'sec' in data and data['sec'] != None:
@@ -350,10 +343,7 @@ def analyze_bw (G, start, incremental):
         changes += set_inputs (G, start, {'data': maybe_ci()})
 
     elif kind == "const":
-        node['sec'] = sec_empty()
-        pass
-
-    elif kind == "receive":
+        n['sec'] = sec_empty()
         pass
 
     else:
@@ -385,13 +375,10 @@ def analyze_fw (G, node, incremental):
             sec |= data['sec']
         n['sec'] = sec
 
-    if kind == "receive":
-        for (current, child, data) in G.out_edges (nbunch=node, data=True):
-            data['sec'] |= n['sec']
-
-    if kind == "xform":
-        secany = sec_empty()
-        secall = sec_all()
+    elif kind == "xform":
+        sec = n['sec'] if 'sec' in n else sec_empty()
+        secany = sec
+        secall = sec
         for (parent, current, data) in G.in_edges (nbunch=node, data=True):
             secany |= data['sec']
             secall &= data['sec']
@@ -404,7 +391,7 @@ def analyze_fw (G, node, incremental):
                 data['sec'] |= sec_i()
                 changes += 1
 
-    if kind == "const":
+    elif kind == "const":
         for (current, child, data) in G.out_edges (nbunch=node, data=True):
             sec |= data['sec']
 
@@ -416,28 +403,6 @@ def analyze_fw (G, node, incremental):
 
     elif kind == "dhpub":
         changes += set_outputs (G, node, { 'pub': sec_empty(), 'psec': sec_ci()})
-
-    print "WARNING: Untransformed forward steps"
-
-    changes += freeze_node (G, node)
-    return 0
-
-    if kind == "receive":
-        for (current, parent, data) in G.out_edges (nbunch=node, data=True):
-            if n['sec'] != data['sec']:
-                print "   " + fmtsec(data['sec']) + " <- " + fmtsec(n['sec'])
-                data['sec'] = freeze(n['sec'])
-                changes += 1
-
-    elif kind == "xform":
-        sec = sec_empty()
-        for (parent, current, data) in G.in_edges (nbunch=node, data=True):
-            sec |= data['sec']
-        for (parent, current, data) in G.out_edges (nbunch=node, data=True):
-            if sec_c() <= sec:
-                print "   " + fmtsec(data['sec']) + " |= {i}"
-                data['sec'] = freeze(data['sec']) | sec_i()
-                changes += 1
 
     elif kind == "decrypt":
         inputs = get_inputs (G, node, ['iv', 'key', 'ciphertext'])
@@ -558,26 +523,7 @@ def validate_graph (G):
         for (parent, current, data) in G.in_edges(nbunch=node, data=True):
             used_args[data['darg']] = parent
 
-        if kind == 'send':
-
-            # All incoming edge sec sets must be a subset of send element sec set
-            for (parent, current, data) in G.in_edges(nbunch=node, data=True):
-                if not data['sec'] <= n['sec']:
-                    print "ERROR: '" + parent + "' exceeds security guarantees of '" + current + "'"
-                    data['color'] = 'orange'
-                    data['extralabel'] = "\n[" + fmtsec(data['sec']) + ">" + fmtsec(n['sec']) + "]"
-
-        elif kind == 'receive':
-
-            # Check for an exact match. TODO: Is that correct?
-            for (current, child, data) in G.out_edges(nbunch=node, data=True):
-                if n['sec'] != data['sec']:
-                    print "ERROR: security guarantees exceeded between '" + current + "' and '" + child + "'"
-                    n['fillcolor'] = 'orange'
-                    data['color'] = 'orange'
-                    data['extralabel'] = "\n[" + fmtsec(n['sec']) + ">" + fmtsec(data['sec']) + "]"
-
-        elif kind == 'const':
+        if kind == 'const':
 
             # All outgoing environments must at least guarantee the const sec set
             for (current, child, data) in G.out_edges(nbunch=node, data=True):
@@ -745,16 +691,14 @@ def parse_graph (inpath):
         # FIXME: Detect duplicate argument
         args = []
 
-        if child.tag == "send" or child.tag == "receive":
-            sec = convert_secset(child.attrib)
-    
         label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
     
-        if child.tag == "xform" or child.tag == 'send':
+        if child.tag == "xform":
+            sec = convert_secset(child.attrib)
             for arg in child.findall('arg'):
                 args.append (arg.attrib['name'])
 
-        if child.tag == "receive" or child.tag == "send":
+        if child.attrib["id"].startswith ("send_") or child.attrib["id"].startswith ("recv_"):
             shape = "invhouse"
         else:
             shape = "rectangle"

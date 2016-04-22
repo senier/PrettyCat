@@ -241,24 +241,25 @@ def set_inputs (G, node, argmap):
 
     return changes
 
-def analyze_backwards (G):
+def analyze_backwards (G, incremental):
     changes = 0
     for node in G.nodes():
         if not G.out_edges(nbunch=node):
-            changes += analyze_bw(G, node)
+            changes += analyze_bw(G, node, incremental)
     return changes
 
-def analyze_bw (G, start):
+def analyze_bw (G, start, incremental):
 
     changes = 0
     node = G.node[start]
     kind = node['kind']
 
-    node['color'] = 'orange'
-    node['style'] = 'filled, dashed'
-    write_graph(G, "BW");
-    node['color'] = ''
-    node['style'] = 'filled'
+    if incremental:
+        node['color'] = 'orange'
+        node['style'] = 'filled, dashed'
+        write_graph(G, "BW");
+        node['color'] = ''
+        node['style'] = 'filled'
     
     # Minimum is empty set
     if kind == "send":
@@ -359,19 +360,20 @@ def analyze_bw (G, start):
         raise Exeception, "Unknown kind: " + str(kind)
 
     for (parent, current, data) in G.in_edges(nbunch=start, data=True):
-        changes += analyze_bw (G, parent);
+        changes += analyze_bw (G, parent, incremental);
 
     return changes
 
-def analyze_forwards (G):
+def analyze_forwards (G, incremental):
     changes = 0
     for node in nx.topological_sort (G):
-        changes += analyze_fw (G, node)
+        changes += analyze_fw (G, node, incremental)
     return changes
 
-def analyze_fw (G, node):
+def analyze_fw (G, node, incremental):
 
-    write_graph(G, "FW");
+    if incremental:
+        write_graph(G, "FW");
     
     changes = 0
     n = G.node[node]
@@ -834,10 +836,10 @@ def main(args):
     fw_changes = 0
     bw_changes = 0
 
-    bwc = analyze_backwards (G)
+    bwc = analyze_backwards (G, args.incremental)
     print "Backwards changes: " + str(bwc)
 
-    fwc = analyze_forwards(G)
+    fwc = analyze_forwards(G, args.incremental)
     print "Forwards changes: " + str(fwc)
 
     write_graph(G, "Final")
@@ -847,7 +849,5 @@ def main(args):
 parser = argparse.ArgumentParser(description='SPG Analyzer')
 parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
 parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
-parser.add_argument('--no-backward', action='store_true', help='Ommit backward run', dest='nobw');
-parser.add_argument('--no-forward', action='store_true', help='Ommit second (forward) run', dest='nofw');
-parser.add_argument('--no-2nd-backward', action='store_true', help='Ommit second backward run', dest='nobw2');
+parser.add_argument('--incremental', action='store_true', help='Create incremental PDF', dest='incremental');
 main(parser.parse_args ())

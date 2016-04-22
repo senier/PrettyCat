@@ -6,6 +6,9 @@ import sys
 import argparse
 import subprocess
 
+iteration = 0
+output = ""
+
 free_arguments = {
     'xform':        None,
     'send':         ['msg'],
@@ -36,13 +39,48 @@ def sec_i():
     return set(("i"))
 
 def sec_ci():
-    return set(("c", "i"))
+    return sec_c() | sec_i()
 
 def sec_cif():
-    return set(("c", "i", "f"))
+    return sec_ci() | sec_f()
 
-def sec_max():
-    return set(("f", "c", "i"))
+def sec_all():
+    return sec_cif()
+
+def maybe_c():
+    return set(("C"))
+
+def maybe_i():
+    return set(("I"))
+
+def maybe_f():
+    return set(("F"))
+
+def maybe_ci():
+    return maybe_c() | maybe_i()
+
+def maybe_cif():
+    return maybe_ci() | maybe_f()
+
+def maybe(s):
+    result = set(())
+    if sec_c() <= s or maybe_c() <= s:
+        result |= maybe_c()
+    if sec_i() <= s or maybe_i() <= s:
+        result |= maybe_i()
+    if sec_f() <= s or maybe_f() <= s:
+        result |= maybe_f()
+    return result
+
+def freeze(s):
+    result = set(())
+    if sec_c() <= s or maybe_c() <= s:
+        result |= sec_c()
+    if sec_i() <= s or maybe_i() <= s:
+        result |= sec_i()
+    if sec_f() <= s or maybe_f() <= s:
+        result |= sec_f()
+    return result
 
 def fmtsec(sec):
     if not sec:
@@ -63,7 +101,29 @@ def fmtsec(sec):
             if result:
                 result += ","
             result += "f"
+        if "C" in sec:
+            if result:
+                result += ","
+            result += "C"
+        if "I" in sec:
+            if result:
+                result += ","
+            result += "I"
+        if "F" in sec:
+            if result:
+                result += ","
+            result += "F"
     return "{" + result + "}";
+
+def convert_secset (attrib):
+    result = sec_empty()
+    if "confidentiality" in attrib and attrib["confidentiality"] == "True":
+        result |= sec_c()
+    if "integrity" in attrib and attrib["integrity"] == "True":
+        result |= sec_i()
+    if "freshness" in attrib and attrib["freshness"] == "True":
+        result |= sec_f()
+    return result
 
 def get_outputs(G, node, arglist):
     result = {}
@@ -97,16 +157,20 @@ def set_outputs (G, node, argmap):
         if not sarg in argmap:
             raise Exception, "Node '" + current + "' passes invalid output parameter '" + sarg + "' to '" + child + "'"
 
-        if data['sec'] < argmap[sarg]:
-            # Upgrading is always OK, as it just increases the security requirements imposed on the environment
+        if data['sec'] != argmap[sarg]:
             data['sec'] = argmap[sarg]
             changes += 1
-        elif data['sec'] > argmap[sarg]:
-            kind = G.node[child]['kind']
-            # Downgrade is only allowed for 'free' parameters
-            if kind in free_arguments and (free_arguments[kind] == None or darg in free_arguments[kind]):
-                data['sec'] = argmap[sarg]
-                changes += 1
+
+        # if data['sec'] < argmap[sarg]:
+        #     # Upgrading is always OK, as it just increases the security requirements imposed on the environment
+        #     data['sec'] = argmap[sarg]
+        #     changes += 1
+        # elif data['sec'] > argmap[sarg]:
+        #     kind = G.node[child]['kind']
+        #     # Downgrade is only allowed for 'free' parameters
+        #     if kind in free_arguments and (free_arguments[kind] == None or darg in free_arguments[kind]):
+        #         data['sec'] = argmap[sarg]
+        #         changes += 1
 
         seen[sarg] = True
 
@@ -116,6 +180,20 @@ def set_outputs (G, node, argmap):
     if argmap:
         raise Exception, "Node '" + node + "' has no arguments " + str(list(argmap.keys()))
 
+    return changes
+
+def freeze_node (G, node):
+    changes = 0
+    n = G.node[node]
+    frozen = freeze(n['sec'])
+    if  frozen != n['sec']:
+        n['sec'] = frozen
+        changes += 1
+    for (current, child, data) in G.out_edges (nbunch=node, data=True):
+        frozen = freeze(data['sec'])
+        if frozen != data['sec']:
+            data['sec'] = frozen
+            changes += 1
     return changes
 
 def get_inputs (G, node, arglist):
@@ -155,20 +233,13 @@ def set_inputs (G, node, argmap):
         del argmap[darg]
         seen[darg] = True
 
+        if data['sec'] == None:
+            data['sec'] = sec_empty();
+
     if argmap:
         raise Exception, "Node '" + node + "' has no flow for arguments " + str(list(argmap.keys()))
 
     return changes
-
-def convert_secset (attrib):
-    result = sec_empty()
-    if "confidentiality" in attrib and attrib["confidentiality"] == "True":
-        result |= sec_c()
-    if "integrity" in attrib and attrib["integrity"] == "True":
-        result |= sec_i()
-    if "freshness" in attrib and attrib["freshness"] == "True":
-        result |= sec_f()
-    return result
 
 def analyze_backwards (G):
     changes = 0
@@ -178,97 +249,108 @@ def analyze_backwards (G):
     return changes
 
 def analyze_bw (G, start):
+
     changes = 0
     node = G.node[start]
     kind = node['kind']
 
+    node['color'] = 'orange'
+    node['style'] = 'filled, dashed'
+    write_graph(G, "BW");
+    node['color'] = ''
+    node['style'] = 'filled'
+    
+    # Minimum is empty set
     if kind == "send":
         for (parent, child, data) in G.in_edges(nbunch=start, data=True):
-            if G.node[parent]['sec'] != node['sec']:
-                G.node[parent]['sec'] = node['sec']
-                changes += 1
+            data['sec'] = sec_empty();
+            changes += 1
 
     elif kind == "xform":
         sec = sec_empty()
         for (parent, child, data) in G.out_edges(nbunch=start, data=True):
-            sec |= data['sec']
-        for (parent, child, data) in G.in_edges(nbunch=start, data=True):
-            if data['sec'] != sec:
-                data['sec'] = sec
+            if 'sec' in data and data['sec'] != None:
+                sec |= data['sec']
+        if 'i' in sec:
+            for (parent, child, data) in G.in_edges(nbunch=start, data=True):
+                data['sec'] |= sec_i()
+                changes += 1
+        if 'I' in sec:
+            for (parent, child, data) in G.in_edges(nbunch=start, data=True):
+                data['sec'] |= maybe_i()
                 changes += 1
 
     elif kind == "guard":
-        out = get_outputs (G, start, ['data'])
-        changes += set_inputs (G, start, {'data': out['data'], 'cond': sec_i()})
+        outputs = get_outputs (G, start, ['data'])
+        inputs  = get_inputs (G, start, ['data', 'cond'])
+        changes += set_inputs (G, start, {'data': outputs['data'], 'cond': inputs['cond'] | sec_i()})
 
     elif kind == "sign":
-        out = get_outputs (G, start, ['auth'])
-        changes += set_inputs (G, start, {'skey': sec_ci(), 'pkey': sec_i(), 'msg': sec_i()})
+        inputs  = get_inputs (G, start, ['pkey', 'skey', 'msg']);
+        outputs = get_outputs (G, start, ['auth']);
+        changes += set_inputs (G, start, {'skey': inputs['skey'] | sec_ci(), 'pkey': inputs['pkey'] | sec_i(), 'msg': outputs['auth']})
 
     elif kind == "verify_sig":
-        out = get_outputs (G, start, ['msg'])
-        changes += set_inputs (G, start, {'pkey': sec_i(), 'auth': sec_empty(), 'msg': out['msg'] - sec_i()})
+        outputs = get_outputs (G, start, ['msg'])
+        inputs  = get_inputs (G, start, ['pkey', 'auth', 'msg']);
+        changes += set_inputs (G, start, {'pkey': inputs['pkey'] | sec_i(), 'auth': None, 'msg': outputs['msg']})
 
     elif kind == "hmac":
-        out = get_outputs (G, start, ['auth'])
-        changes += set_inputs (G, start, {'key': sec_ci(), 'msg': sec_empty()})
+        inputs  = get_inputs (G, start, ['key', 'msg']);
+        changes += set_inputs (G, start, {'key': inputs['key'] | sec_ci(), 'msg': maybe(inputs['msg'])})
 
     elif kind == "hmac_inline":
-        out = get_outputs (G, start, ['auth', 'msg'])
-        changes += set_inputs (G, start, {'key': sec_ci(), 'msg': out['msg'] | sec_i()})
+        inputs  = get_inputs (G, start, ['key', 'msg']);
+        changes += set_inputs (G, start, {'key': inputs['key'] | sec_ci(), 'msg': maybe(inputs['msg']) | maybe_i()})
 
     elif kind == "verify_hmac":
-        out = get_outputs (G, start, ['msg'])
-        changes += set_inputs (G, start, {'key': sec_ci(), 'auth': sec_empty(), 'msg': out['msg'] - sec_i()})
+        outputs = get_outputs (G, start, ['msg'])
+        inputs  = get_inputs (G, start, ['key', 'auth', 'msg']);
+        changes += set_inputs (G, start, {'key': inputs['key'] | sec_ci(), 'auth': None, 'msg': maybe(outputs['msg']) - maybe_i()})
 
     elif kind == "encrypt":
-        out = get_outputs (G, start, ['ciphertext'])
-        changes += set_inputs (G, start, {'key': sec_ci(), 'iv': sec_i(), 'plaintext': out['ciphertext'] | sec_c()})
+        outputs = get_outputs (G, start, ['ciphertext'])
+        changes += set_inputs (G, start, {'key': maybe_ci(), 'iv': maybe_i(), 'plaintext': outputs['ciphertext']})
 
     elif kind == "decrypt":
-        out = get_outputs (G, start, ['plaintext'])
-
-        if sec_c() in out['plaintext']:
-            iv_sec = sec_i()
-            key_sec = sec_ci()
+        outputs = get_outputs (G, start, ['plaintext'])
+        if "c" in outputs['plaintext']:
+            seckey = maybe_ci();
+            seciv  = maybe_i();
+            delta  = maybe_c();
         else:
-            iv_sec = sec_empty()
-            key_sec = sec_empty()
-
-        changes += set_inputs (G, start, {'key': key_sec, 'iv': iv_sec, 'ciphertext': out['plaintext'] - sec_c()})
+            seckey = sec_empty();
+            seciv  = sec_empty();
+            delta  = sec_empty();
+        changes += set_inputs (G, start, {'key': seckey, 'iv': seciv, 'ciphertext': maybe(outputs['plaintext']) - delta})
 
     elif kind == "hash":
-        out = get_outputs (G, start, ['hash'])
-        changes += set_inputs (G, start, {'msg': out['hash'] | sec_c()})
+        outputs = get_outputs (G, start, ['hash'])
+        changes += set_inputs (G, start, {'msg': maybe(outputs['hash']) - maybe_c()})
 
     elif kind == "verify_hash":
-        out = get_outputs (G, start, ['msg'])
-        changes += set_inputs (G, start, {'hash': sec_empty(), 'msg': out['msg']})
+        outputs = get_outputs (G, start, ['msg'])
+        changes += set_inputs (G, start, {'msg': maybe(outputs['msg']), 'hash': None})
 
     elif kind == "dhsec":
-        out = get_outputs (G, start, ['ssec'])
-        changes += set_inputs (G, start, {'pub': sec_i(), 'psec': sec_ci()})
+        outputs = get_outputs (G, start, ['ssec'])
+        inputs  = get_inputs (G, start, ['pub', 'psec'])
+        changes += set_inputs (G, start, {'pub': maybe(outputs['ssec']) - maybe_ci(), 'psec': sec_ci()})
 
     elif kind == "dhpub":
-        out = get_outputs (G, start, ['pub', 'psec'])
-        changes += set_inputs (G, start, {'gen': sec_i(), 'psec': sec_cif()})
+        inputs  = get_inputs (G, start, ['gen', 'psec'])
+        changes += set_inputs (G, start, {'gen': maybe_i(), 'psec': maybe_cif()})
 
     elif kind == "rand":
-        out = get_outputs (G, start, ['data'])
-        changes += set_inputs (G, start, {'len': sec_i()})
+        inputs = get_inputs(G, start, ['len'])
+        changes += set_inputs (G, start, {'len': maybe_i()})
 
     elif kind == "release":
-        out = get_outputs (G, start, ['data'])
-        changes += set_inputs (G, start, {'data': sec_ci()})
+        changes += set_inputs (G, start, {'data': maybe_ci()})
 
     elif kind == "const":
-
-        sec = sec_empty()
-        for (parent, child, data) in G.out_edges(nbunch=start, data=True):
-            sec |= data['sec']
-        if sec != node['sec']:
-            node['sec'] = sec
-            changes += 1
+        node['sec'] = sec_empty()
+        pass
 
     elif kind == "receive":
         pass
@@ -288,14 +370,61 @@ def analyze_forwards (G):
     return changes
 
 def analyze_fw (G, node):
+
+    write_graph(G, "FW");
+    
     changes = 0
     n = G.node[node]
     kind = n['kind']
 
+    if kind == "const":
+        sec = sec_empty()
+        for (current, child, data) in G.out_edges (nbunch=node, data=True):
+            sec |= data['sec']
+        n['sec'] = sec
+
+    if kind == "receive":
+        for (current, child, data) in G.out_edges (nbunch=node, data=True):
+            data['sec'] |= n['sec']
+
+    if kind == "xform":
+        secany = sec_empty()
+        secall = sec_all()
+        for (parent, current, data) in G.in_edges (nbunch=node, data=True):
+            secany |= data['sec']
+            secall &= data['sec']
+        if 'c' in secany:
+            for (parent, child, data) in G.out_edges(nbunch=node, data=True):
+                data['sec'] |= sec_c()
+                changes += 1
+        if 'i' in secall:
+            for (parent, child, data) in G.out_edges(nbunch=node, data=True):
+                data['sec'] |= sec_i()
+                changes += 1
+
+    if kind == "const":
+        for (current, child, data) in G.out_edges (nbunch=node, data=True):
+            sec |= data['sec']
+
+    elif kind == "dhsec":
+        changes += set_outputs (G, node, { 'ssec': sec_ci()})
+
+    elif kind == "release":
+        changes += set_outputs (G, node, { 'data': sec_empty()})
+
+    elif kind == "dhpub":
+        changes += set_outputs (G, node, { 'pub': sec_empty(), 'psec': sec_ci()})
+
+    print "WARNING: Untransformed forward steps"
+
+    changes += freeze_node (G, node)
+    return 0
+
     if kind == "receive":
         for (current, parent, data) in G.out_edges (nbunch=node, data=True):
-            if n['sec'] <= data['sec']:
-                data['sec'] = n['sec']
+            if n['sec'] != data['sec']:
+                print "   " + fmtsec(data['sec']) + " <- " + fmtsec(n['sec'])
+                data['sec'] = freeze(n['sec'])
                 changes += 1
 
     elif kind == "xform":
@@ -303,14 +432,9 @@ def analyze_fw (G, node):
         for (parent, current, data) in G.in_edges (nbunch=node, data=True):
             sec |= data['sec']
         for (parent, current, data) in G.out_edges (nbunch=node, data=True):
-            if data['sec'] != sec:
-                data['sec'] = sec
-                changes += 1
-
-    elif kind == "const":
-        for (parent, current, data) in G.out_edges (nbunch=node, data=True):
-            if n['sec'] != data['sec']:
-                data['sec'] = n['sec'] 
+            if sec_c() <= sec:
+                print "   " + fmtsec(data['sec']) + " |= {i}"
+                data['sec'] = freeze(data['sec']) | sec_i()
                 changes += 1
 
     elif kind == "decrypt":
@@ -347,21 +471,6 @@ def analyze_fw (G, node):
         inputs = get_inputs (G, node, ['data', 'cond'])
         changes += set_outputs (G, node, { 'data': inputs['data']})
 
-    elif kind == "dhsec":
-        inputs = get_inputs (G, node, ['pub', 'psec'])
-        changes += set_outputs (G, node, { 'ssec': sec_ci()})
-
-    elif kind == "rand":
-        changes += set_outputs (G, node, { 'data': sec_cif()})
-
-    elif kind == "release":
-        inputs = get_inputs (G, node, ['data'])
-        changes += set_outputs (G, node, { 'data': sec_empty()})
-
-    elif kind == "dhpub":
-        inputs = get_inputs (G, node, ['gen', 'psec'])
-        changes += set_outputs (G, node, { 'pub': sec_empty(), 'psec': sec_ci()})
-
     elif kind == "sign":
         pass
 
@@ -377,38 +486,26 @@ def analyze_fw (G, node):
     return changes
 
 def sec_color (sec):
-    if sec == sec_empty():
-        return "black"
-    if sec == sec_i():
-        return "blue"
-    if sec == sec_c():
-        return "red"
-    if sec == sec_ci():
-        return "purple"
-    if sec == sec_cif():
+    if sec_cif() <= sec:
         return "cyan"
-    else:
-        print "Missing color: " + fmtsec(sec)
-        return "green"
+    if sec_ci() <= sec:
+        return "purple"
+    if sec_c() <= sec:
+        return "red"
+    if sec_i() <= sec:
+        return "blue"
+    return "black"
 
 def colorize (G, nodelist):
     for node in nodelist:
         n = G.node[node]
-        kind = n['kind']
+        outsec = sec_empty()
+        for (parent, child, data) in G.out_edges(nbunch=node, data=True):
+            outsec |= data['sec']
 
-        if kind == "send" or kind == "const":
-            outsec = sec_empty() if n['sec'] == None else n['sec']
-        else:
-            outsec = sec_empty()
-            for (parent, child, data) in G.out_edges(nbunch=node, data=True):
-                outsec |= data['sec']
-
-        if kind == "receive" or kind == "const":
-            insec = sec_empty() if n['sec'] == None else n['sec']
-        else:
-            insec = sec_empty()
-            for (parent, child, data) in G.in_edges(nbunch=node, data=True):
-                insec |= data['sec']
+        insec = sec_empty()
+        for (parent, child, data) in G.in_edges(nbunch=node, data=True):
+            insec |= data['sec']
 
         n['fontname'] = "Times Bold"
         n['fontcolor'] = "gray"
@@ -417,22 +514,35 @@ def colorize (G, nodelist):
         n['fillcolor'] = "\"" + sec_color(insec | outsec) + "\""
 
 def check_input (G, node, args, param, threshold): 
-    if args[param] < threshold:
+    if args[param] > threshold:
         print "ERROR: Security guarantees of '" + param + "' input parameter exceeded for '" + node + "' (" + fmtsec(args[param]) + " < " + fmtsec(threshold) + ")"
         for (parent, current, data) in G.in_edges(nbunch=node, data=True):
             if data['darg'] == param:
                 data['extralabel'] = "\n[" + fmtsec(threshold) + " > " + fmtsec(args[param]) + "]"
-                data['style'] = "dashed"
+                data['color'] = "orange"
 
 def check_output (G, node, args, param, threshold):
-    if args[param] < threshold:
+    if not args[param] <= threshold:
         print "ERROR: Security guarantees of '" + param + "' output parameter exceeded for '" + node + "' (" + fmtsec(args[param]) + " < " + fmtsec(threshold) + ")"
         for (current, child, data) in G.out_edges(nbunch=node, data=True):
             if data['darg'] == param:
                 data['extralabel'] = "\n[" + fmtsec(threshold) + " > " + fmtsec(args[param]) + "]"
-                data['style'] = "dashed"
+                data['color'] = "orange"
 
 def validate_graph (G):
+
+    for node in G:
+        for (parent, node, data) in G.in_edges(nbunch=node, data=True):
+            if "extralabel" in data:
+                del data["extralabel"]
+            if "style" in data:
+                del data["style"]
+        for (node, child, data) in G.in_edges(nbunch=node, data=True):
+            if "extralabel" in data:
+                del data["extralabel"]
+            if "style" in data:
+                del data["style"]
+
     for node in G:
         n = G.node[node]
         kind = n['kind']
@@ -452,29 +562,32 @@ def validate_graph (G):
             for (parent, current, data) in G.in_edges(nbunch=node, data=True):
                 if not data['sec'] <= n['sec']:
                     print "ERROR: '" + parent + "' exceeds security guarantees of '" + current + "'"
-                    data['style'] = 'dashed'
+                    data['color'] = 'orange'
                     data['extralabel'] = "\n[" + fmtsec(data['sec']) + ">" + fmtsec(n['sec']) + "]"
 
-        elif kind == 'receive' or kind == 'const':
+        elif kind == 'receive':
 
-            # All outgoing environments must at least guarantee the receive elements sec set
+            # Check for an exact match. TODO: Is that correct?
             for (current, child, data) in G.out_edges(nbunch=node, data=True):
-                if not n['sec'] <= data['sec']:
-                    print "ERROR: '" + child + "' exceeds security guarantees of '" + current + "'"
-                    data['style'] = 'dashed'
+                if n['sec'] != data['sec']:
+                    print "ERROR: security guarantees exceeded between '" + current + "' and '" + child + "'"
+                    n['fillcolor'] = 'orange'
+                    data['color'] = 'orange'
+                    data['extralabel'] = "\n[" + fmtsec(n['sec']) + ">" + fmtsec(data['sec']) + "]"
+
+        elif kind == 'const':
+
+            # All outgoing environments must at least guarantee the const sec set
+            for (current, child, data) in G.out_edges(nbunch=node, data=True):
+                if "c" in n['sec'] and not "c" in data['sec']:
+                    print "ERROR: confidentiality not guaranteed between '" + current + "' and '" + child + "'"
+                    data['color'] = 'orange'
                     data['extralabel'] = "\n[" + fmtsec(n['sec']) + ">" + fmtsec(data['sec']) + "]"
 
         elif kind == 'xform':
 
-            # The outgoing environments must at least guarantee the union of all input security sets
-            inputsec = sec_empty()
-            for (parent, current, data) in G.in_edges(nbunch=node, data=True):
-                inputsec |= data['sec']
-            for (current, child, data) in G.out_edges(nbunch=node, data=True):
-                if not inputsec <= data['sec']:
-                    print "ERROR: '" + child + "' exceeds security guarantees of '" + current + "'"
-                    data['style'] = 'dashed'
-                    data['extralabel'] = "\n[" + fmtsec(inputsec) + ">" + fmtsec(data['sec']) + "]"
+            # TODO: Right now I have no good understanding of how to validate this
+            pass
 
         elif kind == 'guard':
 
@@ -497,7 +610,7 @@ def validate_graph (G):
             present_args += ['msg']
             inputs = get_inputs(G, node, present_args)
             outputs = get_outputs(G, node, ['hash'])
-            check_input (G, node, inputs, 'msg', outputs['hash'] - sec_c())
+            # FIXME: No useful checks possible here?
 
         elif kind == 'verify_hash':
 
@@ -519,7 +632,6 @@ def validate_graph (G):
             inputs = get_inputs(G, node, present_args)
             outputs = get_outputs(G, node, ['msg', 'auth'])
             check_input (G, node, inputs, 'key', sec_ci())
-            check_input (G, node, inputs, 'msg', outputs['msg'] | sec_i())
 
         elif kind == 'verify_hmac':
 
@@ -536,7 +648,7 @@ def validate_graph (G):
             outputs = get_outputs(G, node, ['auth'])
             check_input (G, node, inputs, 'pkey', sec_i())
             check_input (G, node, inputs, 'skey', sec_ci())
-            check_input (G, node, inputs, 'msg', outputs['auth'] - sec_i())
+            #check_input (G, node, inputs, 'msg', outputs['auth'] - sec_i())
 
         elif kind == 'verify_sig':
 
@@ -584,7 +696,7 @@ def validate_graph (G):
             inputs = get_inputs(G, node, present_args)
             outputs = get_outputs(G, node, ['plaintext'])
 
-            if sec_c() in outputs['plaintext']:
+            if "c" in outputs['plaintext']:
                 delta_ct = sec_c()
                 sec_iv = sec_i()
             else:
@@ -608,9 +720,16 @@ def validate_graph (G):
             if not ua in present_args:
                 print "ERROR: Parent '" + used_args[ua] + "' uses non-existent argument '" + ua + "' of node '" + node + "'"
 
-def parse_graph (path):
+        # Check for edges still having unfrozen security sets
+        for (parent, child, data) in G.edges(data=True):
+            frozen = freeze(data['sec'])
+            if data['sec'] != frozen and not 'extralabel' in data:
+                data['color'] = "orange"
+                data['extralabel'] = "\n[UNFROZEN]"
+
+def parse_graph (inpath):
     try:
-        root = ET.parse(path).getroot()
+        root = ET.parse(inpath).getroot()
     except IOError as e:
         print("Error opening XML file: " + str(e))
         sys.exit(1)
@@ -621,8 +740,9 @@ def parse_graph (path):
     for child in root:
     
         sec = None
+        # FIXME: Detect duplicate argument
         args = []
-    
+
         if child.tag == "send" or child.tag == "receive":
             sec = convert_secset(child.attrib)
     
@@ -664,7 +784,12 @@ def parse_graph (path):
 
     return G
 
-def write_graph(G, output):
+def write_graph(G, title):
+
+    global iteration
+    global output 
+    out = "graph_" + str(iteration).zfill(4) + "_" + output
+    iteration += 1
 
     # add edge labels
     for (parent, child, data) in G.edges(data=True):
@@ -690,41 +815,34 @@ def write_graph(G, output):
     pd.set ("nodesep", "0.5")
     pd.set ("pack", "true")
     pd.set ("size", "15.6,10.7")
-    pd.write(output)
+    pd.set ("label", title + "/" + str(iteration))
+    pd.set ("labelloc", "tl")
+    pd.write(out + ".dot")
+    print subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"]);
     
 def main(args):
+    global output
 
     # validate graph
     print subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]);
 
     G = parse_graph (args.input[0])
+    output = args.output[0]
 
     count = 0 
     iterations = 0
     fw_changes = 0
     bw_changes = 0
 
-    write_graph(G, "graph_000_00.dot");
+    bwc = analyze_backwards (G)
+    print "Backwards changes: " + str(bwc)
 
-    while True:
-        iterations += 1;
-        bwc = analyze_backwards (G)
-        write_graph(G, "graph_" + str(iterations).zfill(3) + "_bw.dot");
-        fwc = analyze_forwards (G)
-        write_graph(G, "graph_" + str(iterations).zfill(3) + "_fw.dot");
+    fwc = analyze_forwards(G)
+    print "Forwards changes: " + str(fwc)
 
-        if bwc == bw_changes and fwc == fw_changes:
-            count += 1
-            if count > 2:
-                break
-
-        bw_changes = bwc
-        fw_changes = fwc
-
-        print str(bw_changes) + "/" + str(fw_changes) + " changes"
-    
+    write_graph(G, "Final")
     validate_graph (G)
-    write_graph(G, args.output[0])
+
 
 parser = argparse.ArgumentParser(description='SPG Analyzer')
 parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');

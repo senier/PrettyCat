@@ -26,8 +26,6 @@
 \DeclareMathOperator{\rand}{Rand}
 \DeclareMathOperator{\dhsec}{DH_{Sec}}
 \DeclareMathOperator{\dhpub}{DH_{Pub}}
-\DeclareMathOperator{\send}{Send}
-\DeclareMathOperator{\recv}{Receive}
 \DeclareMathOperator{\guard}{Guard}
 \DeclareMathOperator{\release}{Release}
 \DeclareMathOperator{\const}{Const}
@@ -206,25 +204,8 @@ step.}
 
 $$\trans(in_1^{\sigma_1}, \cdots, in_n^{\sigma_n}) \mapsto (out_1^{\cup\sigma_i},\cdots,out_m^{\cup\sigma_i})$$
 
-A special case of a transformation is the $\send$ operation which passes a
-single input parameter to the environment of the system model. To be able to
-reason about security of that data being send to the environment, the output
-parameter representing the environment is also labeled with a security set.
-
-$$\send(msg^\sigma) \mapsto (env^{\sigma})$$
-
-The receive primitive is a special transformation working the opposite
-direction. It receives one message from outside the modelled system and passes
-it on to its output parameter. The input parameter again is labeled with the
-security set that is assumed about the environment the message is received
-from.
-
-$$\recv(env^\sigma) \mapsto (msg^\sigma)$$
-
-\TODO{Does it make sense to identify same domains by having the same $env$ parameter?}
-
-The third special case of a transformation is the $\const$ primitive which
-transfers a constant input parameter to its output parameter.
+A special case of a transformation is the $\const$ primitive which transfers a
+constant input parameter to its output parameter.
 
 $$\const(const^{\sigma}) \mapsto (const^{\sigma})$$
 

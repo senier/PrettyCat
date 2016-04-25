@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<spg>
+    <!-- Network input -->
+    <xform id="recv" confidentiality="True" integrity="False" freshness="False">
+        <flow sarg="msg" sink="encrypt" darg="plaintext"/>
+    </xform>
+
+    <const id="keylen">
+        <flow sarg="const" sink="key" darg="len"/>
+    </const>
+
+    <rand id="key">
+        <flow sarg="data" sink="encrypt" darg="key"/>
+    </rand>
+
+    <const id="iv">
+        <flow sarg="const" sink="encrypt" darg="iv"/>
+    </const>
+
+    <encrypt id="encrypt">
+        <flow sarg="ciphertext" sink="send" darg="msg"/>
+    </encrypt>
+
+    <xform id="send" confidentiality="False" integrity="False" freshness="False">
+        <arg name="msg"/>
+    </xform>
+
+</spg>

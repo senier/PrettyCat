@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Network input -->
-    <xform id="recv" confidentiality="True" integrity="False" freshness="False">
+    <xform id="recv_data" confidentiality="True" integrity="False" freshness="False">
         <flow sarg="msg" sink="encrypt" darg="plaintext"/>
     </xform>
 
@@ -18,10 +18,10 @@
     </const>
 
     <encrypt id="encrypt">
-        <flow sarg="ciphertext" sink="send" darg="msg"/>
+        <flow sarg="ciphertext" sink="send_data" darg="msg"/>
     </encrypt>
 
-    <xform id="send" confidentiality="False" integrity="False" freshness="False">
+    <xform id="send_data" confidentiality="False" integrity="False" freshness="False">
         <arg name="msg"/>
     </xform>
 

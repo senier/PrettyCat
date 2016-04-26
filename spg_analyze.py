@@ -616,16 +616,16 @@ def get_in_f (G, node, darg):
         if data['darg'] == darg:
             return data['in_var_f']
 
-def init_in_vars(G, node, solver, darg):
+def init_in_vars(G, node, db, solver, darg):
     for (parent, current, data) in G.in_edges(nbunch=node, data=True):
         if data['darg'] == darg:
             data['in_var_c'] = Bool(node + "_" + data['darg'] + "_in_c")
             data['in_var_i'] = Bool(node + "_" + data['darg'] + "_in_i")
             data['in_var_f'] = Bool(node + "_" + data['darg'] + "_in_f")
 
-            solver.assert_and_track (data['out_var_c'] == data['in_var_c'], node + "_" + darg + "_inout_c")
-            solver.assert_and_track (data['out_var_i'] == data['in_var_i'], node + "_" + darg + "_inout_i")
-            solver.assert_and_track (data['out_var_f'] == data['in_var_f'], node + "_" + darg + "_inout_f")
+            assert_and_track (db, solver, data['out_var_c'] == data['in_var_c'], node + "_" + darg + "_inout_c")
+            assert_and_track (db, solver, data['out_var_i'] == data['in_var_i'], node + "_" + darg + "_inout_i")
+            assert_and_track (db, solver, data['out_var_f'] == data['in_var_f'], node + "_" + darg + "_inout_f")
 
 def init_out_vars(G, node, solver, sarg):
     for (current, child, data) in G.out_edges(nbunch=node, data=True):
@@ -645,9 +645,13 @@ def secset (c, i, f):
     return result
 
 def analyze_satisfiability (G):
+
+    assert_db = {}
     s = Solver()
+    s.set(unsat_core=True)
+
     for node in nx.topological_sort (G):
-        analyze_sat (G, node, s)
+        analyze_sat (G, assert_db, node, s)
 
     if s.check() == sat:
         print "Solution found"
@@ -658,10 +662,15 @@ def analyze_satisfiability (G):
             f = str(m.evaluate(data['out_var_f'])) == "True"
             data['sec'] = secset (c, i, f)
     else:
-        print s.unsat_core()
         print "No solution"
+        for p in s.unsat_core():
+            print "   " + str(simplify(assert_db[str(p)]))
 
-def analyze_sat (G, node, s):
+def assert_and_track (db, s, cond, name):
+    db[name] = cond
+    s.assert_and_track (cond, name)
+
+def analyze_sat (G, db, node, s):
 
     n = G.node[node]
     kind = n['kind']
@@ -677,7 +686,7 @@ def analyze_sat (G, node, s):
 
         for (parent, current, data) in G.in_edges(nbunch=node, data=True):
             has_source = True
-            init_in_vars (G, node, s, data['darg'])
+            init_in_vars (G, node, db, s, data['darg'])
             c.append (get_in_c (G, node, data['darg']))
             i.append (get_in_i (G, node, data['darg']))
             f.append (get_in_f (G, node, data['darg']))
@@ -693,33 +702,40 @@ def analyze_sat (G, node, s):
             # ordinary xforms don't have security labels
             pass
         elif has_source:
-            # a sink, assert all incoming edges to have at least the sinks security level
+            # Sink:
+            # Assert all incoming edges to have at least the sinks security level
             for (parent, current, data) in G.in_edges(nbunch=node, data=True):
                 sarg = data['sarg']
                 c = Bool(node + "_" + sarg + "_sink_c")
-                i = Bool(node + "_" + sarg + "_sink_c")
-                f = Bool(node + "_" + sarg + "_sink_c")
-                c = c if 'c' in n['sec'] else Not(c)
-                i = i if 'i' in n['sec'] else Not(i)
-                f = f if 'f' in n['sec'] else Not(f)
-                s.assert_and_track (Implies (data['in_var_c'], c), current + "_xform_" + sarg + "_in_c")
-                s.assert_and_track (Implies (data['in_var_i'], i), current + "_xform_" + sarg + "_in_i")
-                s.assert_and_track (Implies (data['in_var_f'], f), current + "_xform_" + sarg + "_in_f")
+                i = Bool(node + "_" + sarg + "_sink_i")
+                f = Bool(node + "_" + sarg + "_sink_f")
+                assert_and_track (db, s, Implies (data['in_var_c'], c), current + "_xform_" + sarg + "_in_c")
+                assert_and_track (db, s, Implies (data['in_var_i'], i), current + "_xform_" + sarg + "_in_i")
+                assert_and_track (db, s, Implies (data['in_var_f'], f), current + "_xform_" + sarg + "_in_f")
+                val_c = c if 'c' in n['sec'] else Not(c)
+                val_i = i if 'i' in n['sec'] else Not(i)
+                val_f = f if 'f' in n['sec'] else Not(f)
+                assert_and_track (db, s, val_c, current + "_sink_" + sarg + "_sec_c")
+                assert_and_track (db, s, val_i, current + "_sink_" + sarg + "_sec_i")
+                assert_and_track (db, s, val_f, current + "_sink_" + sarg + "_sec_f")
 
         elif has_sink:
-            # a source, assert all outgoing edges to have at most the sources security level
+            # Source:
+            # Assert all outgoing edges to have at most the sources security level
             for (current, child, data) in G.out_edges(nbunch=node, data=True):
                 darg = data['darg']
                 c = Bool(node + "_" + darg + "_source_c")
-                i = Bool(node + "_" + darg + "_source_c")
-                f = Bool(node + "_" + darg + "_source_c")
-                c = c if 'c' in n['sec'] else Not(c)
-                i = i if 'i' in n['sec'] else Not(i)
-                f = f if 'f' in n['sec'] else Not(f)
-                s.assert_and_track (Implies (c, data['out_var_c']), current + "_xform_" + darg + "_out_c")
-                s.assert_and_track (Implies (i, data['out_var_i']), current + "_xform_" + darg + "_out_i")
-                s.assert_and_track (Implies (f, data['out_var_f']), current + "_xform_" + darg + "_out_f")
-
+                i = Bool(node + "_" + darg + "_source_i")
+                f = Bool(node + "_" + darg + "_source_f")
+                assert_and_track (db, s, data['out_var_c'] == c, current + "_xform_" + darg + "_out_c")
+                assert_and_track (db, s, data['out_var_i'] == i, current + "_xform_" + darg + "_out_i")
+                assert_and_track (db, s, data['out_var_f'] == f, current + "_xform_" + darg + "_out_f")
+                val_c = c if 'c' in n['sec'] else Not(c)
+                val_i = i if 'i' in n['sec'] else Not(i)
+                val_f = f if 'f' in n['sec'] else Not(f)
+                assert_and_track (db, s, val_c, current + "_source_" + darg + "_sec_c")
+                assert_and_track (db, s, val_i, current + "_source_" + darg + "_sec_i")
+                assert_and_track (db, s, val_f, current + "_source_" + darg + "_sec_f")
         else:
             # no incoming and no outgoing edges? This is an error.
             raise Exception, "xform with no edges: " + node
@@ -728,62 +744,62 @@ def analyze_sat (G, node, s):
         init_out_vars (G, node, s, "const")
 
     elif kind == "rand":
-        init_in_vars (G, node, s, "len")
+        init_in_vars (G, node, db, s, "len")
         init_out_vars (G, node, s, "data")
 
         # Length input parameter needs integrity
-        s.assert_and_track (get_in_i (G, node, "len"), node + "_rand_len_in_i")
+        assert_and_track (db, s, get_in_i (G, node, "len"), node + "_rand_len_in_i")
 
         # Output data parameter provides confidentiality, integrity and freshness
-        s.assert_and_track (get_out_c (G, node, "data"), node + "_rand_data_out_c")
-        s.assert_and_track (get_out_i (G, node, "data"), node + "_rand_data_out_i")
-        s.assert_and_track (get_out_f (G, node, "data"), node + "_rand_data_out_f")
+        assert_and_track (db, s, get_out_c (G, node, "data"), node + "_rand_data_out_c")
+        assert_and_track (db, s, get_out_i (G, node, "data"), node + "_rand_data_out_i")
+        assert_and_track (db, s, get_out_f (G, node, "data"), node + "_rand_data_out_f")
 
     elif kind == "dhpub":
-        init_in_vars (G, node, s, "gen")
-        init_in_vars (G, node, s, "psec")
+        init_in_vars (G, node, db, s, "gen")
+        init_in_vars (G, node, db, s, "psec")
         init_out_vars (G, node, s, "pub")
         init_out_vars (G, node, s, "psec")
 
         # Generator needs integrity
-        s.assert_and_track (get_in_i (G, node, "gen"), node + "_dhpub_gen_in_i")
+        assert_and_track (db, s, get_in_i (G, node, "gen"), node + "_dhpub_gen_in_i")
 
         # Secret psec requires confidentiality, integrity and freshness
-        s.assert_and_track (get_in_c (G, node, "psec"), node + "_dhpub_psec_in_c")
-        s.assert_and_track (get_in_i (G, node, "psec"), node + "_dhpub_psec_in_j")
-        s.assert_and_track (get_in_f (G, node, "psec"), node + "_dhpub_psec_in_f")
+        assert_and_track (db, s, get_in_c (G, node, "psec"), node + "_dhpub_psec_in_c")
+        assert_and_track (db, s, get_in_i (G, node, "psec"), node + "_dhpub_psec_in_j")
+        assert_and_track (db, s, get_in_f (G, node, "psec"), node + "_dhpub_psec_in_f")
 
         # Output secret psec only guarantees confidentiality, integrity
-        s.assert_and_track (get_out_c (G, node, "psec"), node + "_dhpub_psec_out_c")
-        s.assert_and_track (get_out_i (G, node, "psec"), node + "_dhpub_psec_out_i")
+        assert_and_track (db, s, get_out_c (G, node, "psec"), node + "_dhpub_psec_out_c")
+        assert_and_track (db, s, get_out_i (G, node, "psec"), node + "_dhpub_psec_out_i")
 
     elif kind == "dhsec":
-        init_in_vars (G, node, s, "pub")
-        init_in_vars (G, node, s, "psec")
+        init_in_vars (G, node, db, s, "pub")
+        init_in_vars (G, node, db, s, "psec")
         init_out_vars (G, node, s, "ssec")
 
         # Input secret psec requires confidentiality and integrity
-        s.assert_and_track (get_in_c (G, node, "psec"), node + "_dhsec_psec_in_c")
-        s.assert_and_track (get_in_i (G, node, "psec"), node + "_dhsec_psec_in_i")
+        assert_and_track (db, s, get_in_c (G, node, "psec"), node + "_dhsec_psec_in_c")
+        assert_and_track (db, s, get_in_i (G, node, "psec"), node + "_dhsec_psec_in_i")
 
         # Output secret ssec requires confidentiality
-        s.assert_and_track (get_out_c (G, node, "ssec"), node + "dhsec_ssec_out_c")
-        s.assert_and_track (get_in_i (G, node, "pub") == get_out_i (G, node, "ssec"), node + "dhsec_ssec_inout_i")
-        s.assert_and_track (get_in_f (G, node, "pub") == get_out_f (G, node, "ssec"), node + "dhsec_ssec_inout_f")
+        assert_and_track (db, s, get_out_c (G, node, "ssec"), node + "dhsec_ssec_out_c")
+        assert_and_track (db, s, get_in_i (G, node, "pub") == get_out_i (G, node, "ssec"), node + "dhsec_ssec_inout_i")
+        assert_and_track (db, s, get_in_f (G, node, "pub") == get_out_f (G, node, "ssec"), node + "dhsec_ssec_inout_f")
 
     elif kind == "hash":
-        init_in_vars (G, node, s, "msg")
+        init_in_vars (G, node, db, s, "msg")
         init_out_vars (G, node, s, "hash")
 
         # FIXME: How about situations where confidentiality is removed by hashing (e.g. passwords)?
-        s.assert_and_track (Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "hash")), node + "_hash_hash_out_c")
-        s.assert_and_track (Implies (get_in_i (G, node, "msg"), get_out_i (G, node, "hash")), node + "_hash_hash_out_i")
-        s.assert_and_track (Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "hash")), node + "_hash_hash_out_f")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "hash")), node + "_hash_hash_out_c")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "msg"), get_out_i (G, node, "hash")), node + "_hash_hash_out_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "hash")), node + "_hash_hash_out_f")
 
     elif kind == "encrypt":
-        init_in_vars (G, node, s, "iv")
-        init_in_vars (G, node, s, "key")
-        init_in_vars (G, node, s, "plaintext")
+        init_in_vars (G, node, db, s, "iv")
+        init_in_vars (G, node, db, s, "key")
+        init_in_vars (G, node, db, s, "plaintext")
         init_out_vars (G, node, s, "ciphertext")
 
         # Output ciphertext does not have confidentiality requirement if:
@@ -793,9 +809,103 @@ def analyze_sat (G, node, s):
         #       either key or iv are fresh
         security  = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"), get_in_i (G, node, "iv"))
         freshness = Or (get_in_f (G, node, "iv"), get_in_f (G, node, "key"))
-        s.assert_and_track (And (security, freshness) == Not (get_out_c (G, node, "ciphertext")), node + "_encrypt" + "_ciphertext_c")
-        s.assert_and_track (Implies (get_in_i (G, node, "plaintext"), get_out_i (G, node, "ciphertext")), node + "_encrypt" + "_ciphertext_i")
-        s.assert_and_track (Implies (get_in_f (G, node, "plaintext"), get_out_f (G, node, "ciphertext")), node + "_encrypt" + "_ciphertext_f" )
+
+        # FIXME:
+        # This does not seem to model encryption correctly, yet. What if the plaintext had no security
+        # requirements in the first place? Then, encryption with a known key or without freshness would be OK
+        assert_and_track (db, s, Not(get_out_c (G, node, "ciphertext")) == And (security, freshness), node + "_encrypt_ciphertext_c")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "plaintext"), get_out_i (G, node, "ciphertext")), node + "_encrypt_ciphertext_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "plaintext"), get_out_f (G, node, "ciphertext")), node + "_encrypt_ciphertext_f" )
+
+    elif kind == "decrypt":
+        init_in_vars (G, node, db, s, "iv")
+        init_in_vars (G, node, db, s, "key")
+        init_in_vars (G, node, db, s, "ciphertext")
+        init_out_vars (G, node, s, "plaintext")
+
+        security  = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"), get_in_i (G, node, "iv"))
+        freshness = Or (get_in_f (G, node, "iv"), get_in_f (G, node, "key"))
+        assert_and_track (db, s, Implies (get_out_c (G, node, "plaintext"), And (security, freshness)), node + "_decrypt_plaintext_c")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "ciphertext"), get_out_i (G, node, "plaintext")), node + "_decrypt_plaintext_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "ciphertext"), get_out_f (G, node, "plaintext")), node + "_decrypt_plaintext_f" )
+
+    elif kind == "verify_hash":
+        init_in_vars (G, node, db, s, "hash")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "msg")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "hash"), get_out_c (G, node, "msg")), node + "_verify_hash_msg_c")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "hash"), get_out_i (G, node, "msg")), node + "_verify_hash_msg_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "hash"), get_out_f (G, node, "msg")), node + "_verify_hash_msg_f")
+
+    elif kind == "verify_hmac":
+        init_in_vars (G, node, db, s, "key")
+        init_in_vars (G, node, db, s, "auth")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "msg")
+
+        security = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"))
+        assert_and_track (db, s, Implies (get_out_i (G, node, "msg"), security), node + "_verify_hmac_msg_i")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "msg"), get_out_i (G, node, "msg")), node + "_verify_hmac_msg_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "msg")), node + "_verify_hmac_msg_f")
+
+    elif kind == "hmac":
+        init_in_vars (G, node, db, s, "key")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "auth")
+
+        security = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"))
+        assert_and_track (db, s, Implies (get_in_i (G, node, "msg"), security), node + "_hmac_msg_i")
+
+    elif kind == "hmac_inline":
+        init_in_vars (G, node, db, s, "key")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "msg")
+        init_out_vars (G, node, s, "auth")
+
+        # FIXME: Check!
+        security = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"))
+        assert_and_track (db, s, Implies (And (security, get_in_i (G, node, "msg")), Not (get_out_i (G, node, "msg"))), node + "_hmac_msg_i")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "msg")), node + "_hmac_inline_msg_c")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "msg")), node + "_hmac_inline_msg_f")
+
+    elif kind == "sign":
+        init_in_vars (G, node, db, s, "pkey")
+        init_in_vars (G, node, db, s, "skey")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "auth")
+
+        security = And (get_in_c (G, node, "skey"), get_in_i (G, node, "skey"), get_in_i (G, node, "pkey"))
+        assert_and_track (db, s, Implies (get_out_i (G, node, "auth"), security), node + "_sign_auth_i")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "auth")), node + "_sign_auth_c")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "auth")), node + "_sign_auth_f")
+
+    elif kind == "verify_sig":
+        init_in_vars (G, node, db, s, "pkey")
+        init_in_vars (G, node, db, s, "auth")
+        init_in_vars (G, node, db, s, "msg")
+        init_out_vars (G, node, s, "msg")
+
+        assert_and_track (db, s, Implies (get_out_i (G, node, "msg"), get_in_i (G, node, "pkey")), node + "_verify_sig_msg_i")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "msg")), node + "_verify_sig_msg_c")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "msg")), node + "_verify_sig_msg_f")
+
+    elif kind == "release":
+        init_in_vars (G, node, db, s, "data")
+        init_out_vars (G, node, s, "data")
+
+        assert_and_track (db, s, Implies (get_in_c (G, node, "data"), Not(get_out_c (G, node, "data"))), node + "_release_data_c")
+        assert_and_track (db, s, Implies (get_in_i (G, node, "data"), Not(get_out_i (G, node, "data"))), node + "_release_data_i")
+        assert_and_track (db, s, Implies (get_in_f (G, node, "data"), Not(get_out_f (G, node, "data"))), node + "_release_data_f")
+
+    elif kind == "guard":
+        init_in_vars (G, node, db, s, "data")
+        init_in_vars (G, node, db, s, "cond")
+        init_out_vars (G, node, s, "data")
+
+        assert_and_track (db, s, get_in_i (G, node, "cond"), node + "_guard_cond_i")
+        assert_and_track (db, s, get_in_c (G, node, "data") == get_out_c (G, node, "data"), node + "_guard_data_c")
+        assert_and_track (db, s, get_in_i (G, node, "data") == get_out_i (G, node, "data"), node + "_guard_data_i")
+        assert_and_track (db, s, get_in_f (G, node, "data") == get_out_f (G, node, "data"), node + "_guard_data_f")
 
     else:
         raise Exception, "Unhandled primitive '" + kind + "'"

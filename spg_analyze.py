@@ -556,6 +556,24 @@ def write_graph(G, title):
     for (parent, child, data) in G.edges(data=True):
         if 'extralabel' in data:
             data['xlabel'] += data['extralabel']
+        if 'unsat_in_c' in data:
+            data['color'] = 'orange'
+            data['headlabel'] += "\nC!"
+        if 'unsat_in_i' in data:
+            data['color'] = 'orange'
+            data['headlabel'] = "\nI!"
+        if 'unsat_in_f' in data:
+            data['color'] = 'orange'
+            data['headlabel'] = "\nF!"
+        if 'unsat_out_c' in data:
+            data['color'] = 'orange'
+            data['taillabel'] += "\nC!"
+        if 'unsat_out_i' in data:
+            data['color'] = 'orange'
+            data['taillabel'] = "\nI!"
+        if 'unsat_out_f' in data:
+            data['color'] = 'orange'
+            data['taillabel'] = "\nF!"
     
     pd = nx.drawing.nx_pydot.to_pydot(G)
     pd.set_name("sdg")
@@ -644,6 +662,37 @@ def secset (c, i, f):
         result |= sec_f()
     return result
 
+def mark_unsat_core (G, uc):
+    constraints = {}
+    mark_expression (G, constraints, uc)
+    for (child, parent, data) in G.edges (data=True):
+        if str(data['in_var_c']) in constraints:
+            data['unsat_in_f'] = True
+        if str(data['in_var_i']) in constraints:
+            data['unsat_in_i'] = True
+        if str(data['in_var_f']) in constraints:
+            data['unsat_in_f'] = True
+        if str(data['out_var_c']) in constraints:
+            data['unsat_out_c'] = True
+        if str(data['out_var_i']) in constraints:
+            data['unsat_out_i'] = True
+        if str(data['out_var_f']) in constraints:
+            data['unsat_out_f'] = True
+
+def mark_expression (G, c, uc):
+    if is_and (uc):
+        for idx in range (0, uc.num_args()):
+            mark_expression (G, c, uc.arg(idx))
+    elif is_eq(uc):
+        mark_expression (G, c, uc.arg(0))
+        mark_expression (G, c, uc.arg(1))
+    elif is_not(uc):
+        mark_expression (G, c, uc.arg(0))
+    elif is_const(uc):
+        c[str(uc)] = True
+    else:
+        raise "Unhandled expression: " + str(uc)
+
 def analyze_satisfiability (G):
 
     assert_db = {}
@@ -663,8 +712,10 @@ def analyze_satisfiability (G):
             data['sec'] = secset (c, i, f)
     else:
         print "No solution"
+        unsat_core = []
         for p in s.unsat_core():
-            print "   " + str(simplify(assert_db[str(p)]))
+            unsat_core.append (simplify(assert_db[str(p)]))
+        mark_unsat_core (G, And(unsat_core))
 
 def assert_and_track (db, s, cond, name):
     db[name] = cond

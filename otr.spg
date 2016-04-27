@@ -105,7 +105,7 @@
     <dhpub id="gy">
         <flow sarg="pub" sink="mpi" darg="gy"/>
         <flow sarg="pub" sink="D_rotate" darg="ake_pub_local"/>
-        <flow sarg="psec" sink="D_rotate" darg="ake_psec"/>
+        <flow sarg="psec" sink="D_select_psec" darg="ake_psec"/>
     </dhpub>
 
     <const id="gdhy">
@@ -334,7 +334,7 @@
     <dhpub id="D_dhy">
         <flow sarg="pub" sink="D_dhympi" darg="dhy"/>
         <flow sarg="pub" sink="D_rotate" darg="pub_local"/>
-        <flow sarg="psec" sink="D_rotate" darg="psec"/>
+        <flow sarg="psec" sink="D_select_psec" darg="psec"/>
     </dhpub>
     
     <xform id="D_dhympi">
@@ -342,60 +342,67 @@
         <arg name="dhy"/>
     </xform>
 
-    <const id="D_initial_keyid">
-        <flow sarg="const" sink="D_id" darg="initial_keyid"/>
-    </const>
-
-    <xform id="D_rotate">
-        <flow sarg="side" sink="D_cat_h1" darg="startbyte"/>
-        <flow sarg="psec" sink="D_s" darg="psec"/>
-        <flow sarg="gy" sink="D_s" darg="pub"/>
-        <arg name="ake_psec"/>
-        <arg name="ake_pub_local"/>
-        <arg name="ake_pub_remote"/>
-        <arg name="psec"/>
-        <arg name="pub_local"/>
-        <arg name="pub_rem"/>
-        <arg name="sender_keyid"/>
-        <arg name="recipient_keyid"/>
-    </xform>
-
-    <xform id="D_id">
-        <flow sarg="skid" sink="D_mac_input" darg="sender_keyid"/>
-        <flow sarg="rkid" sink="D_mac_input" darg="recipient_keyid"/>
-        <flow sarg="skid" sink="D_rotate" darg="sender_keyid"/>
-        <flow sarg="rkid" sink="D_rotate" darg="recipient_keyid"/>
-        <flow sarg="ctr" sink="D_encrypt" darg="iv"/>
-        <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
-        <arg name="skid"/>
-        <arg name="rkid"/>
-        <arg name="initial_keyid"/>
-    </xform>
-
-    <dhsec id="D_s">
-        <flow sarg="ssec" sink="D_smpi" darg="s"/>
-    </dhsec>
-
     <xform id="D_smpi">
         <flow sarg="secbytes" sink="D_cat_h1" darg="secbytes"/>
         <arg name="s"/>
     </xform>
 
     <xform id="D_cat_h1">
-        <flow sarg="data" sink="D_sendkey" darg="msg"/>
-        <arg name="startbyte"/>
+        <flow sarg="data" sink="D_send_enckey" darg="msg"/>
         <arg name="secbytes"/>
     </xform>
 
-    <hash id="D_sendkey">
-        <flow sarg="hash" sink="D_encrypt" darg="key"/>
+    <hash id="D_send_enckey">
+        <flow sarg="hash" sink="D_select_key" darg="send_enckey"/>
         <flow sarg="hash" sink="D_mackey" darg="msg"/>
     </hash>
 
     <hash id="D_mackey">
-        <flow sarg="hash" sink="D_mac" darg="key"/>
+        <flow sarg="hash" sink="D_select_key" darg="send_mackey"/>
         <flow sarg="hash" sink="reveal_old_mac_keys" darg="data"/>
     </hash>
+
+    <permute id="D_select_key">
+        <flow sarg="send_enckey" sink="D_encrypt" darg="key"/>
+        <flow sarg="send_mackey" sink="D_mac" darg="key"/>
+        <arg name="send_enckey"/>
+        <arg name="send_mackey"/>
+        <arg name="recv_enckey"/>
+        <arg name="recv_mackey"/>
+    </permute>
+
+    <const id="D_initial_keyid">
+        <flow sarg="const" sink="D_rotate" darg="initial_keyid"/>
+    </const>
+
+    <xform id="D_rotate">
+        <flow sarg="gy" sink="D_s" darg="pub"/>
+        <flow sarg="ctr" sink="D_encrypt" darg="iv"/>
+        <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
+        <flow sarg="skid" sink="D_mac_input" darg="sender_keyid"/>
+        <flow sarg="rkid" sink="D_mac_input" darg="recipient_keyid"/>
+        <flow sarg="side" sink="D_select_key" darg="order"/>
+        <flow sarg="seckey" sink="D_select_psec" darg="order"/>
+        <arg name="ake_pub_local"/>
+        <arg name="ake_pub_remote"/>
+        <arg name="pub_local"/>
+        <arg name="pub_rem"/>
+        <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
+        <arg name="skid"/>
+        <arg name="rkid"/>
+        <arg name="initial_keyid"/>
+    </xform>
+
+    <permute id="D_select_psec">
+        <flow sarg="psec" sink="D_s" darg="psec"/>
+        <arg name="psec"/>
+        <arg name="ake_psec"/>
+    </permute>
+
+    <dhsec id="D_s">
+        <flow sarg="ssec" sink="D_smpi" darg="s"/>
+    </dhsec>
 
     <release id="reveal_old_mac_keys">
         <flow sarg="data" sink="data" darg="old_mac_keys"/>
@@ -434,8 +441,8 @@
     <!-- receiving a data message -->
     <xform id="undata">
         <flow sarg="dh_y" sink="D_unmpi" darg="mpi"/>
-        <flow sarg="sender_keyid" sink="D_id" darg="skid"/>
-        <flow sarg="recipient_keyid" sink="D_id" darg="rkid"/>
+        <flow sarg="sender_keyid" sink="D_rotate" darg="skid"/>
+        <flow sarg="recipient_keyid" sink="D_rotate" darg="rkid"/>
         <arg name="msg"/>
     </xform>
 

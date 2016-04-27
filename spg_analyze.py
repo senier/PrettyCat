@@ -179,22 +179,22 @@ def write_graph(G, title, out):
             data['xlabel'] += data['extralabel']
         if 'unsat_in_c' in data:
             data['color'] = 'orange'
-            data['headlabel'] += "\nC!"
+            data['xlabel'] += "\nIN/C"
         if 'unsat_in_i' in data:
             data['color'] = 'orange'
-            data['headlabel'] = "\nI!"
+            data['xlabel'] += "\nIN/I"
         if 'unsat_in_f' in data:
             data['color'] = 'orange'
-            data['headlabel'] = "\nF!"
+            data['xlabel'] += "\nIN/F"
         if 'unsat_out_c' in data:
             data['color'] = 'orange'
-            data['taillabel'] += "\nC!"
+            data['xlabel'] += "\nOUT/C"
         if 'unsat_out_i' in data:
             data['color'] = 'orange'
-            data['taillabel'] = "\nI!"
+            data['xlabel'] += "\nOUT/I"
         if 'unsat_out_f' in data:
             data['color'] = 'orange'
-            data['taillabel'] = "\nF!"
+            data['xlabel'] += "\nOUT/F"
     
     pd = nx.drawing.nx_pydot.to_pydot(G)
     pd.set_name("sdg")
@@ -287,7 +287,7 @@ def mark_unsat_core (G, uc):
     mark_expression (G, constraints, uc)
     for (child, parent, data) in G.edges (data=True):
         if str(data['in_var_c']) in constraints:
-            data['unsat_in_f'] = True
+            data['unsat_in_c'] = True
         if str(data['in_var_i']) in constraints:
             data['unsat_in_i'] = True
         if str(data['in_var_f']) in constraints:
@@ -300,7 +300,7 @@ def mark_unsat_core (G, uc):
             data['unsat_out_f'] = True
 
 def mark_expression (G, c, uc):
-    if is_and (uc):
+    if is_and (uc) or is_or (uc):
         for idx in range (0, uc.num_args()):
             mark_expression (G, c, uc.arg(idx))
     elif is_eq(uc):
@@ -311,7 +311,7 @@ def mark_expression (G, c, uc):
     elif is_const(uc):
         c[str(uc)] = True
     else:
-        raise "Unhandled expression: " + str(uc)
+        raise Exception, "Unhandled expression: " + str(uc)
 
 def analyze_satisfiability (G):
 
@@ -332,6 +332,7 @@ def analyze_satisfiability (G):
             data['sec'] = secset (c, i, f)
     else:
         print "No solution"
+        print s.unsat_core()
         unsat_core = []
         for p in s.unsat_core():
             unsat_core.append (simplify(assert_db[str(p)]))
@@ -355,10 +356,11 @@ def analyze_sat (G, db, node, s):
         init_in_vars (G, node, db, s, "order")
 
         for (parent, current, data) in G.in_edges(nbunch=node, data=True):
-            init_in_vars (G, node, db, s, data['darg'])
-            c.append (get_in_c (G, node, data['darg']))
-            i.append (get_in_i (G, node, data['darg']))
-            f.append (get_in_f (G, node, data['darg']))
+            if data['darg'] != "order":
+                init_in_vars (G, node, db, s, data['darg'])
+                c.append (get_in_c (G, node, data['darg']))
+                i.append (get_in_i (G, node, data['darg']))
+                f.append (get_in_f (G, node, data['darg']))
 
         for (current, child, data) in G.out_edges(nbunch=node, data=True):
             init_out_vars (G, node, s, data['sarg'])
@@ -457,10 +459,10 @@ def analyze_sat (G, db, node, s):
 
         # Secret psec requires confidentiality, integrity and freshness
         assert_and_track (db, s, get_in_c (G, node, "psec"), node + "_dhpub_psec_in_c")
-        assert_and_track (db, s, get_in_i (G, node, "psec"), node + "_dhpub_psec_in_j")
+        assert_and_track (db, s, get_in_i (G, node, "psec"), node + "_dhpub_psec_in_i")
         assert_and_track (db, s, get_in_f (G, node, "psec"), node + "_dhpub_psec_in_f")
 
-        # Output secret psec only guarantees confidentiality, integrity
+        # Output secret psec only guarantees confidentiality and integrity
         assert_and_track (db, s, get_out_c (G, node, "psec"), node + "_dhpub_psec_out_c")
         assert_and_track (db, s, get_out_i (G, node, "psec"), node + "_dhpub_psec_out_i")
 
@@ -475,6 +477,7 @@ def analyze_sat (G, db, node, s):
 
         # Output secret ssec requires confidentiality
         assert_and_track (db, s, get_out_c (G, node, "ssec"), node + "dhsec_ssec_out_c")
+
         assert_and_track (db, s, get_in_i (G, node, "pub") == get_out_i (G, node, "ssec"), node + "dhsec_ssec_inout_i")
         assert_and_track (db, s, get_in_f (G, node, "pub") == get_out_f (G, node, "ssec"), node + "dhsec_ssec_inout_f")
 

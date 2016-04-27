@@ -675,7 +675,27 @@ def analyze_sat (G, db, node, s):
     n = G.node[node]
     kind = n['kind']
 
-    if kind == "xform":
+    if kind == "permute":
+
+        c = []
+        i = []
+        f = []
+
+        init_in_vars (G, node, db, s, "order")
+
+        for (parent, current, data) in G.in_edges(nbunch=node, data=True):
+            init_in_vars (G, node, db, s, data['darg'])
+            c.append (get_in_c (G, node, data['darg']))
+            i.append (get_in_i (G, node, data['darg']))
+            f.append (get_in_f (G, node, data['darg']))
+
+        for (current, child, data) in G.out_edges(nbunch=node, data=True):
+            init_out_vars (G, node, s, data['sarg'])
+            if c: set_out_c (G, node, data['sarg'], Or(c))
+            if i: set_out_i (G, node, data['sarg'], And(i))
+            if f: set_out_f (G, node, data['sarg'], And(f))
+
+    elif kind == "xform":
 
         has_source = False
         has_sink   = False
@@ -919,7 +939,7 @@ def main(args):
     G = parse_graph (args.input[0])
     output = args.output[0]
 
-    validate_graph (G)
+    #validate_graph (G)
     analyze_satisfiability(G)
     write_graph(G, "Final")
 

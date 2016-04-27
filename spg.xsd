@@ -68,6 +68,7 @@
             <xs:element name="encrypt"     type="forwardElement"/>
             <xs:element name="guard"       type="forwardElement"/>
             <xs:element name="release"     type="forwardElement"/>
+            <xs:element name="permute"     type="xformElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>

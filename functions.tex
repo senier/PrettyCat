@@ -29,6 +29,7 @@
 \DeclareMathOperator{\guard}{Guard}
 \DeclareMathOperator{\release}{Release}
 \DeclareMathOperator{\const}{Const}
+\DeclareMathOperator{\permute}{Permute}
 
 \newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
 
@@ -208,6 +209,15 @@ A special case of a transformation is the $\const$ primitive which transfers a
 constant input parameter to its output parameter.
 
 $$\const(const^{\sigma}) \mapsto (const^{\sigma})$$
+
+Another special case of a transformation is $\permute$, a primitive which
+permutes a set of input arguments into another set of output arguments. While
+the order input argument determines the output permutation, its security set
+does not have an influence on the security of the other parameters.
+
+\TODO{Formulas need to be change to predicates anyway. Add permute later.}
+
+\TODO{Sounds like this element can be unsafe in many cases. Discuss that where it's safe to use.}
 
 \subsubsection{Data flow dependencies}
 

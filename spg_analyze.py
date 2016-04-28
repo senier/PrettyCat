@@ -240,19 +240,35 @@ def get_out_f (G, node, sarg):
             return data['out_var_f']
 
 def get_in_c (G, node, darg):
+    result = None
     for (current, child, data) in G.in_edges(nbunch=node, data=True):
         if data['darg'] == darg:
-            return data['in_var_c']
+            result = data['in_var_c']
+            break
+    if result != None:
+        return result
+    raise Exception, "Node '" + node + "' does not have argument '" + darg + "'"
 
 def get_in_i (G, node, darg):
+    result = None
     for (current, child, data) in G.in_edges(nbunch=node, data=True):
         if data['darg'] == darg:
-            return data['in_var_i']
+            result = data['in_var_i']
+            break
+    if result != None:
+        return result
+    raise Exception, "Node '" + node + "' does not have argument '" + darg + "'"
 
 def get_in_f (G, node, darg):
+    result = None
     for (current, child, data) in G.in_edges(nbunch=node, data=True):
         if data['darg'] == darg:
-            return data['in_var_f']
+            result = data['in_var_f']
+            break
+    if result != None:
+        return result
+    raise Exception, "Node '" + node + "' does not have argument '" + darg + "'"
+
 
 def init_in_vars(G, node, db, solver, darg):
     for (parent, current, data) in G.in_edges(nbunch=node, data=True):
@@ -600,6 +616,20 @@ def analyze_sat (G, db, node, s):
         assert_and_track (db, s, get_in_c (G, node, "data") == get_out_c (G, node, "data"), node + "_guard_data_c")
         assert_and_track (db, s, get_in_i (G, node, "data") == get_out_i (G, node, "data"), node + "_guard_data_i")
         assert_and_track (db, s, get_in_f (G, node, "data") == get_out_f (G, node, "data"), node + "_guard_data_f")
+
+    elif kind == "counter":
+        init_in_vars (G, node, db, s, "init")
+        init_in_vars (G, node, db, s, "key")
+        init_out_vars (G, node, s, "ctr")
+        init_out_vars (G, node, db, "key")
+
+        assert_and_track (db, s, get_in_i (G, node, "init"), node + "_counter_init_i")
+
+        assert_and_track (db, s, get_in_c (G, node, "key") == get_out_c (G, node, "key"), node + "_counter_key_c")
+        assert_and_track (db, s, get_in_i (G, node, "key") == get_out_i (G, node, "key"), node + "_counter_key_i")
+        assert_and_track (db, s, get_in_f (G, node, "key") == get_out_f (G, node, "key"), node + "_counter_key_f")
+
+        assert_and_track (db, s, Or (get_out_f (G, node, "ctr"), get_out_f (G, node, "key")), node + "_counter_ctr_or_key_f")
 
     else:
         raise Exception, "Unhandled primitive '" + kind + "'"

@@ -363,7 +363,7 @@
     </hash>
 
     <permute id="D_select_key">
-        <flow sarg="send_enckey" sink="D_encrypt" darg="key"/>
+        <flow sarg="send_enckey" sink="D_ctr" darg="key"/>
         <flow sarg="send_mackey" sink="D_mac" darg="key"/>
         <arg name="send_enckey"/>
         <arg name="send_mackey"/>
@@ -377,8 +377,6 @@
 
     <xform id="D_rotate">
         <flow sarg="gy" sink="D_s" darg="pub"/>
-        <flow sarg="ctr" sink="D_encrypt" darg="iv"/>
-        <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
         <flow sarg="skid" sink="D_mac_input" darg="sender_keyid"/>
         <flow sarg="rkid" sink="D_mac_input" darg="recipient_keyid"/>
         <flow sarg="side" sink="D_select_key" darg="order"/>
@@ -407,6 +405,16 @@
     <release id="reveal_old_mac_keys">
         <flow sarg="data" sink="data" darg="old_mac_keys"/>
     </release>
+
+    <const id="D_initial_ctr">
+        <flow sarg="const" sink="D_ctr" darg="init"/>
+    </const>
+
+    <counter id="D_ctr">
+        <flow sarg="key" sink="D_encrypt" darg="key"/>
+        <flow sarg="ctr" sink="D_encrypt" darg="iv"/>
+        <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
+    </counter>
 
     <encrypt id="D_encrypt">
         <flow sarg="ciphertext" sink="D_mac_input" darg="encrypted"/>

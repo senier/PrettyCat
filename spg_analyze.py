@@ -453,6 +453,7 @@ def analyze_sat (G, db, node, s):
         init_out_vars (G, node, s, "const")
 
     elif kind == "rand":
+        # Do we need a seed as input (i.e. is the seed ever used in a security protocol)?
         init_in_vars (G, node, db, s, "len")
         init_out_vars (G, node, s, "data")
 
@@ -502,7 +503,7 @@ def analyze_sat (G, db, node, s):
         init_out_vars (G, node, s, "hash")
 
         # FIXME: How about situations where confidentiality is removed by hashing (e.g. passwords)?
-        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "hash")), node + "_hash_hash_out_c")
+        #assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "hash")), node + "_hash_hash_out_c")
         assert_and_track (db, s, Implies (get_in_i (G, node, "msg"), get_out_i (G, node, "hash")), node + "_hash_hash_out_i")
         assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "hash")), node + "_hash_hash_out_f")
 
@@ -525,6 +526,8 @@ def analyze_sat (G, db, node, s):
         # requirements in the first place? Then, encryption with a known key or without freshness would be OK
         assert_and_track (db, s, Not(get_out_c (G, node, "ciphertext")) == And (security, freshness), node + "_encrypt_ciphertext_c")
         assert_and_track (db, s, Implies (get_in_i (G, node, "plaintext"), get_out_i (G, node, "ciphertext")), node + "_encrypt_ciphertext_i")
+
+        # Does it make sense that encryption has no influence on freshness???
         assert_and_track (db, s, Implies (get_in_f (G, node, "plaintext"), get_out_f (G, node, "ciphertext")), node + "_encrypt_ciphertext_f" )
 
     elif kind == "decrypt":
@@ -555,7 +558,7 @@ def analyze_sat (G, db, node, s):
 
         security = And (get_in_c (G, node, "key"), get_in_i (G, node, "key"))
         assert_and_track (db, s, Implies (get_out_i (G, node, "msg"), security), node + "_verify_hmac_msg_i")
-        assert_and_track (db, s, Implies (get_in_i (G, node, "msg"), get_out_i (G, node, "msg")), node + "_verify_hmac_msg_i")
+        assert_and_track (db, s, Implies (get_in_c (G, node, "msg"), get_out_c (G, node, "msg")), node + "_verify_hmac_msg_c")
         assert_and_track (db, s, Implies (get_in_f (G, node, "msg"), get_out_f (G, node, "msg")), node + "_verify_hmac_msg_f")
 
     elif kind == "hmac":

@@ -152,11 +152,11 @@
     </xform>
 
     <!-- Key store output -->
-    <xform id="send_sendkey_I" confidentiality="True" integrity="True" freshness="False">
+    <xform id="send_sendkey_I" confidentiality="True" integrity="False" freshness="False">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_mackey_I" confidentiality="True" integrity="True" freshness="False">
+    <xform id="send_mackey_I" confidentiality="True" integrity="False" freshness="False">
         <arg name="msg"/>
     </xform>
 
@@ -164,11 +164,11 @@
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_sendkey_R" confidentiality="True" integrity="True" freshness="False">
+    <xform id="send_sendkey_R" confidentiality="True" integrity="False" freshness="False">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_mackey_R" confidentiality="True" integrity="True" freshness="False">
+    <xform id="send_mackey_R" confidentiality="True" integrity="False" freshness="False">
         <arg name="msg"/>
     </xform>
 

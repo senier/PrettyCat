@@ -206,7 +206,9 @@ def write_graph(G, title, out):
     pd.set ("label", title)
     pd.set ("labelloc", "t")
     pd.write(out + ".dot")
-    subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"]);
+    pos = nx.drawing.nx_pydot.pydot_layout(G, prog="dot")
+
+    subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"])
     os.remove (out + ".dot")
 
 def set_out_c (G, node, sarg, value):

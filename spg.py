@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 
-import xml.etree.ElementTree as ET
-import networkx as nx
 import sys
+import xml.etree.ElementTree as ET
 import argparse
 import subprocess
 import os
+sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
+import networkx as nx
 
 def sec_empty():
     return set(())
@@ -648,8 +649,9 @@ def main(args):
     analyze_satisfiability(G)
     write_graph(G, "Final", args.output[0])
 
-parser = argparse.ArgumentParser(description='SPG Analyzer')
-parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
-parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
-parser.add_argument('--incremental', action='store_true', help='Create incremental PDF', dest='incremental');
-main(parser.parse_args ())
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='SPG Analyzer')
+    parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+    parser.add_argument('--incremental', action='store_true', help='Create incremental PDF', dest='incremental');
+    main(parser.parse_args ())

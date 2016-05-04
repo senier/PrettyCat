@@ -22,13 +22,13 @@
     </xform>
 
     <const id="I_keylen">
-        <flow sarg="const" sink="I_rand" darg="len"/>
+        <flow sarg="const" sink="I_rng" darg="len"/>
     </const>
 
-    <rand id="I_rand">
+    <rng id="I_rng">
         <flow sarg="data" sink="I_secbytes" darg="psec"/>
         <flow sarg="data" sink="I_dhpub" darg="psec"/>
-    </rand>
+    </rng>
 
     <dhsec id="I_secbytes">
         <flow sarg="ssec" sink="I_sbmpi" darg="secbytes"/>
@@ -93,13 +93,13 @@
     </xform>
 
     <const id="R_keylen">
-        <flow sarg="const" sink="R_rand" darg="len"/>
+        <flow sarg="const" sink="R_rng" darg="len"/>
     </const>
 
-    <rand id="R_rand">
+    <rng id="R_rng">
         <flow sarg="data" sink="R_secbytes" darg="psec"/>
         <flow sarg="data" sink="R_dhpub" darg="psec"/>
-    </rand>
+    </rng>
 
     <dhsec id="R_secbytes">
         <flow sarg="ssec" sink="R_sbmpi" darg="secbytes"/>

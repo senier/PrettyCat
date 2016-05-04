@@ -479,7 +479,7 @@ def analyze_sat (G, db, node, s):
     elif kind == "const":
         init_out_vars (G, node, s, "const")
 
-    elif kind == "rand":
+    elif kind == "rng":
         # Do we need a seed as input (i.e. is the seed ever used in a security protocol)?
         init_in_vars (G, node, db, s, "len")
         init_out_vars (G, node, s, "data")

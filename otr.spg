@@ -121,10 +121,10 @@
         <flow sarg="const" sink="y_ake" darg="len"/>
     </const>
 
-    <rand id="y_ake">
+    <rng id="y_ake">
         <flow sarg="data" sink="gy" darg="psec"/>
         <flow sarg="data" sink="s" darg="psec"/>
-    </rand>
+    </rng>
 
     <!-- Receiving a Reveal Signature message -->
     <xform id="rvsm">
@@ -327,9 +327,9 @@
         <flow sarg="const" sink="D_dy" darg="len"/>
     </const>
 
-    <rand id="D_dy">
+    <rng id="D_dy">
         <flow sarg="data" sink="D_dhy" darg="psec"/>
-    </rand>
+    </rng>
 
     <dhpub id="D_dhy">
         <flow sarg="pub" sink="D_dhympi" darg="dhy"/>

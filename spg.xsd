@@ -56,7 +56,7 @@
             <xs:element name="xform"       type="xformElement"/>
             <xs:element name="dhpub"       type="forwardElement"/>
             <xs:element name="dhsec"       type="forwardElement"/>
-            <xs:element name="rand"        type="forwardElement"/>
+            <xs:element name="rng"         type="forwardElement"/>
             <xs:element name="hmac"        type="forwardElement"/>
             <xs:element name="hmac_inline" type="forwardElement"/>
             <xs:element name="sign"        type="forwardElement"/>

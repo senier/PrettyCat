@@ -1,0 +1,285 @@
+\documentclass[a4paper]{article}
+\usepackage[pagebackref=true]{hyperref}
+\usepackage[hyperref]{xcolor}
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{tikz}
+\usepackage{dot2texi}
+
+\setlength{\parskip}{.5em}
+\setlength{\parindent}{0em}
+
+\newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
+
+\begin{document}
+
+\section{Primitives}
+
+Single message security guarantees:
+
+\begin{itemize}
+    \item [C] Confidentiality
+    \item [I] Integrity
+\end{itemize}
+
+Channel security guarantees:
+
+\begin{itemize}
+    \item [O] Order-preservation
+    \item [NI] No insertion
+    \item [NR] No removal
+    \item [HMK] Sensitive to soft ice cream
+\end{itemize}
+
+A guarantee for interface $arg$ is defined as:
+
+$arg^{\{C|I|O|NI|NR\}}_{\{in|out\}}$
+
+\TODO{Thorsten notes that this is similar to the capabilities of a Dolev-Yao attacker: Relay/Suppress/Save, Manipulate, Forge, (Delay)/Inject. We should at least think about the implication of a channel having unwanted storage capabilities (Example: Collecting all your sensitive emails and flushing them to an unintended receiver at once)!}
+
+\subsection{Data transformation}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="const", shape="rect"];
+            element -> sink [taillabel="const"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="xform", shape="rect"];
+            source -> element [taillabel="in_i"];
+            element -> sink [taillabel="out_i"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Comparators}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="comp", shape="rect"];
+            arg1 -> element [headlabel="left"];
+            arg2 -> element [headlabel="right"];
+            element -> result [taillabel="result"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="guard", shape="rect"];
+            data_i -> element [headlabel="data"];
+            cond -> element [headlabel="cond"];
+            element -> data_o [taillabel="data"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="permute", shape="rect"];
+            in -> element [taillabel="in_i"];
+            order -> element [taillabel="order"];
+            element -> out [taillabel="out_i"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Declassification}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="release", shape="rect"];
+            data_i -> element [headlabel="data"];
+            element -> data_o [taillabel="data"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Random number and freshness}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="rng", shape="rect"];
+            source -> element [headlabel="len"];
+            element -> sink [taillabel="rand"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="counter", shape="rect"];
+            init -> element [headlabel="init"];
+            key_i  -> element [headlabel="key"];
+            element -> ctr [taillabel="ctr"];
+            element -> key_o [taillabel="key"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Diffie-Hellman}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="dhpub", shape="rect"];
+            gen -> element [headlabel="gen"];
+            psec_i -> element [headlabel="psec"];
+            element -> pub [taillabel="pub"];
+            element -> psec_o [taillabel="psec"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="dhsec", shape="rect"];
+            pub -> element [headlabel="pub"];
+            psec -> element [headlabel="psec"];
+            element -> ssec [taillabel="ssec"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Cryptographic Hashes}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="hash", shape="rect"];
+            msg -> element [headlabel="msg"];
+            element -> hash [taillabel="hash"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Symmetric encryption}
+
+\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="enc_{ctr}", shape="rect"];
+            pt  -> element [headlabel="pt"];
+            key -> element [headlabel="key"];
+            ctr -> element [headlabel="ctr"];
+            element -> ct [taillabel="ct"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="dec_{ctr}", shape="rect"];
+            ct  -> element [headlabel="ct"];
+            key -> element [headlabel="key"];
+            ctr -> element [headlabel="ctr"];
+            element -> pt [taillabel="pt"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Message authentication}
+
+\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="hmac", shape="rect"];
+            key -> element [headlabel="key"];
+            msg_i -> element [headlabel="msg"];
+            element -> msg_o [taillabel="msg"];
+            element -> auth [taillabel="auth"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\subsection{Digital Signatures}
+
+\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="sign", shape="rect"];
+            msg_i -> element [headlabel="msg"];
+            pkey -> element [headlabel="pkey"];
+            skey -> element [headlabel="skey"];
+            element -> msg_o [taillabel="msg"];
+            element -> sig [taillabel="sig"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            node[shape=none, label=""];
+            element[label="vrfy\_sig", shape="rect"];
+            msg_i -> element [headlabel="msg"];
+            pkey -> element [headlabel="pkey"];
+            sig -> element [headlabel="pkey"];
+            element -> msg_o [taillabel="msg"];
+        }
+    \end{dot2tex}
+    & \\
+\end{tabular}
+
+\end{document}

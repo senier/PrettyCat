@@ -9,3 +9,6 @@ test.pdf
 *.pdf
 *.dot
 *.ps
+*.bbl
+*.blg
+*.brf

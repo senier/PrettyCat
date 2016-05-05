@@ -1,4 +1,4 @@
-\documentclass[a4paper]{article}
+\documentclass[a4paper,twocolumn]{article}
 \usepackage[pagebackref=true]{hyperref}
 \usepackage[hyperref]{xcolor}
 \usepackage[margin=1.5cm]{geometry}
@@ -6,15 +6,83 @@
 \usepackage{mathtools}
 \usepackage{tikz}
 \usepackage{dot2texi}
+\usepackage{floatflt}
 
 \setlength{\parskip}{.5em}
 \setlength{\parindent}{0em}
 
 \newcommand{\TODO}[1]{\small\noindent\color{red} TODO: #1\color{black}}
+\newcommand{\cm}{\checkmark}
+
+%FIXME: Remove unused operators
+\DeclareMathOperator{\hash}{Hash}
+\DeclareMathOperator{\hmac}{HMAC}
+\DeclareMathOperator{\encctr}{Enc_{ctr}}
+\DeclareMathOperator{\decctr}{Dec_{ctr}}
+\DeclareMathOperator{\sign}{Sign}
+\DeclareMathOperator{\signvrfy}{Verify_{Sig}}
+\DeclareMathOperator{\rng}{RNG}
+\DeclareMathOperator{\dhsec}{DH_{Sec}}
+\DeclareMathOperator{\dhpub}{DH_{Pub}}
+\DeclareMathOperator{\guard}{Guard}
+\DeclareMathOperator{\release}{Release}
+\DeclareMathOperator{\const}{Const}
+\DeclareMathOperator{\permute}{Permute}
+\DeclareMathOperator{\transform}{Transform}
+\DeclareMathOperator{\comp}{Comp}
+\DeclareMathOperator{\streamcomp}{Scomp}
+\DeclareMathOperator{\counter}{Counter}
+
+\newcommand{\geno}{GEN\mbox{-}O{}}
+\newcommand{\genm}{GEN\mbox{-}M{}}
+\newcommand{\genc}{GEN\mbox{-}C{}}
 
 \begin{document}
 
 \section{Primitives}
+
+This section describes primitive operation a protocol is composed of. Right
+now, only the operation necessary to specify (parts of?) OTR are covered. A
+primitive (or component) can be treated as a single-threaded process executing
+independently inside a concurrent system, i.e. there is no concurrency inside a
+primitive, but primitive can execute concurrently.
+
+\subsection{Background}
+
+Every primitive has a set of incoming interfaces denoted as $if_{in}$ and a
+set of outgoing interfaces $if_{out}$. Interfaces between components are
+connected by channels. For its incoming and outgoing interfaces a primitive may
+require security guarantees from the environment by which the respective
+channel is controlled. The environment may guarantee more security properties
+than required by a primitive.
+
+It is important to note that these guarantees neither express security
+properties established by a primitive (like confidentiality through encryption)
+nor specific properties that are to be established by the environment (like
+freshness). Instead, the environment is trusted to maintain particular
+guarantees required by the primitives. A decryption primitive may, for example,
+require its environment to maintain confidentiality for its outgoing plaintext
+interface, as after decryption confidentiality is not maintained by
+cryptography anymore.
+
+This notion differs significantly from techniques like dynamic taint analysis
+which are based on the flow of data through a program \cite{5504796}.  In taint
+analysis, confidential data is labeled with a single property (the taint) and
+the propagation of taints is checked throughout program execution according to
+a taint policy. While this is useful to detect misuse of input data, analyze
+malware or generate test cases, we have a different goal that data flow
+analysis cannot achieve.
+
+The reason for our somewhat counter-intuitive notion of security guarantees the
+environment has to meet stems from our goal to automatically derive an ideal
+compartmentalization of a security protocol from its specification. Of cause,
+for the resulting decomposed protocol the security guarantees of the original
+protocol need have to hold. To gain security and reliability when implementing
+a protocol, an optimal decomposition minimizes the number and size of trusted
+portions while moving as much functionality into isolated less trusted
+components of the system \cite{10.1109/COLCOM.2005.1651218}. 
+
+\subsection{Notation}
 
 Single message security guarantees:
 
@@ -29,234 +97,614 @@ Channel security guarantees:
     \item [O] Order-preservation
     \item [NI] No insertion
     \item [NR] No removal
-    \item [HMK] Sensitive to soft ice cream
 \end{itemize}
 
-A guarantee for interface $arg$ is defined as:
+A guarantee for interface $hmk$ is defined as:
 
-$arg^{\{C|I|O|NI|NR\}}_{\{in|out\}}$
+$hmk^{\{C|I|O|NI|NR\}}_{\{in|out\}}$
 
-\TODO{Thorsten notes that this is similar to the capabilities of a Dolev-Yao attacker: Relay/Suppress/Save, Manipulate, Forge, (Delay)/Inject. We should at least think about the implication of a channel having unwanted storage capabilities (Example: Collecting all your sensitive emails and flushing them to an unintended receiver at once)!}
+\TODO{To be discussed: $I$ could be removed in favor of $NI \wedge NR$ as these properties enforce per-message integrity. Furthermore, we never saw requirements for $NI$ or $NR$ alone. Hence, I'd suggest we only keep C, I, and M where M stands for meta-data integrity and is equivalent to $NI \wedge NR$.}
+
+\subsection{Open issues}
+
+We do not consider or model timing and hence cannot reason about covert
+channels. Given the associated complexity we want to keep time out of our model
+if possible
+
+It may be worthwhile considering meta-data entropy (e.g. the entropy of
+data fed into a hash primitive to reason about confidentiality of the output
+data)
+
+We talk about Integrity and Meta-Integrity (i.e. Ordering, No insertion, No
+removal). It looks like Integrity is a subset of Meta-Integrity, as changing a
+message could be modelled as removing a message and inserting a custom one.
+Hence, by either achieving 'No removal' or 'No insertion' we could achieve
+message integrity. May be helpful to get rid of the redundant per-message
+integrity for the sake of reasoning about algorithms.
+
+Should we model something like Meta-Confidentiality? That could cover e.g. the
+length of packets.
+
+\begin{figure}[ht]
+    \centering
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            rankdir=LR
+            node[shape=none, label=""];
+            source[label="src", shape="rect"];
+            sink[label="sink", shape="rect"];
+            source -> sink [headlabel="in", taillabel="out"];
+        }
+    \end{dot2tex}
+\end{figure}
+
+What is the relation of input and output interface between a source and a sink?
+I used to model this by equivalence, but it feels like implication may be more
+suitable to allow for situations where data is sent from a primitive with
+weaker requirements to one with stronger requirements:
+
+\begin{equation}
+    sink_{in}^{C} \implies src_{out}^{C}
+\end{equation}
+\begin{equation}
+    sink_{in}^{M} \implies src_{out}^{M}
+\end{equation}
+\begin{equation}
+    sink_{in}^{O} \implies src_{out}^{O}
+\end{equation}
+
+\subsection{Generic rules}
+
+\TODO{Tell about the overall approach (system of boolean equations, use SMT solver to find solution, later optimize) and what those those rules play.}
+
+When analyzing the rules imposed by primitives on their input and output
+interfaces, we identified two generic rules for confidentiality and integrity
+that are applicable to multiple (but not all) primitives.
+
+In a primitive without special cryptographic properties, confidentiality
+requirements of any input interfaces disseminate to all output interfaces. The
+reason behind that is, that if an input interface may indeed carry confidential
+data if its environment has the respective guarantee. As nothing is known in
+general about how inputs are related to outputs, the only save assumption is
+that confidential data taints all outputs. This property is expressed by the
+generic confidentiality rule \genc{}:
+
+\begin{equation}
+    \bigvee_{i\in I}if_{in_i}^{C} \implies \bigwedge_{o\in O}if_{out_o}^{C}
+\end{equation}
+
+By contrast, integrity spreads in the opposite direction, i.e. from outputs to
+inputs. The intuitive rationale is that if a generic primitive wants to
+guarantee integrity on its output interfaces, all of the input interfaces, too,
+must guarantee integrity as any single input could otherwise invalidate
+integrity of all outputs. This is expressed in the generic integrity rule
+\genm{}:
+
+\begin{equation}
+    \bigvee_{o\in O}if_{out_o}^{M} \implies \bigwedge_{i\in I}if_{in_i}^{M}
+\end{equation}
+
+The generic order-preservation rule \geno{} is similar to the generic integrity
+rule. If any output parameter requires order preservation, the all input
+parameter have to require it in the general case:
+
+\begin{equation}
+    \bigvee_{o\in O}if_{out_o}^{O} \implies \bigwedge_{i\in I}if_{in_i}^{O}
+\end{equation}
+
+Note, that the generic rules necessarily are an over approximation, as we
+calculate the security guarantees of the input interfaces from the output
+interfaces of a component (and vice versa). However, just because the
+environment is required to guarantee e.g. confidentiality does not imply that
+confidential data is ever transmitted there. Hence, if we calculate the output
+interfaces based on these maximum guarantees, the output guarantees we require
+may also be too strong.
 
 \subsection{Data transformation}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\subsubsection{Constant values}
+
+The $\const$ primitive is used to model system parameters like key lengths,
+protocol versions or private keys. It always outputs a constant value on its
+$const$ output interface.
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR;
             node[shape=none, label=""];
-            element[label="const", shape="rect"];
+            element[label="\const", shape="rect"];
             element -> sink [taillabel="const"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\const$}
+\end{figure}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\TODO{The const primitive feels a bit quirky still, as we say we model our system
+as concurrent single-threaded components with message passing (while ignoring
+time, duh). So, when does const send a message then? Pull-based? By magic?
+Regularly?}
+
+Security guarantees:
+
+$$const^{O}_{out} \wedge const^{M}_{out}$$
+
+\TODO{Not so sure about those - if a constant always outputs the same (constant!) value, does removal, insertion or reordering make sense? At least requiring non-insertion sounds sensible.}
+
+\subsubsection{Transformation of data}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR;
             node[shape=none, label=""];
-            element[label="xform", shape="rect"];
+            element[label="\transform", shape="rect"];
             source -> element [taillabel="in_i"];
             element -> sink [taillabel="out_i"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\transform$}
+\end{figure}
+
+The $\transform$ component is a generic primitive to model arbitrary data
+transformation without any special influence on the security of the processed
+data.  This primitive can be used to prepend headers, to split data or to
+assemble whole messages.
+
+Security guarantees:
+
+The generic confidentiality rule \genc{} and the generic integrity rule \genm{} apply.
 
 \subsection{Comparators}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\subsubsection{Equality of data}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR;
             node[shape=none, label=""];
-            element[label="comp", shape="rect"];
-            arg1 -> element [headlabel="left"];
-            arg2 -> element [headlabel="right"];
+            element[label="\comp", shape="rect"];
+            arg1 -> element [headlabel="data_1"];
+            arg2 -> element [headlabel="data_2"];
             element -> result [taillabel="result"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\comp$}
+\end{figure}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+The secure comparator takes two arbitrary inputs, compares them and outputs a
+boolean value, depending on whether both values were identical. To prevent
+leakage of confidential data, that primitive is assumed to prevent an
+extraction of arbitrary bits of the input message.
+
+Security guarantees:
+
+The generic generic integrity rule \genm{} and the generic order-preservation rule \geno{} apply.
+
+\TODO{Can't reconstruct this anymore. If the result does not require order preservation, then by \geno{} the inputs are not required to preserve the order either. Hence, $data_1$ and $data_2$ may be reordered. But then unrelated values are and the $result$ is not only out of order,
+but plain wrong. How do we treat this?}
+
+\subsubsection{Equality of data stream elements}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR;
             node[shape=none, label=""];
-            element[label="guard", shape="rect"];
+            element[label="\streamcomp", shape="rect"];
+            data -> element [headlabel="data"];
+            element -> result [taillabel="result"];
+        }
+    \end{dot2tex}
+    \caption{$\streamcomp$}
+\end{figure}
+
+The secure stream comparator $\streamcomp$ takes a single input on the $data$
+interface and compares it with the previous message received on the same
+interface. Depending on whether the current value equals the previous value a
+boolean result is emitted on the outgoing $result$ interfaces. This primitive
+can be used conjunction with the $\counter$ primitive to detect when a key did
+not change and a counter needs to be incremented to establish freshness.
+
+Security guarantees:
+
+The generic generic integrity rule \genm{} and the generic
+order-preservation rule \geno{} apply.
+
+\subsubsection{Data flow control}
+
+\begin{figure}[ht]
+    \centering
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            rankdir=LR
+            node[shape=none, label=""];
+            element[label="\guard", shape="rect"];
             data_i -> element [headlabel="data"];
             cond -> element [headlabel="cond"];
             element -> data_o [taillabel="data"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\guard$}
+\end{figure}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+The $\guard$ primitive controls the data flow between the input $data$ and the
+output $data$ interface depending on the value received on the $cond$ input
+interfaces. It can be used where otherwise unrelated message depend on each
+other in a security protocol, e.g. where the protocol requires a message to be
+send only \emph{after} the signature of previous message has been checked.
+
+Security guarantees:
+
+As any value received on the $cond$ input interface relates to one particular
+message on the input $data$ interfaces, the order of both input interfaces
+needs to be preserved:
+
+\begin{equation}
+    data_{in}^{O} \wedge cond_{in}^{O}
+\end{equation}
+
+Furthermore, the integrity of the input interfaces must be maintained, as
+otherwise an attacker could change the condition to an undesired value, insert
+own or remove values:
+
+\begin{equation}
+    data_{in}^{M} \wedge cond_{in}^{M}
+\end{equation}
+
+Apart from that, for all $data$ interfaces the generic rules \genc{}, \geno{} and
+\genm{} need to hold.
+
+\subsubsection{Permutation based on untrusted input}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="permute", shape="rect"];
-            in -> element [taillabel="in_i"];
+            element[label="\permute", shape="rect"];
+            in -> element [taillabel="data_i"];
             order -> element [taillabel="order"];
-            element -> out [taillabel="out_i"];
+            element -> out [taillabel="data_i"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\permute$}
+\end{figure}
+
+The $\permute$ primitive changes the flow from its input $data$ interfaces to
+its output $data$ interfaces based on the $order$ input interfaces. As $order$
+has no requirement for any security guarantees, this construct can be used to
+model situations where confidential data is processed based on untrusted input.
+An example is a key identifier received over an untrusted network (like the key
+IDs in OTR or the SPI in IPsec) which is necessary to select the right security
+parameters but which should not influence the security properties of the key
+material.
+
+Security guarantees:
+
+For the $data$ interfaces \genc{}, \geno{} and \genm{} hold. Due to the nature of the
+component, no requirements are imposed on the $order$ input interface.
 
 \subsection{Declassification}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="release", shape="rect"];
+            element[label="\release", shape="rect"];
             data_i -> element [headlabel="data"];
             element -> data_o [taillabel="data"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\release$}
+\end{figure}
+
+Some protocols require a way to model an unconditional release of data, i.e.
+the release of all security requirement from the receiving environment without
+actually changing the data (as done e.g. in signature or encryption
+primitives). The decision whether and when to release data is typically made by
+another trusted component. For example, the OTR protocol reveals old MAC keys
+once they are not in active use anymore to achieve deniability.
+
+Security guarantees:
+
+None. Will kill little kitties and do other nasty stuff when used
+inappropriately.
 
 \subsection{Random number and freshness}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\subsubsection{True random numbers}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="rng", shape="rect"];
+            element[label="\rng", shape="rect"];
             source -> element [headlabel="len"];
-            element -> sink [taillabel="rand"];
+            element -> sink [taillabel="data"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\rng$}
+\end{figure}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+The true random number generator outputs the number random bits specified on
+input interfaces $len$ onto its output interface $data$.
+
+Security guarantees:
+
+The generic rules \genm{} and \geno{} hold.
+
+\subsubsection{Key-dependent monotonic counters}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="counter", shape="rect"];
+            element[label="\counter", shape="rect"];
             init -> element [headlabel="init"];
-            key_i  -> element [headlabel="key"];
+            trigger -> element [headlabel="trigger"];
             element -> ctr [taillabel="ctr"];
             element -> key_o [taillabel="key"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\counter$}
+\end{figure}
+
+The monotonic counter primitive outputs a monotonic sequence numbers to its
+output interfaces $data$. The sequence starts with the value set exactly once
+by the $init$ input interfaces. Subsequent messages on the $init$ interface are
+ignored. The primitive is special in that the counter value is incremented only
+if a true value is received on the $trigger$ input interface.
+
+This element can be used in conjunction with e.g. the stream comparator to
+achieve freshness. If the key stream processed by the stream comparator
+receives a fresh key, the comparator sends a negative trigger which makes the
+counter primitive emit the same counter value as before. If the key stream
+receives a key identical to the previous one, it signals a positive trigger to
+the counter primitive which then increments the counter before sending it to
+the $ctr$ output. Together, the counter and the key are fresh as either the
+(random) key changed or the counter is increased.
+
+\TODO{What about overflow?}
+
+Security guarantees:
+
+If the environment receiving the counter value has confidentiality
+requirements, either the initial value or the trigger are required to be kept
+confidential, as otherwise an attacker could derive the counter from its
+initial value and the number of positive triggers:
+
+\begin{equation}
+    init_{in}^{C} \vee trigger_{in}^{C} \implies ctr_{out}^{C}
+\end{equation}
+
+Furthermore, \geno{} and \genm{} apply.
 
 \subsection{Diffie-Hellman}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\subsection{$g^x$}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="dhpub", shape="rect"];
-            gen -> element [headlabel="gen"];
+            element[label="\dhpub", shape="rect"];
             psec_i -> element [headlabel="psec"];
             element -> pub [taillabel="pub"];
-            element -> psec_o [taillabel="psec"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\dhpub$}
+\end{figure}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+This primitive is the public part of a Diffie-Hellman key exchange, i.e. $g^x$
+where the input interface $psec$ receives the secret value $x$ and the output
+interface $pub$ sends the public value $g^x$.
+
+Security guarantees:
+
+By the very nature of this operation, the input value must be confidential:
+
+\begin{equation}
+    psec_{in}^{C}
+\end{equation}
+
+In addtion, the generic rules \geno{} and \genm{} apply to ensure that $psec$
+is associated with the correct pub value.
+
+\subsection{$g^{xy}$}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="dhsec", shape="rect"];
+            element[label="\dhsec", shape="rect"];
             pub -> element [headlabel="pub"];
             psec -> element [headlabel="psec"];
             element -> ssec [taillabel="ssec"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\dhpub$}
+\end{figure}
+
+This is the second part of a Diffie-Hellman exchange that calculates a shared
+secret from the local secret $x$ read from the $psec$ input interface and the
+$g^y$ value received from the remote party through the $pub$ input interface. 
+
+Security guarantees:
+
+Both, the local secret $psec$ and the resulting shared secret $ssec$ are
+required to be confidential:
+
+\begin{equation}
+    psec_{in}^{C}
+\end{equation}
+
+\begin{equation}
+    ssec_{out}^{C}
+\end{equation}
+
+In addition, the generic rule \genm{} applies. \TODO{Shouldn't M be required for pub/psec to prevent an attacker from making us combine invalid pub/psec values? Is that a problem anyway?}
 
 \subsection{Cryptographic Hashes}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="hash", shape="rect"];
-            msg -> element [headlabel="msg"];
+            element[label="\hash", shape="rect"];
+            msg -> element [headlabel="data"];
             element -> hash [taillabel="hash"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\hash$}
+\end{figure}
 
-\subsection{Symmetric encryption}
+This primitive represents a generic, unkeyed cryptographic hash function.
 
-\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+Security guarantees:
+
+The generic rule \genm{} applies. As messages received on the input interface
+$data$ do not necessarily have enough entropy, the hash primitive does not
+establish confidentiality in the general case. Hence, the generic \genc{} rule
+also needs to hold.
+
+\subsection{Symmetric cryptography}
+
+\subsubsection{Counter-mode encryption}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="enc_{ctr}", shape="rect"];
+            element[label="\encctr", shape="rect"];
             pt  -> element [headlabel="pt"];
             key -> element [headlabel="key"];
             ctr -> element [headlabel="ctr"];
             element -> ct [taillabel="ct"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\encctr$}
+\end{figure}
 
-\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+This is a primitive implementing symmetric counter mode encryption.
+
+Security guarantees:
+
+The generic rule \genm{} and the following condition have to hold:
+
+\begin{equation}
+    pt_{in}^{C} \implies (key_{in}^{C} \wedge key_{in}^{M} \wedge ctr_{in}^{M})
+\end{equation}
+
+\subsubsection{Counter-mode decryption}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="dec_{ctr}", shape="rect"];
+            element[label="\decctr", shape="rect"];
             ct  -> element [headlabel="ct"];
             key -> element [headlabel="key"];
             ctr -> element [headlabel="ctr"];
             element -> pt [taillabel="pt"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\decctr$}
+\end{figure}
+
+The $\decctr$ primitive models symmetric counter mode decryption.
+
+Security guarantees:
+
+The generic rule \genm{} and the following condition have to hold:
+
+\begin{equation}
+    pt_{out}^{C} \implies (key_{in}^{C} \wedge key_{in}^{M} \wedge ctr_{in}^{M})
+\end{equation}
 
 \subsection{Message authentication}
 
-\begin{tabular}{p{.2\linewidth}|p{.8\linewidth}}
+\subsubsection{HMAC}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="hmac", shape="rect"];
+            element[label="\hmac", shape="rect"];
             key -> element [headlabel="key"];
-            msg_i -> element [headlabel="msg"];
-            element -> msg_o [taillabel="msg"];
+            msg -> element [headlabel="msg"];
             element -> auth [taillabel="auth"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\hmac$}
+\end{figure}
+
+The $\hmac$ element models symmetric message authentication.
+
+Security guarantees:
+
+The generic \genm{} rule in addition to the following rules apply:
+
+\begin{equation}
+    auth_{out}^{C} \implies key_{in}^{C} \wedge key_{in}^{M}
+\end{equation}
+
+\begin{equation}
+    msg_{in}^{M} \implies key_{in}^{C} \wedge key_{in}^{M}
+\end{equation}
 
 \subsection{Digital Signatures}
 
-\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+\subsubsection{Signature generation}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="sign", shape="rect"];
+            element[label="\sign", shape="rect"];
             msg_i -> element [headlabel="msg"];
             pkey -> element [headlabel="pkey"];
             skey -> element [headlabel="skey"];
@@ -264,22 +712,54 @@ $arg^{\{C|I|O|NI|NR\}}_{\{in|out\}}$
             element -> sig [taillabel="sig"];
         }
     \end{dot2tex}
-    & \\
-\end{tabular}
+    \caption{$\sign$}
+\end{figure}
 
-\begin{tabular}{p{.3\linewidth}|p{.7\linewidth}}
+\TODO{TBD}
+
+\subsubsection{Signature verification}
+
+\begin{figure}[ht]
+    \centering
     \begin{dot2tex}[mathmode]
         digraph G
         {
+            rankdir=LR
             node[shape=none, label=""];
-            element[label="vrfy\_sig", shape="rect"];
+            element[label="\signvrfy", shape="rect"];
             msg_i -> element [headlabel="msg"];
             pkey -> element [headlabel="pkey"];
             sig -> element [headlabel="pkey"];
             element -> msg_o [taillabel="msg"];
         }
     \end{dot2tex}
-    & \\
+    \caption{$\signvrfy$}
+\end{figure}
+
+\TODO{TBD}
+
+\section{Security guarantees overview}
+
+\begin{tabular}{l|c|c|c|c} \hline
+Primitive   & \genc{} & \genm{} & \geno{} & Custom \\\hline
+$\release$    &         &         &         &        \\ 
+$\const$      &         &         &         & TBD    \\
+$\dhsec$      &         & \cm     &         & \cm    \\
+$\encctr$     &         & \cm     &         & \cm    \\
+$\decctr$     &         & \cm     &         & \cm    \\
+$\hmac$       &         & \cm     &         & \cm    \\
+$\comp$       &         & \cm     & \cm     &        \\
+$\streamcomp$ &         & \cm     & \cm     &        \\
+$\rng$        &         & \cm     & \cm     &        \\
+$\counter$    &         & \cm     & \cm     & \cm    \\
+$\dhpub$      &         & \cm     & \cm     & \cm    \\
+$\hash$       & \cm     & \cm     &         &        \\
+$\transform$  & \cm     & \cm     &         &        \\
+$\permute$    & \cm     & \cm     & \cm     &        \\
+$\guard$      & \cm     & \cm     & \cm     & \cm    \\
 \end{tabular}
+
+\bibliographystyle{plain}
+\bibliography{../../../common/Library}
 
 \end{document}

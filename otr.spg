@@ -33,7 +33,8 @@
     <!-- Receive a DH-Commit message -->
     <xform id="dhcm">
         <flow sarg="encrypted_gx" sink="decrypt_gxmpi" darg="ciphertext"/>
-        <flow sarg="hashed_gx"    sink="verify_gxmpi"  darg="hash"/>
+        <flow sarg="hashed_gx"    sink="hash_gxmpi"  darg="hash"/>
+        <flow sarg="hashed_gx"    sink="comp_gxmpi_hash"  darg="data2"/>
         <arg name="msg"/>
     </xform>
 
@@ -129,14 +130,18 @@
     <!-- Receiving a Reveal Signature message -->
     <xform id="rvsm">
         <flow sarg="revealed_key" sink="decrypt_gxmpi" darg="key"/>
-        <flow sarg="enc_sig"      sink="assert_hmac"   darg="msg"/>
-        <flow sarg="macd_sig"     sink="assert_hmac"   darg="auth"/>
+        <flow sarg="enc_sig"      sink="assert_hmac" darg="data"/>
+        <flow sarg="macd_sig"     sink="assert_hmac" darg="mac"/>
         <arg name="msg"/>
     </xform>
 
     <verify_hmac id="assert_hmac">
-        <flow sarg="msg" sink="dec_x_rem" darg="ciphertext"/>
+        <flow sarg="result" sink="guard_hmac" darg="cond"/>
     </verify_hmac>
+
+    <guard id="guard_hmac">
+        <flow sarg="data" sink="dec_x_rem" darg="ciphertext"/>
+    </guard>
     
     <const id="iv_x_rem">
         <flow sarg="const" sink="dec_x_rem" darg="iv"/>
@@ -188,30 +193,39 @@
 
     <encrypt id="enc_x_local">
         <flow sarg="ciphertext" sink="macdsig" darg="msg"/>
+        <flow sarg="msg"        sink="sigm"    darg="enc_sig"/>
     </encrypt>
 
     <const id="sigm_iv">
         <flow sarg="const" sink="enc_x_local" darg="iv"/>
     </const>
 
-    <hmac_inline id="macdsig">
-        <flow sarg="msg"  sink="sigm" darg="enc_sig"/>
+    <hmac id="macdsig">
         <flow sarg="auth" sink="sigm" darg="macd_sig"/>
-    </hmac_inline>
+    </hmac>
 
     <const id="iv_gxmpi">
         <flow sarg="const" sink="decrypt_gxmpi" darg="iv"/>
     </const>
 
     <decrypt id="decrypt_gxmpi">
-        <flow sarg="plaintext" sink="verify_gxmpi" darg="msg"/>
+        <flow sarg="plaintext" sink="hash_gxmpi" darg="msg"/>
+        <flow sarg="plaintext" sink="guard_gxmpi" darg="data"/>
     </decrypt>
 
-    <verify_hash id="verify_gxmpi">
-        <flow sarg="msg" sink="unmpi"       darg="mpi"/>
-        <flow sarg="msg" sink="min"         darg="gxmpi"/>
+    <hash id="hash_gxmpi">
+        <flow sarg="hash" sink="comp_gxmpi_hash" darg="data1"/>
+    </hash>
+
+    <comp id="comp_gxmpi_hash">
+        <flow sarg="result" sink="guard_gxmpi" darg="cond"/>
+    </comp>
+
+    <guard id="guard_gxmpi">
+        <flow sarg="msg" sink="unmpi"    darg="mpi"/>
+        <flow sarg="msg" sink="min"      darg="gxmpi"/>
         <flow sarg="msg" sink="M_rem_in" darg="gxmpi"/>
-    </verify_hash>
+    </guard>
 
     <xform id="unmpi">
         <flow sarg="gx" sink="s" darg="pub"/>
@@ -422,6 +436,7 @@
 
     <xform id="D_mac_input">
         <flow sarg="msg" sink="D_mac" darg="msg"/>
+        <flow sarg="msg" sink="data" darg="msg"/>
         <arg name="proto_ver"/>
         <arg name="msg_type"/>
         <arg name="send_inst"/>
@@ -434,10 +449,9 @@
         <arg name="encrypted"/>
     </xform>
 
-    <hmac_inline id="D_mac">
+    <hmac id="D_mac">
         <flow sarg="auth" sink="data" darg="auth"/>
-        <flow sarg="msg" sink="data" darg="msg"/>
-    </hmac_inline>
+    </hmac>
 
     <xform id="data">
         <flow sarg="msg" sink="send_data" darg="msg"/>

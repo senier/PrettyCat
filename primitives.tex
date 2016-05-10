@@ -230,9 +230,7 @@ Regularly?}
 
 Security guarantees:
 
-$$const^{O}_{out} \wedge const^{M}_{out}$$
-
-\TODO{Not so sure about those - if a constant always outputs the same (constant!) value, does removal, insertion or reordering make sense? At least requiring non-insertion sounds sensible.}
+The generic \genm{} rule holds.
 
 \subsubsection{Transformation of data}
 
@@ -424,8 +422,7 @@ once they are not in active use anymore to achieve deniability.
 
 Security guarantees:
 
-None. Will kill little kitties and do other nasty stuff when used
-inappropriately.
+The generic rule \genm{} holds.
 
 \subsection{Random number and freshness}
 
@@ -742,7 +739,7 @@ The generic \genm{} rule in addition to the following rules apply:
 
 \begin{tabular}{l|c|c|c|c} \hline
 Primitive   & \genc{} & \genm{} & \geno{} & Custom \\\hline
-$\release$    &         &         &         &        \\ 
+$\release$    &         & \cm     &         &        \\ 
 $\const$      &         &         &         & TBD    \\
 $\dhsec$      &         & \cm     &         & \cm    \\
 $\encctr$     &         & \cm     &         & \cm    \\

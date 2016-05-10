@@ -1,32 +1,32 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Input -->
-    <xform id="recv_dhcm" confidentiality="False" integrity="False" freshness="False">
+    <xform id="recv_dhcm" confidentiality="False" integrity="False" ordering="False">
         <flow sarg="msg" sink="dhcm" darg="msg"/>
     </xform>
 
-    <xform id="recv_rvsm" confidentiality="False" integrity="False" freshness="False">
+    <xform id="recv_rvsm" confidentiality="False" integrity="False" ordering="False">
         <flow sarg="msg" sink="rvsm" darg="msg"/>
     </xform>
 
-    <xform id="recv_data" confidentiality="False" integrity="False" freshness="False">
+    <xform id="recv_data" confidentiality="False" integrity="False" ordering="False">
         <flow sarg="msg" sink="undata" darg="msg"/>
     </xform>
 
-    <xform id="recv_user" confidentiality="True" integrity="True" freshness="False">
+    <xform id="recv_user" confidentiality="True" integrity="True" ordering="False">
         <flow sarg="msg" sink="D_encrypt" darg="plaintext"/>
     </xform>
 
     <!-- Output -->
-    <xform id="send_sigm" confidentiality="False" integrity="False" freshness="False">
+    <xform id="send_sigm" confidentiality="False" integrity="False" ordering="False">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_dhkm" confidentiality="False" integrity="False" freshness="False">
+    <xform id="send_dhkm" confidentiality="False" integrity="False" ordering="False">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_data" confidentiality="False" integrity="False" freshness="False">
+    <xform id="send_data" confidentiality="False" integrity="False" ordering="False">
         <arg name="msg"/>
     </xform>
 

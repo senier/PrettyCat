@@ -32,7 +32,7 @@
             </xs:sequence>
             <xs:attribute name="confidentiality"/>
             <xs:attribute name="integrity"/>
-            <xs:attribute name="freshness"/>
+            <xs:attribute name="ordering"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -68,6 +68,7 @@
             <xs:element name="encrypt"     type="forwardElement"/>
             <xs:element name="guard"       type="forwardElement"/>
             <xs:element name="release"     type="forwardElement"/>
+            <xs:element name="comp"        type="forwardElement"/>
             <xs:element name="permute"     type="xformElement"/>
             <xs:element name="counter"     type="xformElement"/>
         </xs:choice>

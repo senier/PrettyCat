@@ -420,11 +420,11 @@ class Primitive_dhsec (Primitive):
         #   None
         assert (self.o.ssec.i)
 
-class Primitive_enc (Primitive):
+class Primitive_encrypt (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
 
-class Primitive_dec (Primitive):
+class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
 

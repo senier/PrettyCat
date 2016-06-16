@@ -292,13 +292,9 @@ class Primitive_rng (Primitive):
         # Integrity guarantees can be dropped if:
         #   Anytime
         # Reason:
-        #   If the RNG works as designed, an attacker that has the len input
-        #   parameter under control cannot influence the integrity of the
-        #   resulting random data.
-        #   FIXME: The length of the result can be influenced. What does this
-        #   mean wrt. to data_out integrity?
+        #   FIXME
         # Assertion:
-        #   -/-
+        #   None
         assert(self.o.data.i)
 
 class Primitive_dhpub (Primitive):
@@ -554,7 +550,7 @@ class Primitive_encrypt (Primitive):
         #   no integrity is guaranteed for key_in or
         #   confidentiality is guaranteed for ciphertext_out
         # Reason:
-        #   If no confidentiality is not guaranteed plaintext_in in the first
+        #   If no confidentiality is guaranteed plaintext_in in the first
         #   place, it is superfluous to encrypt (and hence chose unique counter
         #   values). The same is true if an attacker knows or can chose key_in.
         #   If confidentiality is guaranteed for ciphertext_out, encryption is
@@ -573,7 +569,7 @@ class Primitive_encrypt (Primitive):
         #   no integrity is guaranteed for key_in or
         #   no integrity is guaranteed for ctr_in.
         # Reason:
-        #   If no confidentiality is not guaranteed plaintext_in in the first
+        #   If no confidentiality is guaranteed plaintext_in in the first
         #   place, it is superfluous to encrypt (and hence chose unique counter
         #   values). The same is true if an attacker know or can chose key_in.
         #   If the attacker can chose ctr_in, she can use the same key/ctr
@@ -603,10 +599,72 @@ class Primitive_encrypt (Primitive):
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
+        raise  Exception ("Decrypt not implemented");
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
+
+        # Parameters
+        #   Input:  data
+        #   Output: hash
+
+        # Parameter
+        #   data_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Data flow is directed. Integrity of an input parameter cannot be
+        #   influenced by an output parameter or other input parameters.
+        # Assertion:
+        #   None
+        print (name)
+        assert(self.i.data.i)
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is guaranteed for hash_out
+        # Reason:
+        #   If an attacker can chose data, she may change the output hash.
+        #   FIXME: But not chose hash arbitrarily if a cryptographically
+        #   secure hash function is used. What does that mean for the
+        #   integrity of data_out?
+        # Truth table:
+        #   data_in_i hash_out_i result
+        #   0         0          1
+        #   0         1          0
+        # Assertion:
+        #   data_in_i ∨ ¬hash_out_i (equiv: hash_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.hash.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   hash_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for data_in
+        # Reason:
+        #   Even with a cryptographically secure hash function, an attacker
+        #   may be able to recover data_in from hash_out, depending on the
+        #   resource available and the structure of data_in. As we don't want
+        #   to get propabilistic here, we just assume this is always possible.
+        #   FIXME: It may become hard to cope with protocols where the
+        #   infeasibility of reversing the hash is used, e.g. password
+        #   authentication.
+        # Truth table:
+        #   hash_out_i data_in_i result
+        #   0          0         1
+        #   0          1         0
+        # Assertion:
+        #   hash_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ hash_out_c)
+        self.assert_and_track (Implies (self.i.data.c, self.o.hash.c), "hash_out_c")
+
+        # Parameter
+        #   hash_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   FIXME
+        assert (self.o.hash.i)
 
 ####################################################################################################
 

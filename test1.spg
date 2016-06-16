@@ -14,7 +14,7 @@
     </rng>
 
     <const id="iv">
-        <flow sarg="const" sink="encrypt" darg="iv"/>
+        <flow sarg="const" sink="encrypt" darg="ctr"/>
     </const>
 
     <encrypt id="encrypt">

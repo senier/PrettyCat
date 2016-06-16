@@ -112,6 +112,8 @@ class Guarantees:
     def unsat_i (self):
         return unsat_i
 
+####################################################################################################
+
 class Primitive:
     """
     An "abstract" class implementing generic methods for a Primitive
@@ -188,14 +190,10 @@ class Primitive_xform (Primitive):
         #   any output of an xform in undetermined ways. Hence, integrity
         #   guarantees cannot be maintained for any output interface.
         # Assertion:
-        #   in_i -> OR out_i
-        out_i = []
-        for (name, out_g) in self.o.guarantees().items():
-            out_i.append (out_g.i)
-
-        if out_i:
+        #   ∃out_i ⇒ ∀in_j
+        for (out_name, out_g) in self.o.guarantees().items():
             for (in_name, in_g) in self.i.guarantees().items():
-                self.assert_and_track (Implies (in_g.i, Or (out_i)), in_name + "_" + "_out_i")
+                    self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
 
         # Parameter
         #   All output interfaces
@@ -206,17 +204,10 @@ class Primitive_xform (Primitive):
         #   influence any output of an xform in undetermined ways. Hence,
         #   confidentiality must be guaranteed by all output interfaces.
         # Assertion:
-        #   out_c -> IN_c
-        in_c = []
-        for (name, in_g) in self.i.guarantees().items():
-            in_c.append (in_g.c)
-
-        if in_c:
-            for (name, out_g) in self.o.guarantees().items():
-                cond = Implies (Or (in_c), out_g.c)
-                print (cond)
-                self.assert_and_track (cond, name + "_in_c")
-        
+        #   in_c -> out_c
+        for (in_name, in_g) in self.i.guarantees().items():
+            for (out_name, out_g) in self.o.guarantees().items():
+                self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
 
 class Primitive_const (Primitive):
     """
@@ -225,6 +216,10 @@ class Primitive_const (Primitive):
 
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
+
+        # Parameters
+        #   Inputs:  ø
+        #   Outputs: const
 
         # Const can only drop integrity or confidentiality guarantees if the
         # receiving primitives do not require them.  This is handled in the
@@ -245,15 +240,23 @@ class Primitive_rng (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
 
+        # Parameters
+        #   Input:  len
+        #   Output: data
+
         # Parameter
         #   len_in
         # Confidentiality guarantee can be dropped if:
-        #   Confidentiality is required for data_out
+        #   Anytime.
         # Reason:
-        #   Attacker could derive len_in from the length of data_out otherwise.
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        #   FIXME: This does not hold if we consider meta-confidentiality (e.g. the length out output data)
         # Assertion:
-        #   Either len_in_c is true or data_out_c is true.
-        self.assert_and_track (Or (self.i.len.c, self.o.data.c), "len_in_c")
+        #   None
+        assert (self.i.len.c)
 
         # Parameter
         #   len_in
@@ -262,9 +265,13 @@ class Primitive_rng (Primitive):
         # Reason:
         #   Otherwise, an attacker could change or reorder len_in creating
         #   data_out messages of chosen, invalid length.
+        # Truth table
+        #   len_in_i    data_out_i  valid
+        #   0           0           1
+        #   0           1           0
         # Assertion:
-        #   len_in_i -> data_out_i
-        self.assert_and_track (Implies (self.i.len.i, self.o.data.i), "len_in_i")
+        #   len_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ len_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.len.i), "len_in_i")
 
         # Parameter
         #   data_out
@@ -272,16 +279,24 @@ class Primitive_rng (Primitive):
         #   Confidentiality is not required for len_in
         # Reason:
         #   Attacker could derive len_in from the length of data_out otherwise.
+        # Truth table
+        #   data_out_c  len_in_c    valid
+        #   0           0           1
+        #   0           1           0
         # Assertion:
-        #   data_out_c -> len_in_c
-        self.assert_and_track (Implies (self.o.data.c, self.i.len.c), "output_data_c")
+        #   data_out_c ∨ ¬len_in_c (equiv: len_in_c ⇒ data_out_c)
+        self.assert_and_track (Implies (self.i.len.c, self.o.data.c), "data_out_c")
 
         # Parameter
         #   data_out
         # Integrity guarantees can be dropped if:
         #   Anytime
         # Reason:
-        #   FIXME: Why?
+        #   If the RNG works as designed, an attacker that has the len input
+        #   parameter under control cannot influence the integrity of the
+        #   resulting random data.
+        #   FIXME: The length of the result can be influenced. What does this
+        #   mean wrt. to data_out integrity?
         # Assertion:
         #   -/-
         assert(self.o.data.i)
@@ -290,6 +305,10 @@ class Primitive_dhpub (Primitive):
 
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
+
+        # Parameters
+        #   Input:   psec
+        #   Outputs: pub
 
         # Parameter
         #   psec_in
@@ -326,74 +345,94 @@ class Primitive_dhpub (Primitive):
         #   Being able to transmit g^x over an non-confidential channel is the
         #   sole purpose of the DH key exchange, given that x has
         #   confidentiality and integrity guarantees
+        # Truth table:
+        #   pub_out_c psec_in_c psec_in_i result
+        #   0         0         0         0
+        #   0         0         1         0
+        #   0         1         0         0
+        #   0         1         1         1
         # Assertion:
-        #   pub_out_c or not (psec_in_c and psec_in_i)
-        self.assert_and_track (Or (self.o.pub.c, Not (And (self.i.psec.c, self.i.psec.i))), "pub_out_c")
+        #   pub_out_c or (psec_in_c and psec_in_i)
+        self.assert_and_track (Or (self.o.pub.c, And (self.i.psec.c, self.i.psec.i)), "pub_out_c")
 
         # Parameter
         #   pub_out
         # Integrity guarantees can be dropped if:
-        #   N/A
+        #   Anytime
         # Reason:
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
         assert (self.o.pub.i)
-        # FIXME: But the integrity of pub_out determines whether an attacker
-        # can mount a MITM. So this somehow has an influence on the shared
-        # secret ssec produced in dhsec. Is it integrity, authenticity or what?
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
 
+        # Parameters
+        #   Inputs:  pub, psec
+        #   Outputs: ssec
+
         # Parameter
         #   psec_in
         # Confidentiality guarantee can be dropped if:
-        #   No confidentiality guarantees are demanded for ssec (g^xy in DH
-        #   terms)
+        #   No confidentiality is guaranteed for ssec (g^xy in DH terms) or
+        #   confidentiality is guaranteed for pub (g^y)
         # Reason:
-        #   With knowledge of pub (g^y in DH terms) and psec_in (x in DH terms)
-        #   an attacker can calculate the shared secret g^yx
+        #   With knowledge of pub (g^y) and psec_in (x) an attacker can
+        #   calculate ssec (the shared secret g^yx ≡ g^xy)
+        # Truth table:
+        #   psec_in_c ssec_out_c pub_in_c result
+        #   0         0          0        1
+        #   0         0          1        1
+        #   0         1          0        0
+        #   0         1          1        1
         # Assertion:
-        #   psec_in -> ssec_out
-        self.assert_and_track (Implies (self.i.psec.c, self.o.ssec.c), "psec_in_c")
+        #   psec_in_c ∨ ssec_out_c ∨ ¬pub_in_c
+        self.assert_and_track (Or (self.i.psec.c, self.o.ssec.c, Not (self.i.pub.c)), "psec_in_c")
 
         # Parameter
         #   psec_in
         # Integrity guarantees can be dropped if:
-        #   same as above.
+        #   Anytime
         # Reason:
-        #   If an attacker can choose psec_in (x in DH terms) and knows g^y,
-        #   she can calculate the shared secret g^yx
+        #   If an attacker can choose psec_in (x) in the dhsec step, she can
+        #   influence the resulting g^yx. However, this is not the shared
+        #   secret unless psec was consistently changed for the respective
+        #   dhpub step. This case is handled there.
         # Assertion:
-        #   See above.
-        self.assert_and_track (Implies (self.i.psec.i, self.o.ssec.c), "psec_in_i")
+        #   None.
+        assert (self.i.psec.i)
 
         # Parameter
         #   pub_in
         # Confidentiality guarantee can be dropped if:
-        #   psec_in demands confidentiality and integrity
+        #   psec_in demands confidentiality or no confidentiality is guaranteed
+        #   for ssec_out
         # Reason:
         #   Being able to transmit g^x over an non-confidential channel is the
-        #   sole purpose of the DH key exchange, given that x has
-        #   confidentiality and integrity guarantees
+        #   sole purpose of the DH key exchange, given that x is confidential.
+        #   FIXME: How about integrity of x? If an attacker can choose x, she
+        #   cannot derive g^xy. MITM attacks may be possible, though.
+        # Truth table:
+        #   pub_in_c   ssec_out_c psec_in_c result
+        #   0          0          0         1
+        #   0          0          1         1
+        #   0          1          0         0
+        #   0          1          1         1
         # Assertion:
-        #   pub_in_c or not (psec_in_c and psec_in_i)
-        self.assert_and_track (Or (self.i.pub.c, Not (And (self.i.psec.c, self.i.psec.i))), "pub_in_c")
+        #   pub_in_c ∨ ¬ssec_out_c ∨ psec_in_c
+        self.assert_and_track (Or (self.i.pub.c, Not (self.o.ssec.c), self.i.psec.c), "pub_in_c")
 
         # Parameter
         #   pub_in
         # Integrity guarantees can be dropped if:
-        #   N/A
+        #   Anytime.
         # Reason:
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
         assert (self.i.pub.i)
-        # FIXME: But the integrity of pub_out determines whether an attacker
-        # can mount a MITM. So this somehow has an influence on the shared
-        # secret ssec produced in dhsec. Is it integrity, authenticity or what?
 
         # Parameter
         #   ssec_out
@@ -406,14 +445,20 @@ class Primitive_dhsec (Primitive):
         #   attacker would not be able to derive ssec with a chosen psec in
         #   *this* step. The situation is different if an attacker can chose
         #   the psec used for dhpub (but this is covered in an own rule)
+        # Truth table:
+        #   ssec_out_c psec_in_c pub_in_c result
+        #   0          0         0        1
+        #   0          0         1        0
+        #   0          1         0        0
+        #   0          1         1        0
         # Assertion:
-        #   psec_in AND pub_in
-        self.assert_and_track (And (self.i.psec.c, self.i.pub.c), "ssec_out_c")
+        #   ssec_out_c ∨ ¬(psec_in_c ∨ pub_in_c)
+        self.assert_and_track (Or (self.o.ssec.c, Not (Or (self.i.psec.c, self.i.pub.c))), "ssec_out_c")
 
         # Parameter
         #   ssec_out
         # Integrity guarantees can be dropped if:
-        #   N/A
+        #   Anytime
         # Reason:
         #   DH does not achieve nor assume integrity
         # Assertion:
@@ -424,6 +469,137 @@ class Primitive_encrypt (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
 
+        # Parameters
+        #   Inputs:  plaintext, key, ctr
+        #   Outputs: ciphertext
+
+        # Parameter
+        #   plaintext_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+        assert (self.i.plaintext.c)
+
+        # Parameter
+        #   plaintext_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Data flow is directed. Integrity of an input parameter cannot be
+        #   influenced by an output parameter or other input parameters.
+        # Assertion:
+        #   None
+        assert (self.i.plaintext.i)
+
+        # Parameter
+        #   key_in
+        # Confidentiality guarantee can be dropped if:
+        #   plaintext_in demands no confidentiality or
+        #   ctr_in demands no integrity or
+        #   ciphertext_out demands confidentiality
+        # Reason:
+        #   If plaintext_in is known to an attacker (i.e. not confidential), it
+        #   is superfluous to guarantee confidentiality for key_in. If an
+        #   attacker can chose iv_in (i.e. no integrity), she can chose a value
+        #   used previously with the same key and decipher ciphertext_out.
+        #   Again, guaranteeing confidentiality for key_in is then superfluous.
+        #   If ciphertext_out requires confidentiality, the confidentiality of
+        #   pt_in is guaranteed even if key_in is known to an attacker.
+        # Truth table:
+        #   key_in_c       plaintext_in_c  ctr_in_i        ciphertext_out_c result
+        #   0              0               0               0                1
+        #   0              0               0               1                1
+        #   0              0               1               0                1
+        #   0              0               1               1                1
+        #   0              1               0               0                1
+        #   0              1               0               1                1
+        #   0              1               1               0                0
+        #   0              1               1               1                1
+        # Assertion:
+        #   key_in_c ∨ ¬(plaintext_in_c ∧ ctr_in_i ∧ ¬cipertext_out_c)
+        self.assert_and_track (Or (self.i.key.c, Not (And (self.i.plaintext.c, self.i.ctr.i, Not (self.o.ciphertext.c)))), "key_in_c")
+
+        # Parameter
+        #   key_in
+        # Integrity guarantee can be dropped if:
+        #   Same as for confidentiality.
+        # Reason:
+        #   See above
+        # Assertion:
+        #   key_in_i ∨ ¬(plaintext_in_c ∧ ctr_in_i ∧ ¬cipertext_out_c)
+        self.assert_and_track (Or (self.i.key.i, Not (And (self.i.plaintext.c, self.i.ctr.i, Not (self.o.ciphertext.c)))), "key_in_c")
+
+        # Parameter
+        #   ctr_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The counter/IV in counter mode encryption is not confidential by
+        #   definition
+        # Assertion:
+        #   None
+        assert (self.i.ctr.c)
+
+        # Parameter
+        #   ctr_in
+        # Integrity guarantee can be dropped if:
+        #   No confidentiality is guaranteed for plaintext_in or
+        #   no confidentiality is guaranteed for key_in or
+        #   no integrity is guaranteed for key_in or
+        #   confidentiality is guaranteed for ciphertext_out
+        # Reason:
+        #   If no confidentiality is not guaranteed plaintext_in in the first
+        #   place, it is superfluous to encrypt (and hence chose unique counter
+        #   values). The same is true if an attacker knows or can chose key_in.
+        #   If confidentiality is guaranteed for ciphertext_out, encryption is
+        #   no necessary. Hence, a ctr_in chose by an attacker does no harm.
+        # Assertion:
+        #   ctr_in_i ∨ ¬plaintext_in_c ∨ ¬key_in_c ∨ ¬key_in_i ∨ ¬cipertext_out_c
+        self.assert_and_track \
+            (Or (self.i.ctr.i, Not (self.i.plaintext.c), Not (self.i.key.c),
+            Not (self.i.key.i), Not (self.o.ciphertext.c)), "key_in_c")
+
+        # Parameter
+        #   ciphertext_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for plaintext_in or
+        #   no confidentiality is guaranteed for key_in or
+        #   no integrity is guaranteed for key_in or
+        #   no integrity is guaranteed for ctr_in.
+        # Reason:
+        #   If no confidentiality is not guaranteed plaintext_in in the first
+        #   place, it is superfluous to encrypt (and hence chose unique counter
+        #   values). The same is true if an attacker know or can chose key_in.
+        #   If the attacker can chose ctr_in, she can use the same key/ctr
+        #   combination twice and thus break the encryption.
+        # Assertion:
+        #   ciphertext_out_c ∨ ¬plaintext_in_c ∨ ¬key_in_c ∨ ¬key_in_i ∨ ¬ctr_in_i
+        self.assert_and_track \
+            (Or (self.o.ciphertext.c, Not (self.i.plaintext.c), Not (self.i.key.c),
+            Not (self.i.key.i), Not (self.i.ctr.i)), "ciphertext_out_c")
+
+        # Parameter
+        #   ciphertext_out
+        # Integrity guarantee can be dropped if:
+        #   plaintext_in has no integrity guarantees
+        # Reason:
+        #   Counter mode encryption does not achieve integrity, hence integrity
+        #   guarantees for the ciphertext can only be omitted if the plaintext
+        #   had no integrity guaranteed in the first place.
+        # Truth table:
+        #   ciphertext_out_i plaintext_in_i result
+        #   0                0              1
+        #   0                1              0
+        # Assertion:
+        #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
+        self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
+
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
@@ -431,6 +607,8 @@ class Primitive_decrypt (Primitive):
 class Primitive_hash (Primitive):
     def __init__ (self, G, name, solver, sink, source):
         super ().setup (G, name, solver)
+
+####################################################################################################
 
 def parse_bool (attrib, name):
     if not name in attrib:
@@ -572,7 +750,7 @@ def write_graph(G, title, out):
     pd.write(out + ".dot")
 
     subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"])
-    #os.remove (out + ".dot")
+    os.remove (out + ".dot")
 
 def positions (G):
     pd = nx.drawing.nx_pydot.to_pydot(G)

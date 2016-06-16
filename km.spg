@@ -40,14 +40,14 @@
     </xform>
 
     <xform id="I_cat">
-        <flow sarg="data" sink="I_sendkey" darg="msg"/>
+        <flow sarg="data" sink="I_sendkey" darg="data"/>
         <arg name="secbytes"/>
         <arg name="side"/>
     </xform>
 
     <hash id="I_sendkey">
         <flow sarg="hash" sink="send_sendkey_I" darg="msg"/>
-        <flow sarg="hash" sink="I_mackey" darg="msg"/>
+        <flow sarg="hash" sink="I_mackey" darg="data"/>
     </hash>
 
     <hash id="I_mackey">
@@ -111,14 +111,14 @@
     </xform>
 
     <xform id="R_cat">
-        <flow sarg="data" sink="R_sendkey" darg="msg"/>
+        <flow sarg="data" sink="R_sendkey" darg="data"/>
         <arg name="secbytes"/>
         <arg name="side"/>
     </xform>
 
     <hash id="R_sendkey">
         <flow sarg="hash" sink="send_sendkey_R" darg="msg"/>
-        <flow sarg="hash" sink="R_mackey" darg="msg"/>
+        <flow sarg="hash" sink="R_mackey" darg="data"/>
     </hash>
 
     <hash id="R_mackey">

@@ -12,10 +12,11 @@ import networkx as nx
 
 class Graph:
 
-    def __init__ (self, graph, solver):
-        self.graph  = graph
-        self.solver = solver
-        self.model  = None
+    def __init__ (self, graph, solver, maximize):
+        self.graph    = graph
+        self.solver   = solver
+        self.model    = None
+        self.maximize = maximize
 
     def graph (self):
         return self.graph
@@ -29,7 +30,7 @@ class Graph:
     def analyze (self):
         if self.solver.check() == sat:
             print ("Solution found")
-            self.solver.minimize ()
+            self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
         else:
             print ("No solution")
@@ -57,23 +58,6 @@ class Graph:
             data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
             data['headlabel'] = data['darg']
             data['color'] = sec_color (G.node[parent]['primitive'].o.guarantees()[sarg])
-        
-        # add edge labels
-        #for (parent, child, data) in G.edges(data=True):
-        #    if 'extralabel' in data:
-        #        data['xlabel'] += data['extralabel']
-        #    if data['guarantees_src'].unsat_c:
-        #        data['color'] = 'orange'
-        #        data['xlabel'] += "\nIN/C"
-        #    if data['guarantees_src'].unsat_i:
-        #        data['color'] = 'orange'
-        #        data['xlabel'] += "\nIN/I"
-        #    if data['guarantees_sink'].unsat_c:
-        #        data['color'] = 'orange'
-        #        data['xlabel'] += "\nOUT/C"
-        #    if data['guarantees_sink'].unsat_i:
-        #        data['color'] = 'orange'
-        #        data['xlabel'] += "\nOUT/I"
         
         pd = nx.drawing.nx_pydot.to_pydot(G)
         pd.set_name("sdg")
@@ -131,13 +115,38 @@ class SPG_Optimizer (SPG_Solver_Base):
 
     def __init__ (self):
         self.solver = Optimize()
+        self.cost   = Int('cost');
 
     def assert_and_track (self, condition, name):
         self.solver.add (condition)
 
-    def minimize (self):
-        cost = Int ('cost')
-        h = self.solver.minimize (cost)
+    def optimize (self, graph, maximize):
+
+        print ("Optimizing result")
+
+        edge_sum = Int(0)
+        for (parent, child, data) in graph.edges (data=True):
+            parent_primitive = graph.node[parent]['primitive']
+            child_primitive = graph.node[child]['primitive']
+            sarg = data['sarg']
+            darg = data['darg']
+
+            edge_sum = edge_sum + \
+                If(parent_primitive.o.guarantees()[sarg].c, Int(1), Int(0)) + \
+                If(parent_primitive.o.guarantees()[sarg].i, Int(1), Int(0)) + \
+                If(child_primitive.i.guarantees()[darg].c, Int(1), Int(0)) + \
+                If(child_primitive.i.guarantees()[darg].i, Int(1), Int(0))
+
+
+        self.solver.add (self.cost == edge_sum)
+        if maximize:
+            print ("Maximizing cost")
+            h = self.solver.maximize (self.cost)
+        else:
+            print ("Minimizing cost")
+            h = self.solver.minimize (self.cost)
+
+        self.solver.check()
         self.solver.lower(h)
 
 class SPG_Solver (SPG_Solver_Base):
@@ -773,7 +782,7 @@ def parse_guarantees (attribs):
         'i': parse_bool (attribs, 'integrity'),
     }
 
-def parse_graph (inpath, solver):
+def parse_graph (inpath, solver, maximize):
     try:
         root = ET.parse(inpath).getroot()
     except IOError as e:
@@ -781,7 +790,7 @@ def parse_graph (inpath, solver):
         sys.exit(1)
     
     mdg = nx.MultiDiGraph()
-    G   = Graph (mdg, solver)
+    G   = Graph (mdg, solver, maximize)
     
     # read in graph
     for child in root:
@@ -876,9 +885,12 @@ def positions (G):
 def main(args):
 
     # validate input XML
+    # FIXME: Is there a python way to validate using XML Schema?
     print (subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]))
 
-    G = parse_graph (args.input[0], SPG_Solver())
+    s = SPG_Optimizer() if args.optimize else SPG_Solver()
+
+    G = parse_graph (args.input[0], s, args.maximize)
     G.analyze()
     G.write ("Final", args.output[0])
 
@@ -886,4 +898,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+    parser.add_argument('--optimize', action='store_true', help='Use optimizer (disables uncore generation)', dest='optimize');
+    parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
     main(parser.parse_args ())

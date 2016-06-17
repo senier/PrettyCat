@@ -10,6 +10,10 @@ sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
 import networkx as nx
 
+class PrimitiveMissing (Exception):
+    def __init__ (self, primitive):
+        Exception.__init__(self, "Primitive '" + primitive + "' not implemented")
+
 class Graph:
 
     def __init__ (self, graph, solver, maximize):
@@ -841,7 +845,10 @@ def parse_graph (inpath, solver, maximize):
         objname = "Primitive_" + mdg.node[node]['kind']
         sink   = mdg.in_edges (nbunch=node) and not mdg.out_edges (nbunch=node)
         source = mdg.out_edges (nbunch=node) and not mdg.in_edges (nbunch=node)
-        mdg.node[node]['primitive'] = globals()[objname](G, node, sink, source)
+        try:
+            mdg.node[node]['primitive'] = globals()[objname](G, node, sink, source)
+        except KeyError:
+            raise PrimitiveMissing (mdg.node[node]['kind'])
 
     # Establish src -> sink relation
     for (parent, child, data) in mdg.edges (data=True):
@@ -913,4 +920,8 @@ if __name__ == "__main__":
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--optimize', action='store_true', help='Use optimizer (disables uncore generation)', dest='optimize');
     parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
-    main(parser.parse_args ())
+
+    try:
+        main(parser.parse_args ())
+    except PrimitiveMissing as e:
+        print (e)

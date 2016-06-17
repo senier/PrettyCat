@@ -46,6 +46,20 @@ class Graph:
                 G.node[node]['shape'] = "invhouse"
             else:
                 raise Exception ("Xform without edges")
+
+            val_c = False
+            val_i = False
+            for (parent, current, data) in G.in_edges (nbunch=node, data=True):
+                darg = data['darg']
+                val_c = val_c or G.node[current]['primitive'].i.guarantees()[darg].val_c()
+                val_i = val_i or G.node[current]['primitive'].i.guarantees()[darg].val_i()
+
+            for (current, child, data) in G.out_edges (nbunch=node, data=True):
+                sarg = data['sarg']
+                val_c = val_c or G.node[current]['primitive'].o.guarantees()[sarg].val_c()
+                val_i = val_i or G.node[current]['primitive'].o.guarantees()[sarg].val_i()
+
+            G.node[node]['color'] = sec_color (val_c, val_i)
     
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
@@ -57,7 +71,9 @@ class Graph:
             data['xlabel']    = ""
             data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
             data['headlabel'] = data['darg']
-            data['color'] = sec_color (G.node[parent]['primitive'].o.guarantees()[sarg])
+
+            g = G.node[parent]['primitive'].o.guarantees()[sarg]
+            data['color'] = sec_color (g.val_c(), g.val_i())
         
         pd = nx.drawing.nx_pydot.to_pydot(G)
         pd.set_name("sdg")
@@ -105,7 +121,7 @@ class SPG_Solver_Base:
     def check (self):
         return self.solver.check()
 
-    def minimize (self):
+    def optimize (self, graph, maximize):
         print ("Info: Running with plain solver, performing no optimization.");
 
     def model (self):
@@ -803,7 +819,7 @@ def parse_graph (inpath, solver, maximize):
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
              label      = label, \
-             penwidth   = "1", \
+             penwidth   = "2", \
              width      = "2.5", \
              height     = "0.6")
     
@@ -840,10 +856,7 @@ def parse_graph (inpath, solver, maximize):
 
     return G
 
-def sec_color(guarantee):
-
-    c = guarantee.val_c()
-    i = guarantee.val_i()
+def sec_color(c, i):
 
     if c == None or i == None:
         return "orange"

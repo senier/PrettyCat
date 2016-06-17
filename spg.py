@@ -122,7 +122,7 @@ class SPG_Solver_Base:
         return self.solver.check()
 
     def minimize (self):
-        print ("Running with solver, performing no optimization");
+        print ("Info: Running with plain solver, performing no optimization.");
 
     def model (self):
         return self.solver.model()
@@ -176,6 +176,7 @@ class SPG_Solver (SPG_Solver_Base):
             print ("   " + str (p) + ":")
             print ("      " + str(simplify(self.assert_db[str(p)])))
         self.mark_expression (G, simplify (And (unsat_core)))
+        print ("Full, simplified uncore:")
         print (simplify (And (unsat_core)))
         print ("Constraints:")
         for c in self.constraints:

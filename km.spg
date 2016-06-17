@@ -54,10 +54,6 @@
         <flow sarg="hash" sink="send_mackey_I" darg="msg"/>
     </hash>
 
-    <const id="I_g">
-        <flow sarg="const" sink="I_dhpub" darg="gen"/>
-    </const>
-
     <dhpub id="I_dhpub">
         <flow sarg="pub" sink="I_mpi" darg="mpi"/>
         <flow sarg="pub" sink="I_side" darg="pub_local"/>
@@ -124,10 +120,6 @@
     <hash id="R_mackey">
         <flow sarg="hash" sink="send_mackey_R" darg="msg"/>
     </hash>
-
-    <const id="R_g">
-        <flow sarg="const" sink="R_dhpub" darg="gen"/>
-    </const>
 
     <dhpub id="R_dhpub">
         <flow sarg="pub" sink="R_mpi" darg="mpi"/>

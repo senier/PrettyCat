@@ -10,61 +10,182 @@ sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
 import networkx as nx
 
+class Graph:
+
+    def __init__ (self, graph, solver):
+        self.graph  = graph
+        self.solver = solver
+        self.model  = None
+
+    def graph (self):
+        return self.graph
+
+    def solver (self):
+        return self.solver
+
+    def model (self):
+        return self.solver.model()
+
+    def analyze (self):
+        if self.solver.check() == sat:
+            print ("Solution found")
+            self.solver.minimize ()
+            self.model = self.solver.model
+        else:
+            print ("No solution")
+            self.solver.mark_unsat_core(self.graph)
+
+    def write (self, title, out):
+    
+        G = self.graph 
+        for node in G.node:
+            if G.in_edges (nbunch=node) and G.out_edges (nbunch=node):
+                G.node[node]['shape'] = "rectangle"
+            elif not G.in_edges(nbunch=node) or not G.out_edges (nbunch=node):
+                G.node[node]['shape'] = "invhouse"
+            else:
+                raise Exception ("Xform without edges")
+    
+        # add edge labels
+        for (parent, child, data) in G.edges(data=True):
+    
+            # sarg guarantees of parent should are the same as darg guarantees of child
+            darg = data['darg']
+            sarg = data['sarg']
+    
+            data['xlabel']    = ""
+            data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
+            data['headlabel'] = data['darg']
+            data['color'] = sec_color (G.node[parent]['primitive'].o.guarantees()[sarg])
+        
+        # add edge labels
+        #for (parent, child, data) in G.edges(data=True):
+        #    if 'extralabel' in data:
+        #        data['xlabel'] += data['extralabel']
+        #    if data['guarantees_src'].unsat_c:
+        #        data['color'] = 'orange'
+        #        data['xlabel'] += "\nIN/C"
+        #    if data['guarantees_src'].unsat_i:
+        #        data['color'] = 'orange'
+        #        data['xlabel'] += "\nIN/I"
+        #    if data['guarantees_sink'].unsat_c:
+        #        data['color'] = 'orange'
+        #        data['xlabel'] += "\nOUT/C"
+        #    if data['guarantees_sink'].unsat_i:
+        #        data['color'] = 'orange'
+        #        data['xlabel'] += "\nOUT/I"
+        
+        pd = nx.drawing.nx_pydot.to_pydot(G)
+        pd.set_name("sdg")
+        pd.set ("splines", "ortho")
+        pd.set ("forcelabels", "true")
+        pd.set ("nodesep", "0.5")
+        pd.set ("pack", "true")
+        pd.set ("size", "15.6,10.7")
+        pd.set ("label", title)
+        pd.set ("labelloc", "t")
+        pd.write(out + ".dot")
+    
+        subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"])
+        os.remove (out + ".dot")
+
 class Args:
 
     def __init__ (self):
         raise Exception ("Abstract class")
 
-    def setup (self, graph, name, solver, mode):
+    def setup (self, graph, name, mode):
         self._graph  = graph
         self._name   = name
-        self._solver = solver
         self._mode   = mode
 
     def add_guarantee (self, name): 
-        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name, self._solver, self._mode)})
+        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name, self._mode)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
 
 class Args_In (Args):
-    def __init__ (self, graph, name, solver):
-        Args.setup (self, graph, name, solver, "in")
+    def __init__ (self, graph, name):
+        Args.setup (self, graph, name, "in")
 
 class Args_Out (Args):
-    def __init__ (self, graph, name, solver):
-        Args.setup (self, graph, name, solver, "out")
+    def __init__ (self, graph, name):
+        Args.setup (self, graph, name, "out")
 
-class SPG_Solver:
+class SPG_Solver_Base:
 
-    def __init__ (self, solver, assert_db):
-        self.solver = solver
-        self.assert_db = assert_db
-        # FIXME: Parameterize use of solver/optimizer
-        #self.solver.set(unsat_core=True)
+    def __init__ (self):
+        raise Exception ("Abstract")
+
+    def check (self):
+        return self.solver.check()
+
+    def minimize (self):
+        print ("Running with solver, performing no optimization");
+
+    def model (self):
+        return self.solver.model()
+
+class SPG_Optimizer (SPG_Solver_Base):
+
+    def __init__ (self):
+        self.solver = Optimize()
 
     def assert_and_track (self, condition, name):
-        key = "a_" + name
-        self.assert_db[key] = condition
-        #self.solver.assert_and_track (condition, key)
         self.solver.add (condition)
 
-    def solver (self):
-        print ("FIXME: Create proper solver interface")
-        return self.solver
+    def minimize (self):
+        cost = Int ('cost')
+        h = self.solver.minimize (cost)
+        self.solver.lower(h)
 
-    def condition_by_name (self, name):
-        return simplify(self.assert_db[str(name)])
+class SPG_Solver (SPG_Solver_Base):
+
+    def __init__ (self):
+        self.solver = Solver()
+        self.assert_db = {}
+        self.solver.set(unsat_core=True)
+        self.constraints = {}
+
+    def assert_and_track (self, condition, name):
+        key = "a_" + str(name)
+        self.assert_db[key] = condition
+        self.solver.assert_and_track (condition, key)
+
+    def mark_expression (self, G, uc):
+        if is_and (uc) or is_or (uc):
+            for idx in range (0, uc.num_args()):
+                self.mark_expression (G, uc.arg(idx))
+        elif is_eq(uc):
+            self.mark_expression (G, uc.arg(0))
+            self.mark_expression (G, uc.arg(1))
+        elif is_not(uc):
+            self.mark_expression (G, uc.arg(0))
+        elif is_const(uc):
+            self.constraints[str(uc)] = True
+        else:
+            raise Exception ("Unhandled expression: " + str(uc))
+
+    def mark_unsat_core (self, G):
+        print ("Unsat core:")
+        unsat_core = []
+        for p in self.solver.unsat_core():
+            unsat_core.append (simplify (self.assert_db[str(p)]))
+            print ();
+            print ("   " + str (p) + ":")
+            print ("      " + str(simplify(self.assert_db[str(p)])))
+        self.mark_expression (G, simplify (And (unsat_core)))
+        print (simplify (And (unsat_core)))
+        print ("Constraints:")
+        for c in self.constraints:
+            print ("   " + c)
 
 class Guarantees:
 
-    def __init__ (self, graph, node, solver, mode):
+    def __init__ (self, graph, node, mode):
         self.graph  = graph
         self.node   = node
-        self.solver = solver
-
-        self.unsat_c = False
-        self.unsat_i = False
 
         self.base = self.node + "_" + mode
         self.c = Bool(self.base + "_c")
@@ -74,7 +195,7 @@ class Guarantees:
         return base
 
     def assert_condition (self, condition, desc):
-        self.solver.assert_and_track (condition, self.base + "_" + desc)
+        self.graph.solver.assert_and_track (condition, self.base + "_" + desc)
 
     def c (self):
         return c
@@ -84,7 +205,7 @@ class Guarantees:
 
     def assert_x (self, var, value, tag):
         if value != None: 
-            self.solver.assert_and_track (var == value, self.base + "_" + tag)
+            self.graph.solver.assert_and_track (var == value, self.base + "_" + tag)
 
     def assert_c (self, value):
         self.assert_x (self.c, value, "c")
@@ -93,20 +214,14 @@ class Guarantees:
         self.assert_x (self.i, value, "i")
 
     def val_c (self):
+        if self.graph.model == None:
+            return None if self.base + "_c" in self.graph.solver.constraints else False
         return is_true(self.graph.model[self.c])
 
     def val_i (self):
+        if self.graph.model == None:
+            return None if self.base + "_i" in self.graph.solver.constraints else False
         return is_true(self.graph.model[self.i])
-
-    def check_unsat (self, constraints):
-        self.unsat_c = self.base + "_c" in constraints
-        self.unsat_i = self.base + "_i" in constraints
-
-    def unsat_c (self):
-        return unsat_c
-
-    def unsat_i (self):
-        return unsat_i
 
 ####################################################################################################
 
@@ -115,25 +230,25 @@ class Primitive:
     An "abstract" class implementing generic methods for a Primitive
     """
 
-    def __init__ (self, G, name, solver):
+    def __init__ (self, G, name):
         raise Exception ("Abstract")
 
-    def setup (self, G, name, solver):
-        self.i      = Args_In (G, name, solver)
-        self.o      = Args_Out (G, name, solver)
+    def setup (self, G, name):
+        self.i      = Args_In (G, name)
+        self.o      = Args_Out (G, name)
         self.name   = name
-        self.node   = G.node[name]
-        self.solver = solver
+        self.node   = G.graph.node[name]
+        self.graph  = G
 
-        for (parent, current, data) in G.in_edges (nbunch=name, data=True):
+        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
             self.i.add_guarantee (data['darg'])
 
-        for (current, child, data) in G.out_edges (nbunch=name, data=True):
+        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
             self.o.add_guarantee (data['sarg'])
 
     def assert_and_track (self, cond, desc):
         """Track an condition tagging it with the primitive name and a description"""
-        self.solver.assert_and_track (cond, self.name + "_" + desc)
+        self.graph.solver.assert_and_track (cond, self.name + "_" + desc)
 
 class Primitive_xform (Primitive):
     """
@@ -143,8 +258,8 @@ class Primitive_xform (Primitive):
     guarantees according to the XML definition.
     """
 
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Guarantees explicitly set in send/recv xforms in the XML
         g = self.node['guarantees']
@@ -205,8 +320,8 @@ class Primitive_const (Primitive):
     The const primivive
     """
 
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Inputs:  ø
@@ -228,8 +343,8 @@ class Primitive_rng (Primitive):
     many bits we request from it.
     """
 
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Input:  len
@@ -290,8 +405,8 @@ class Primitive_rng (Primitive):
 
 class Primitive_dhpub (Primitive):
 
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Input:   psec
@@ -353,8 +468,8 @@ class Primitive_dhpub (Primitive):
         assert (self.o.pub.i)
 
 class Primitive_dhsec (Primitive):
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Inputs:  pub, psec
@@ -453,8 +568,8 @@ class Primitive_dhsec (Primitive):
         assert (self.o.ssec.i)
 
 class Primitive_encrypt (Primitive):
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Inputs:  plaintext, key, ctr
@@ -576,13 +691,13 @@ class Primitive_encrypt (Primitive):
         self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
 
 class Primitive_decrypt (Primitive):
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
         raise  Exception ("Decrypt not implemented");
 
 class Primitive_hash (Primitive):
-    def __init__ (self, G, name, solver, sink, source):
-        super ().setup (G, name, solver)
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
 
         # Parameters
         #   Input:  data
@@ -668,7 +783,8 @@ def parse_graph (inpath, solver):
         print("Error opening XML file: " + str(e))
         sys.exit(1)
     
-    G = nx.MultiDiGraph(model=None);
+    mdg = nx.MultiDiGraph()
+    G   = Graph (mdg, solver)
     
     # read in graph
     for child in root:
@@ -676,7 +792,7 @@ def parse_graph (inpath, solver):
         label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
         name  = child.attrib["id"]
 
-        G.add_node \
+        mdg.add_node \
             (name, \
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
@@ -688,7 +804,7 @@ def parse_graph (inpath, solver):
         for element in child.findall('flow'):
             sarg = element.attrib['sarg']
             darg = element.attrib['darg']
-            G.add_edge (name, element.attrib['sink'], \
+            mdg.add_edge (name, element.attrib['sink'], \
                 sarg = sarg, \
                 darg = darg, \
                 labelfontsize = "8", \
@@ -699,32 +815,32 @@ def parse_graph (inpath, solver):
                 penwidth="3")
 
     # Initialize all objects
-    for node in G.node:
-        objname = "Primitive_" + G.node[node]['kind']
-        sink   = G.in_edges (nbunch=node) and not G.out_edges (nbunch=node)
-        source = G.out_edges (nbunch=node) and not G.in_edges (nbunch=node)
-        G.node[node]['primitive'] = globals()[objname](G, node, solver, sink, source)
+    for node in mdg.node:
+        objname = "Primitive_" + mdg.node[node]['kind']
+        sink   = mdg.in_edges (nbunch=node) and not mdg.out_edges (nbunch=node)
+        source = mdg.out_edges (nbunch=node) and not mdg.in_edges (nbunch=node)
+        mdg.node[node]['primitive'] = globals()[objname](G, node, sink, source)
 
     # Establish src -> sink relation
-    for (parent, child, data) in G.edges (data=True):
-        parent_primitive = G.node[parent]['primitive']
-        child_primitive = G.node[child]['primitive']
+    for (parent, child, data) in mdg.edges (data=True):
+        parent_primitive = mdg.node[parent]['primitive']
+        child_primitive = mdg.node[child]['primitive']
         sarg = data['sarg']
         darg = data['darg']
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
-        solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
-        solver.assert_and_track (parent_primitive.o.guarantees()[sarg].i == child_primitive.i.guarantees()[darg].i, name + "i")
+        G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
+        G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].i == child_primitive.i.guarantees()[darg].i, name + "i")
 
     return G
 
 def sec_color(guarantee):
 
-    if guarantee.unsat_c or guarantee.unsat_i:
-        return "orange"
-
     c = guarantee.val_c()
     i = guarantee.val_i()
+
+    if c == None or i == None:
+        return "orange"
 
     if c and i:
         return "purple"
@@ -734,59 +850,6 @@ def sec_color(guarantee):
         return "red"
     elif i:
         return "blue"
-
-def write_graph(G, title, out):
-
-    for node in G.node:
-        if G.in_edges (nbunch=node) and G.out_edges (nbunch=node):
-            G.node[node]['shape'] = "rectangle"
-        elif not G.in_edges(nbunch=node) or not G.out_edges (nbunch=node):
-            G.node[node]['shape'] = "invhouse"
-        else:
-            raise Exception ("Xform without edges")
-
-    # add edge labels
-    for (parent, child, data) in G.edges(data=True):
-
-        # sarg guarantees of parent should are the same as darg guarantees of child
-        darg = data['darg']
-        sarg = data['sarg']
-
-        data['xlabel']    = ""
-        data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
-        data['headlabel'] = data['darg']
-        data['color'] = sec_color (G.node[parent]['primitive'].o.guarantees()[sarg])
-    
-    # add edge labels
-    #for (parent, child, data) in G.edges(data=True):
-    #    if 'extralabel' in data:
-    #        data['xlabel'] += data['extralabel']
-    #    if data['guarantees_src'].unsat_c:
-    #        data['color'] = 'orange'
-    #        data['xlabel'] += "\nIN/C"
-    #    if data['guarantees_src'].unsat_i:
-    #        data['color'] = 'orange'
-    #        data['xlabel'] += "\nIN/I"
-    #    if data['guarantees_sink'].unsat_c:
-    #        data['color'] = 'orange'
-    #        data['xlabel'] += "\nOUT/C"
-    #    if data['guarantees_sink'].unsat_i:
-    #        data['color'] = 'orange'
-    #        data['xlabel'] += "\nOUT/I"
-    
-    pd = nx.drawing.nx_pydot.to_pydot(G)
-    pd.set_name("sdg")
-    pd.set ("splines", "ortho")
-    pd.set ("forcelabels", "true")
-    pd.set ("nodesep", "0.5")
-    pd.set ("pack", "true")
-    pd.set ("size", "15.6,10.7")
-    pd.set ("label", title)
-    pd.set ("labelloc", "t")
-    pd.write(out + ".dot")
-
-    subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"])
-    os.remove (out + ".dot")
 
 def positions (G):
     pd = nx.drawing.nx_pydot.to_pydot(G)
@@ -813,66 +876,14 @@ def positions (G):
 
     return pos
 
-def mark_unsat_core (G, uc):
-    constraints = {}
-    mark_expression (G, constraints, uc)
-    for (parent, child, data) in G.edges (data=True):
-        pass
-        #data['guarantees_src'].check_unsat (constraints)
-        #data['guarantees_sink'].check_unsat (constraints)
-
-def mark_expression (G, c, uc):
-    if is_and (uc) or is_or (uc):
-        for idx in range (0, uc.num_args()):
-            mark_expression (G, c, uc.arg(idx))
-    elif is_eq(uc):
-        mark_expression (G, c, uc.arg(0))
-        mark_expression (G, c, uc.arg(1))
-    elif is_not(uc):
-        mark_expression (G, c, uc.arg(0))
-    elif is_const(uc):
-        c[str(uc)] = True
-    else:
-        raise Exception ("Unhandled expression: " + str(uc))
-
-def analyze_satisfiability (G, solver):
-
-    s = solver.solver
-
-    # Add cost metrics
-    cost = Int ('cost')
-    h = s.minimize (cost)
-
-    if s.check() == sat:
-
-        G.model = s.model()
-        print ("Solution found")
-        s.lower(h)
-        print ("Optimized")
-        for x in G.model:
-            print ("   " + str(x) + ": " + str(is_true(G.model[x])))
-        return True
-    else:
-        print ("No solution")
-        #unsat_core = []
-        #for p in s.unsat_core():
-        #    unsat_core.append (solver.condition_by_name(p))
-        #    print (str (p))
-        #    print ("    " + str(solver.condition_by_name(p)))
-        #mark_unsat_core (G, simplify(And(unsat_core)))
-        return False
-
 def main(args):
 
     # validate input XML
     print (subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]))
 
-    assert_db = {}
-    solver = SPG_Solver (Optimize(), assert_db)
-
-    G = parse_graph (args.input[0], solver)
-    if analyze_satisfiability(G, solver):
-        write_graph(G, "Final", args.output[0])
+    G = parse_graph (args.input[0], SPG_Solver())
+    G.analyze()
+    G.write ("Final", args.output[0])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

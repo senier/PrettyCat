@@ -658,21 +658,17 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   ciphertext_out
         # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for plaintext_in or
-        #   no confidentiality is guaranteed for key_in or
-        #   no integrity is guaranteed for key_in or
-        #   no integrity is guaranteed for ctr_in.
+        #   Confidentiality is guaranteed for key_in and
+        #   integrity is guaranteed for key_in and
+        #   integrity is guaranteed for ctr_in.
         # Reason:
-        #   If no confidentiality is guaranteed plaintext_in in the first
-        #   place, it is superfluous to encrypt (and hence chose unique counter
-        #   values). The same is true if an attacker know or can chose key_in.
-        #   If the attacker can chose ctr_in, she can use the same key/ctr
-        #   combination twice and thus break the encryption.
+        #   If confidentiality and integrity is guaranteed for the key and
+        #   integrity is guaranteed for ctr (to avoid using the same key/ctr
+        #   combination twice), an attacker cannot decrypt the ciphertext and
+        #   thus no confidentiality needs to be guaranteed by the environment.
         # Assertion:
-        #   ciphertext_out_c ∨ ¬plaintext_in_c ∨ ¬key_in_c ∨ ¬key_in_i ∨ ¬ctr_in_i
-        self.assert_and_track \
-            (Or (self.o.ciphertext.c, Not (self.i.plaintext.c), Not (self.i.key.c),
-            Not (self.i.key.i), Not (self.i.ctr.i)), "ciphertext_out_c")
+        #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ¬ctr_in_i)
+        self.assert_and_track (Or (self.o.ciphertext.c, And (self.i.key.c, self.i.key.i), self.i.ctr.i), "ciphertext_out_c")
 
         # Parameter
         #   ciphertext_out

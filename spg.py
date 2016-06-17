@@ -15,41 +15,39 @@ class Args:
     def __init__ (self):
         raise Exception ("Abstract class")
 
-    def setup (self, name, solver, mode):
+    def setup (self, graph, name, solver, mode):
+        self._graph  = graph
         self._name   = name
         self._solver = solver
         self._mode   = mode
 
     def add_guarantee (self, name): 
-        self.__dict__.update (**{name: Guarantees (self._name + "_" + name, self._solver, self._mode)})
-
-    def model (self, model):
-        for name in self.__dict__:
-            if not name.startswith("_"):
-                self.__dict__[name].model (model)
+        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name, self._solver, self._mode)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
 
 class Args_In (Args):
-    def __init__ (self, name, solver):
-        Args.setup (self, name, solver, "in")
+    def __init__ (self, graph, name, solver):
+        Args.setup (self, graph, name, solver, "in")
 
 class Args_Out (Args):
-    def __init__ (self, name, solver):
-        Args.setup (self, name, solver, "out")
+    def __init__ (self, graph, name, solver):
+        Args.setup (self, graph, name, solver, "out")
 
 class SPG_Solver:
 
     def __init__ (self, solver, assert_db):
         self.solver = solver
         self.assert_db = assert_db
-        self.solver.set(unsat_core=True)
+        # FIXME: Parameterize use of solver/optimizer
+        #self.solver.set(unsat_core=True)
 
     def assert_and_track (self, condition, name):
         key = "a_" + name
         self.assert_db[key] = condition
-        self.solver.assert_and_track (condition, key)
+        #self.solver.assert_and_track (condition, key)
+        self.solver.add (condition)
 
     def solver (self):
         print ("FIXME: Create proper solver interface")
@@ -60,7 +58,8 @@ class SPG_Solver:
 
 class Guarantees:
 
-    def __init__ (self, node, solver, mode):
+    def __init__ (self, graph, node, solver, mode):
+        self.graph  = graph
         self.node   = node
         self.solver = solver
 
@@ -83,9 +82,6 @@ class Guarantees:
     def i (self):
         return i
 
-    def model (self, model):
-        self.model = model
-
     def assert_x (self, var, value, tag):
         if value != None: 
             self.solver.assert_and_track (var == value, self.base + "_" + tag)
@@ -97,10 +93,10 @@ class Guarantees:
         self.assert_x (self.i, value, "i")
 
     def val_c (self):
-        return str(self.model.evaluate (self.c)) == "True"
+        return is_true(self.graph.model[self.c])
 
     def val_i (self):
-        return str(self.model.evaluate (self.i)) == "True"
+        return is_true(self.graph.model[self.i])
 
     def check_unsat (self, constraints):
         self.unsat_c = self.base + "_c" in constraints
@@ -123,8 +119,8 @@ class Primitive:
         raise Exception ("Abstract")
 
     def setup (self, G, name, solver):
-        self.i      = Args_In (name, solver)
-        self.o      = Args_Out (name, solver)
+        self.i      = Args_In (G, name, solver)
+        self.o      = Args_Out (G, name, solver)
         self.name   = name
         self.node   = G.node[name]
         self.solver = solver
@@ -138,11 +134,6 @@ class Primitive:
     def assert_and_track (self, cond, desc):
         """Track an condition tagging it with the primitive name and a description"""
         self.solver.assert_and_track (cond, self.name + "_" + desc)
-
-    def model (self, model):
-        """Set a model for input and output guarantees"""
-        self.i.model (model)
-        self.o.model (model)
 
 class Primitive_xform (Primitive):
     """
@@ -496,30 +487,22 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   key_in
         # Confidentiality guarantee can be dropped if:
-        #   plaintext_in demands no confidentiality or
-        #   ctr_in demands no integrity or
-        #   ciphertext_out demands confidentiality
+        #   Plaintext_in demands no confidentiality or
+        #   confidentiality is guaranteed for ciphertext_out
         # Reason:
         #   If plaintext_in is known to an attacker (i.e. not confidential), it
-        #   is superfluous to guarantee confidentiality for key_in. If an
-        #   attacker can chose iv_in (i.e. no integrity), she can chose a value
-        #   used previously with the same key and decipher ciphertext_out.
-        #   Again, guaranteeing confidentiality for key_in is then superfluous.
+        #   is superfluous to guarantee confidentiality for key_in.
         #   If ciphertext_out requires confidentiality, the confidentiality of
         #   pt_in is guaranteed even if key_in is known to an attacker.
         # Truth table:
-        #   key_in_c       plaintext_in_c  ctr_in_i        ciphertext_out_c result
-        #   0              0               0               0                1
-        #   0              0               0               1                1
-        #   0              0               1               0                1
-        #   0              0               1               1                1
-        #   0              1               0               0                1
-        #   0              1               0               1                1
-        #   0              1               1               0                0
-        #   0              1               1               1                1
+        #   key_in_c       plaintext_in_c  ciphertext_out_c result
+        #   0              0               0                1
+        #   0              0               1                1
+        #   0              1               0                0
+        #   0              1               1                1
         # Assertion:
-        #   key_in_c ∨ ¬(plaintext_in_c ∧ ctr_in_i ∧ ¬cipertext_out_c)
-        self.assert_and_track (Or (self.i.key.c, Not (And (self.i.plaintext.c, self.i.ctr.i, Not (self.o.ciphertext.c)))), "key_in_c")
+        #   key_in_c ∨ ¬plaintext_in_c ∨ cipertext_out_c
+        self.assert_and_track (Or (self.i.key.c, Not (self.i.plaintext.c), self.o.ciphertext.c), "key_in_c")
 
         # Parameter
         #   key_in
@@ -546,20 +529,16 @@ class Primitive_encrypt (Primitive):
         #   ctr_in
         # Integrity guarantee can be dropped if:
         #   No confidentiality is guaranteed for plaintext_in or
-        #   no confidentiality is guaranteed for key_in or
-        #   no integrity is guaranteed for key_in or
         #   confidentiality is guaranteed for ciphertext_out
         # Reason:
-        #   If no confidentiality is guaranteed plaintext_in in the first
+        #   If no confidentiality is guaranteed for plaintext_in in the first
         #   place, it is superfluous to encrypt (and hence chose unique counter
-        #   values). The same is true if an attacker knows or can chose key_in.
-        #   If confidentiality is guaranteed for ciphertext_out, encryption is
-        #   no necessary. Hence, a ctr_in chose by an attacker does no harm.
+        #   values). If confidentiality is guaranteed for ciphertext_out,
+        #   encryption is not necessary. Hence, a ctr_in chose by an attacker
+        #   does no harm.
         # Assertion:
-        #   ctr_in_i ∨ ¬plaintext_in_c ∨ ¬key_in_c ∨ ¬key_in_i ∨ ¬cipertext_out_c
-        self.assert_and_track \
-            (Or (self.i.ctr.i, Not (self.i.plaintext.c), Not (self.i.key.c),
-            Not (self.i.key.i), Not (self.o.ciphertext.c)), "key_in_c")
+        #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
+        self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_c")
 
         # Parameter
         #   ciphertext_out
@@ -618,7 +597,6 @@ class Primitive_hash (Primitive):
         #   influenced by an output parameter or other input parameters.
         # Assertion:
         #   None
-        print (name)
         assert(self.i.data.i)
 
         # Parameter
@@ -690,7 +668,7 @@ def parse_graph (inpath, solver):
         print("Error opening XML file: " + str(e))
         sys.exit(1)
     
-    G = nx.MultiDiGraph();
+    G = nx.MultiDiGraph(model=None);
     
     # read in graph
     for child in root:
@@ -725,18 +703,18 @@ def parse_graph (inpath, solver):
         objname = "Primitive_" + G.node[node]['kind']
         sink   = G.in_edges (nbunch=node) and not G.out_edges (nbunch=node)
         source = G.out_edges (nbunch=node) and not G.in_edges (nbunch=node)
-        G.node[node]['p'] = globals()[objname](G, node, solver, sink, source)
+        G.node[node]['primitive'] = globals()[objname](G, node, solver, sink, source)
 
     # Establish src -> sink relation
     for (parent, child, data) in G.edges (data=True):
-        p = G.node[parent]['p']
-        c = G.node[child]['p']
+        parent_primitive = G.node[parent]['primitive']
+        child_primitive = G.node[child]['primitive']
         sarg = data['sarg']
         darg = data['darg']
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
-        solver.assert_and_track (p.o.guarantees()[sarg].c == c.i.guarantees()[darg].c, name + "c")
-        solver.assert_and_track (p.o.guarantees()[sarg].i == c.i.guarantees()[darg].i, name + "i")
+        solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
+        solver.assert_and_track (parent_primitive.o.guarantees()[sarg].i == child_primitive.i.guarantees()[darg].i, name + "i")
 
     return G
 
@@ -745,8 +723,8 @@ def sec_color(guarantee):
     if guarantee.unsat_c or guarantee.unsat_i:
         return "orange"
 
-    c = guarantee.val_c
-    i = guarantee.val_i
+    c = guarantee.val_c()
+    i = guarantee.val_i()
 
     if c and i:
         return "purple"
@@ -777,7 +755,7 @@ def write_graph(G, title, out):
         data['xlabel']    = ""
         data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
         data['headlabel'] = data['darg']
-        data['color']     = sec_color (G.node[parent]['p'].o.guarantees()[sarg])
+        data['color'] = sec_color (G.node[parent]['primitive'].o.guarantees()[sarg])
     
     # add edge labels
     #for (parent, child, data) in G.edges(data=True):
@@ -860,18 +838,29 @@ def mark_expression (G, c, uc):
 def analyze_satisfiability (G, solver):
 
     s = solver.solver
+
+    # Add cost metrics
+    cost = Int ('cost')
+    h = s.minimize (cost)
+
     if s.check() == sat:
+
+        G.model = s.model()
         print ("Solution found")
-        for node in G.node:
-            G.node[node]['p'].model (s.model())
+        s.lower(h)
+        print ("Optimized")
+        for x in G.model:
+            print ("   " + str(x) + ": " + str(is_true(G.model[x])))
+        return True
     else:
         print ("No solution")
-        unsat_core = []
-        for p in s.unsat_core():
-            unsat_core.append (solver.condition_by_name(p))
-            print (str (p))
-            print ("    " + str(solver.condition_by_name(p)))
-        mark_unsat_core (G, simplify(And(unsat_core)))
+        #unsat_core = []
+        #for p in s.unsat_core():
+        #    unsat_core.append (solver.condition_by_name(p))
+        #    print (str (p))
+        #    print ("    " + str(solver.condition_by_name(p)))
+        #mark_unsat_core (G, simplify(And(unsat_core)))
+        return False
 
 def main(args):
 
@@ -879,11 +868,11 @@ def main(args):
     print (subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]))
 
     assert_db = {}
-    solver = SPG_Solver (Solver(), assert_db)
+    solver = SPG_Solver (Optimize(), assert_db)
 
     G = parse_graph (args.input[0], solver)
-    analyze_satisfiability(G, solver)
-    write_graph(G, "Final", args.output[0])
+    if analyze_satisfiability(G, solver):
+        write_graph(G, "Final", args.output[0])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

@@ -569,7 +569,7 @@ class Primitive_dhsec (Primitive):
         # Parameter
         #   ssec_out
         # Confidentiality guarantee can be dropped if:
-        #   Neiter psec_in nor pub_in demand confidentiality guarantees
+        #   Neither psec_in nor pub_in demand confidentiality guarantees
         # Reason:
         #   With the knowledge of psec_in (y in DH terms) and pub (g^x in DH
         #   terms) an attacker can calculate the shared secret g^yx.
@@ -719,7 +719,7 @@ class Primitive_encrypt (Primitive):
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, sink, source):
         super ().setup (G, name)
-        raise  Exception ("Decrypt not implemented");
+        raise PrimitiveMissing ("decrypt")
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -784,6 +784,41 @@ class Primitive_hash (Primitive):
         # Reason:
         #   FIXME
         assert (self.o.hash.i)
+
+class Primitive_hmac (Primitive):
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  key, msg
+        #   Output: auth
+
+        # Parameter
+        #   key_in
+        # Confidentiality guarantee can be dropped if:
+        #   Integrity is not guaranteed for msg_in
+        # Reason:
+        #   If integrity is not guaranteed for the input data, HMAC cannot
+        #   protect anything. Hence, it does not harm if the key is released
+        #   to an attacker.
+        # Assertion:
+        #   key_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_c)
+        self.assert_and_track (Implies (self.i.msg.i, self.i.key.c), "key_in_c")
+
+        # Parameter
+        #   key_in
+        # Integrity guarantee can be dropped if:
+        #   Integrity is not guaranteed for msg_in
+        # Reason:
+        #   If integrity is not guaranteed for the input data, HMAC cannot
+        #   protect anything. Hence, it does not harm if the key is chosen
+        #   by an attacker.
+        # Assertion:
+        #   key_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_i)
+        self.assert_and_track (Implies (self.i.msg.i, self.i.key.i), "key_in_i")
+
+        raise PrimitiveMissing ("hmac")
 
 ####################################################################################################
 

@@ -144,7 +144,7 @@
     </guard>
     
     <const id="iv_x_rem">
-        <flow sarg="const" sink="dec_x_rem" darg="iv"/>
+        <flow sarg="const" sink="dec_x_rem" darg="ctr"/>
     </const>
 
     <decrypt id="dec_x_rem">
@@ -197,7 +197,7 @@
     </encrypt>
 
     <const id="sigm_iv">
-        <flow sarg="const" sink="enc_x_local" darg="iv"/>
+        <flow sarg="const" sink="enc_x_local" darg="ctr"/>
     </const>
 
     <hmac id="macdsig">
@@ -205,11 +205,11 @@
     </hmac>
 
     <const id="iv_gxmpi">
-        <flow sarg="const" sink="decrypt_gxmpi" darg="iv"/>
+        <flow sarg="const" sink="decrypt_gxmpi" darg="ctr"/>
     </const>
 
     <decrypt id="decrypt_gxmpi">
-        <flow sarg="plaintext" sink="hash_gxmpi" darg="msg"/>
+        <flow sarg="plaintext" sink="hash_gxmpi" darg="data"/>
         <flow sarg="plaintext" sink="guard_gxmpi" darg="data"/>
     </decrypt>
 
@@ -250,7 +250,7 @@
     </const>
 
     <xform id="cat_c">
-        <flow sarg="cat" sink="hash_c" darg="msg"/>
+        <flow sarg="cat" sink="hash_c" darg="data"/>
         <arg name="secbytes"/>
         <arg name="b"/>
     </xform>
@@ -266,7 +266,7 @@
     </const>
 
     <xform id="cat_m1">
-        <flow sarg="cat" sink="hash_m1" darg="msg"/>
+        <flow sarg="cat" sink="hash_m1" darg="data"/>
         <arg name="secbytes"/>
         <arg name="b"/>
     </xform>
@@ -282,7 +282,7 @@
     </const>
 
     <xform id="cat_m2">
-        <flow sarg="cat" sink="hash_m2" darg="msg"/>
+        <flow sarg="cat" sink="hash_m2" darg="data"/>
         <arg name="secbytes"/>
         <arg name="b"/>
     </xform>
@@ -362,13 +362,13 @@
     </xform>
 
     <xform id="D_cat_h1">
-        <flow sarg="data" sink="D_send_enckey" darg="msg"/>
+        <flow sarg="data" sink="D_send_enckey" darg="data"/>
         <arg name="secbytes"/>
     </xform>
 
     <hash id="D_send_enckey">
         <flow sarg="hash" sink="D_select_key" darg="send_enckey"/>
-        <flow sarg="hash" sink="D_mackey" darg="msg"/>
+        <flow sarg="hash" sink="D_mackey" darg="data"/>
     </hash>
 
     <hash id="D_mackey">
@@ -426,7 +426,7 @@
 
     <counter id="D_ctr">
         <flow sarg="key" sink="D_encrypt" darg="key"/>
-        <flow sarg="ctr" sink="D_encrypt" darg="iv"/>
+        <flow sarg="ctr" sink="D_encrypt" darg="ctr"/>
         <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
     </counter>
 

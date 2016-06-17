@@ -216,12 +216,12 @@ class Guarantees:
     def val_c (self):
         if self.graph.model == None:
             return None if self.base + "_c" in self.graph.solver.constraints else False
-        return is_true(self.graph.model[self.c])
+        return is_true(self.graph.model()[self.c])
 
     def val_i (self):
         if self.graph.model == None:
             return None if self.base + "_i" in self.graph.solver.constraints else False
-        return is_true(self.graph.model[self.i])
+        return is_true(self.graph.model()[self.i])
 
 ####################################################################################################
 

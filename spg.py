@@ -280,6 +280,9 @@ class Primitive:
         """Track an condition tagging it with the primitive name and a description"""
         self.graph.solver.assert_and_track (cond, self.name + "_" + desc)
 
+    def assert_nothing (self, cond, desc):
+        self.assert_and_track (Or (cond, Not(cond)), desc)
+
 class Primitive_xform (Primitive):
     """
     The xform primitive
@@ -363,8 +366,8 @@ class Primitive_const (Primitive):
         # respective input guarantees of child)
 
         # Just check that const output parameter exists
-        self.assert_and_track (Or (self.o.const.c, Not (self.o.const.c)), "const_out_c")
-        self.assert_and_track (Or (self.o.const.i, Not (self.o.const.i)), "const_out_i")
+        self.assert_nothing (self.o.const.c, "const_out_c")
+        self.assert_nothing (self.o.const.i, "const_out_i")
 
 class Primitive_rng (Primitive):
     """
@@ -393,7 +396,7 @@ class Primitive_rng (Primitive):
         #   FIXME: This does not hold if we consider meta-confidentiality (e.g. the length out output data)
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.len.c, Not (self.i.len.c)), "len_in_c")
+        self.assert_nothing (self.i.len.c, "len_in_c")
 
         # Parameter
         #   len_in
@@ -496,7 +499,7 @@ class Primitive_dhpub (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.pub.i, Not (self.o.pub.i)), "pub_out_i")
+        self.assert_nothing (self.o.pub.i, "pub_out_i")
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -535,7 +538,7 @@ class Primitive_dhsec (Primitive):
         #   dhpub step. This case is handled there.
         # Assertion:
         #   None.
-        self.assert_and_track (Or (self.i.psec.i, Not (self.i.psec.i)), "psec_in_i")
+        self.assert_nothing (self.i.psec.i, "psec_in_i")
 
         # Parameter
         #   pub_in
@@ -565,7 +568,7 @@ class Primitive_dhsec (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.pub.i, Not (self.i.pub.i)), "pub_in_i")
+        self.assert_nothing (self.i.pub.i, "pub_in_i")
 
         # Parameter
         #   ssec_out
@@ -596,7 +599,7 @@ class Primitive_dhsec (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.ssec.i, Not (self.o.ssec.i)), "ssec_out_i")
+        self.assert_nothing (self.o.ssec.i, "ssec_out_i")
 
 class Primitive_encrypt (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -617,7 +620,7 @@ class Primitive_encrypt (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.plaintext.c, Not (self.i.plaintext.c)), "plaintext_in_c")
+        self.assert_nothing (self.i.plaintext.c, "plaintext_in_c")
 
         # Parameter
         #   plaintext_in
@@ -675,7 +678,7 @@ class Primitive_encrypt (Primitive):
         #   definition
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.ctr.c, Not (self.i.ctr.c)), "ctr_in_c")
+        self.assert_nothing (self.i.ctr.c, "ctr_in_c")
 
         # Parameter
         #   ctr_in
@@ -716,7 +719,7 @@ class Primitive_encrypt (Primitive):
         #   primitive using the encryption result.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.ciphertext.i, Not (self.o.ciphertext.i)), "ciphertext_out_i")
+        self.assert_nothing (self.o.ciphertext.i, "ciphertext_out_i")
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -737,7 +740,7 @@ class Primitive_decrypt (Primitive):
         #   This is the purpose of (symmetric) encryption.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.ciphertext.c, Not (self.i.ciphertext.c)), "ciphertext_in_c")
+        self.assert_nothing (self.i.ciphertext.c, "ciphertext_in_c")
 
         # Parameter
         #   ciphertext_in
@@ -748,7 +751,7 @@ class Primitive_decrypt (Primitive):
         #   influenced by an output parameter or other input parameters.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.ciphertext.i, Not (self.i.ciphertext.i)), "ciphertext_in_i")
+        self.assert_nothing (self.i.ciphertext.i, "ciphertext_in_i")
 
         # Parameter
         #   key_in
@@ -774,7 +777,7 @@ class Primitive_decrypt (Primitive):
         #   counter mode encryption anyway.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.key.i, Not (self.i.key.i)), "key_in_i")
+        self.assert_nothing (self.i.key.i, "key_in_i")
 
         # Parameter
         #   ctr_in
@@ -784,7 +787,7 @@ class Primitive_decrypt (Primitive):
         #   The counter is public as per counter mode definition.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.ctr.c, Not (self.i.ctr.c)), "ctr_in_c")
+        self.assert_nothing (self.i.ctr.c, "ctr_in_c")
 
         # Parameter
         #   ctr_in
@@ -796,7 +799,7 @@ class Primitive_decrypt (Primitive):
         #   key/ctr combination in this case) is superfluous.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.ctr.i, Not (self.i.ctr.i)), "ctr_in_i")
+        self.assert_nothing (self.i.ctr.i, "ctr_in_i")
 
         # Parameter
         #   plaintext_out
@@ -808,7 +811,7 @@ class Primitive_decrypt (Primitive):
         #   confidentiality requirements is perfectly fine)
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.plaintext.c, Not (self.o.plaintext.c)), "plaintext_out_c")
+        self.assert_nothing (self.o.plaintext.c, "plaintext_out_c")
 
         # Parameter
         #   plaintext_out
@@ -819,7 +822,7 @@ class Primitive_decrypt (Primitive):
         #   primitive using the decryption result.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.plaintext.i, Not (self.o.plaintext.i)), "plaintext_out_i")
+        self.assert_nothing (self.o.plaintext.i, "plaintext_out_i")
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -883,7 +886,7 @@ class Primitive_hash (Primitive):
         #   Anytime
         # Reason:
         #   FIXME
-        self.assert_and_track (Or (self.o.hash.i, Not (self.o.hash.i)), "hash_out_i")
+        self.assert_nothing (self.o.hash.i, "hash_out_i")
 
 class Primitive_hmac (Primitive):
 
@@ -926,7 +929,7 @@ class Primitive_hmac (Primitive):
         #   HMAC does not achieve nor assume confidentiality
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.c, Not (self.i.msg.c)), "msg_in_c")
+        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -937,7 +940,7 @@ class Primitive_hmac (Primitive):
         #   influenced by an output parameter or other input parameters.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.i, Not (self.i.msg.i)), "msg_in_i")
+        self.assert_nothing (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   auth_out
@@ -949,7 +952,7 @@ class Primitive_hmac (Primitive):
         #   nor for the auth value the environment has to maintain confidentiality.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.auth.c, Not (self.o.auth.c)), "auth_out_c")
+        self.assert_nothing (self.o.auth.c, "auth_out_c")
 
         # Parameter
         #   auth_out
@@ -961,7 +964,7 @@ class Primitive_hmac (Primitive):
         #   nor for the auth value the environment has to maintain integrity.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.auth.i, Not (self.o.auth.i)), "auth_out_i")
+        self.assert_nothing (self.o.auth.i, "auth_out_i")
 
 class Primitive_sign (Primitive):
 
@@ -988,7 +991,7 @@ class Primitive_sign (Primitive):
         #   message.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.c, Not (self.i.msg.c)), "msg_in_c")
+        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -999,7 +1002,7 @@ class Primitive_sign (Primitive):
         #   influenced by an output parameter or other input parameters.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.i, Not (self.i.msg.i)), "msg_in_i")
+        self.assert_nothing (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   pkey_in
@@ -1010,7 +1013,7 @@ class Primitive_sign (Primitive):
         #   confidentiality is unnecessary.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.pkey.c, Not (self.i.pkey.c)), "pkey_i_c")
+        self.assert_nothing (self.i.pkey.c, "pkey_i_c")
 
         # Parameter
         #   pkey_in
@@ -1071,7 +1074,7 @@ class Primitive_sign (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.auth.i, Not (self.o.auth.i)), "auth_out_i")
+        self.assert_nothing (self.o.auth.i, "auth_out_i")
 
 class Primitive_verify_sig (Primitive):
 
@@ -1097,7 +1100,7 @@ class Primitive_verify_sig (Primitive):
         #   message.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.c, Not (self.i.msg.c)), "msg_in_c")
+        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -1108,7 +1111,7 @@ class Primitive_verify_sig (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.msg.i, Not (self.i.msg.i)), "msg_in_i")
+        self.assert_nothing (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   auth_in
@@ -1118,7 +1121,7 @@ class Primitive_verify_sig (Primitive):
         #   Signature verification does not assume confidentiality for signature.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.auth.c, Not (self.i.auth.c)), "auth_in_c")
+        self.assert_nothing (self.i.auth.c, "auth_in_c")
 
         # Parameter
         #   auth_in
@@ -1129,7 +1132,7 @@ class Primitive_verify_sig (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.auth.i, Not (self.i.auth.i)), "auth_in_i")
+        self.assert_nothing (self.i.auth.i, "auth_in_i")
 
         # Parameter
         #   pkey_in
@@ -1139,7 +1142,7 @@ class Primitive_verify_sig (Primitive):
         #   Public key is, by definition, public.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.i.pkey.c, Not (self.i.pkey.c)), "pkey_in_c")
+        self.assert_nothing (self.i.pkey.c, "pkey_in_c")
 
         # Parameter
         #   pkey_in
@@ -1172,7 +1175,7 @@ class Primitive_verify_sig (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_and_track (Or (self.o.result.i, Not (self.o.result.i)), "result_out_i")
+        self.assert_nothing (self.o.result.i, "result_out_i")
 
 # TBD:
 #

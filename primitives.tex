@@ -21,6 +21,7 @@
 \DeclareMathOperator{\decctr}{Dec_{ctr}}
 \DeclareMathOperator{\sign}{Sign}
 \DeclareMathOperator{\signvrfy}{Verify_{Sig}}
+\DeclareMathOperator{\hmacvrfy}{Verify_{HMAC}}
 \DeclareMathOperator{\rng}{RNG}
 \DeclareMathOperator{\dhsec}{DH_{Sec}}
 \DeclareMathOperator{\dhpub}{DH_{Pub}}
@@ -689,6 +690,25 @@ The generic \genm{} rule in addition to the following rules apply:
 \begin{equation}
     msg_{in}^{M} \implies key_{in}^{C} \wedge key_{in}^{M}
 \end{equation}
+
+\subsubsection{HMAC verification}
+
+\begin{figure}[ht]
+    \centering
+    \begin{dot2tex}[mathmode]
+        digraph G
+        {
+            rankdir=LR
+            node[shape=none, label=""];
+            element[label="\hmacvrfy", shape="rect"];
+            key -> element [headlabel="key"];
+            msg -> element [headlabel="msg"];
+            auth -> element [headlabel="auth"];
+            element -> result [taillabel="result"];
+        }
+    \end{dot2tex}
+    \caption{$\hmacvrfy$}
+\end{figure}
 
 \subsection{Digital Signatures}
 

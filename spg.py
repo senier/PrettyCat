@@ -1177,9 +1177,111 @@ class Primitive_verify_sig (Primitive):
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
 
+class Primitive_verify_hmac (Primitive):
+
+    """
+    HMAC verification primitive
+    
+    Checks whether a given pair (msg, auth) was MAC'ed with key.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  msg, auth, key
+        #   Output: result
+
+        # Parameter
+        #   msg_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   HMAC verification does not assume confidentiality for the input
+        #   message.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.msg.c, "msg_in_c")
+
+        # Parameter
+        #   msg_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Achieving integrity (in addition to authentication) cryptographically
+        #   is the purpose of a signature operation.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.msg.i, "msg_in_i")
+
+        # Parameter
+        #   auth_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Signature verification does not assume confidentiality for signature.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.auth.c, "auth_in_c")
+
+        # Parameter
+        #   auth_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Achieving integrity (in addition to authentication) cryptographically
+        #   is the purpose of a signature operation.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.auth.i, "auth_in_i")
+
+        # Parameter
+        #   key_in
+        # Confidentiality guarantee can be dropped if:
+        #   If no integrity is guaranteed for result
+        # Reason:
+        #   If an attacker can modify the result of a verify operation, she could
+        #   as well chose an own key and use it to create a valid signature yielding
+        #   a positive result
+        # Assertion:
+        #   pkey_in_c ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_c)
+        self.assert_and_track (Implies (self.o.result.i, self.i.key.c), "key_in_c")
+
+        # Parameter
+        #   key_in
+        # Integrity guarantee can be dropped if:
+        #   If no integrity is guaranteed for result
+        # Reason:
+        #   If an attacker can modify the result of a verify operation, she could
+        #   as well chose an own public key for which she has the secret key available
+        #   (and thus can create a valid signature yielding a positive result)
+        # Assertion:
+        #   key_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ key_in_i)
+        self.assert_and_track (Implies (self.o.result.i, self.i.key.i), "key_in_i")
+
+        # Parameter
+        #   result_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for msg_in
+        # Reason:
+        #   FIXME: Does the value of result really allow for gaining knowledge about msg?
+        # Assertion:
+        #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
+        self.assert_and_track (Implies (self.i.msg.c, self.o.result.c), "result_out_c")
+
+        # Parameter
+        #   result_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.result.i, "result_out_i")
+
 # TBD:
 #
-# verify_hmac
 # counter
 # guard
 # release

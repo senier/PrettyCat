@@ -130,8 +130,8 @@
     <!-- Receiving a Reveal Signature message -->
     <xform id="rvsm">
         <flow sarg="revealed_key" sink="decrypt_gxmpi" darg="key"/>
-        <flow sarg="enc_sig"      sink="assert_hmac" darg="data"/>
-        <flow sarg="macd_sig"     sink="assert_hmac" darg="mac"/>
+        <flow sarg="enc_sig"      sink="assert_hmac" darg="msg"/>
+        <flow sarg="macd_sig"     sink="assert_hmac" darg="auth"/>
         <arg name="msg"/>
     </xform>
 
@@ -173,7 +173,7 @@
     </hmac>
 
     <verify_sig id="sig_rem">
-        <flow sarg="msg" sink="guard_sig_rem" darg="cond"/>
+        <flow sarg="result" sink="guard_sig_rem" darg="cond"/>
     </verify_sig>
 
     <guard id="guard_sig_rem">

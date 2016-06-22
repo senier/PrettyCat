@@ -621,13 +621,19 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   plaintext_in
         # Integrity guarantee can be dropped if:
-        #   Anytime.
+        #   ciphertext_out has no integrity guarantees
         # Reason:
-        #   Data flow is directed. Integrity of an input parameter cannot be
-        #   influenced by an output parameter or other input parameters.
+        #   Counter mode encryption does not achieve integrity, hence an attacker
+        #   can could change plaintext_in to influence the integrity of
+        #   ciphertext_out. If integrity must be guaranteed for ciphertext_out,
+        #   it also must be guaranteed for plaintext_in.
+        # Truth table:
+        #   ciphertext_out_i plaintext_in_i result
+        #   0                0              1
+        #   0                1              0
         # Assertion:
-        #   None
-        assert (self.i.plaintext.i)
+        #   plaintext_in_i ∨ ¬ciphertext_out_i (equiv: ciphertext_out_i ⇒ plaintext_in_i)
+        self.assert_and_track (Implies (self.o.ciphertext.i, self.i.plaintext.i), "ciphertext_in_i")
 
         # Parameter
         #   key_in
@@ -703,23 +709,116 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   ciphertext_out
         # Integrity guarantee can be dropped if:
-        #   plaintext_in has no integrity guarantees
+        #   Anytime.
         # Reason:
-        #   Counter mode encryption does not achieve integrity, hence integrity
-        #   guarantees for the ciphertext can only be omitted if the plaintext
-        #   had no integrity guaranteed in the first place.
-        # Truth table:
-        #   ciphertext_out_i plaintext_in_i result
-        #   0                0              1
-        #   0                1              0
+        #   Whether integrity guarantees are required is only determined by the
+        #   primitive using the encryption result.
         # Assertion:
-        #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
-        self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
+        #   None
+        assert (self.o.ciphertext.i)
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, sink, source):
         super ().setup (G, name)
-        raise PrimitiveMissing ("decrypt")
+
+        # Parameters
+        #   Input:  ciphertext, key, ctr
+        #   Output: plaintext
+
+        # Parameter
+        #   ciphertext_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        #   FIXME: I thought of only dropping confidentiality if confidentiality
+        #   is guaranteed for key_in. However, this would preclude commitment
+        #   schemes where a party sends the key over a non-confidential channel.
+        # Reason:
+        #   This is the purpose of (symmetric) encryption.
+        # Assertion:
+        #   None
+        assert (self.i.ciphertext.c)
+
+        # Parameter
+        #   ciphertext_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Data flow is directed. Integrity of an input parameter cannot be
+        #   influenced by an output parameter or other input parameters.
+        # Assertion:
+        #   None
+        assert (self.i.ciphertext.i)
+
+        # Parameter
+        #   key_in
+        # Confidentiality guarantee can be dropped if:
+        #   If no confidentiality is guaranteed for plaintext_out
+        # Reason:
+        #   If confidentiality is not guaranteed for the decryption
+        #   result, keeping the cipher key secret is superfluous.
+        # Assertion:
+        #   key_in_c ∨ ¬plaintext_out_c (equiv: plaintext_out_c ⇒ key_in_c)
+        self.assert_and_track (Implies (self.o.plaintext.c, self.i.key.c), "key_in_c")
+
+        # Parameter
+        #   key_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        #   FIXME: What happens when an attacker can chose a key for decryption? My
+        #   feeling is that this does not harm to confidentiality. It may enable oracle
+        #   attacks, however.
+        # Reason:
+        #   An attacker cannot derive the plaintext by providing an own key to
+        #   the decryption. The output will be wrong, but integrity is not achieved by
+        #   counter mode encryption anyway.
+        # Assertion:
+        #   None
+        assert (self.i.key.i)
+
+        # Parameter
+        #   ctr_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The counter is public as per counter mode definition.
+        # Assertion:
+        #   None
+        assert (self.i.ctr.c)
+
+        # Parameter
+        #   ctr_in
+        # Integrity guarantee can be dropped if:
+        #   If no confidentiality is guaranteed for plaintext_out
+        # Reason:
+        #   If confidentiality is not guaranteed for the decryption
+        #   result, ensuring proper encryption (the freshness of the
+        #   key/ctr combination in this case) is superfluous.
+        # Assertion:
+        #   None
+        assert (self.i.ctr.i)
+
+        # Parameter
+        #   plaintext_out
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The guarantees required only depend on the primitives using
+        #   the decryption result (i.e. encrypting data that has no
+        #   confidentiality requirements is perfectly fine)
+        # Assertion:
+        #   None
+        assert (self.o.plaintext.c)
+
+        # Parameter
+        #   plaintext_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity guarantees are required is only determined by the
+        #   primitive using the decryption result.
+        # Assertion:
+        #   None
+        assert (self.o.plaintext.i)
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name, sink, source):
@@ -972,6 +1071,16 @@ class Primitive_sign (Primitive):
         # Assertion:
         #   None
         assert (self.o.auth.i)
+
+# TBD:
+#
+# verify_sig
+# verify_hmac
+# counter
+# guard
+# release
+# comp
+# permute
 
 ####################################################################################################
 

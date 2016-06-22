@@ -765,7 +765,7 @@ class Primitive_hash (Primitive):
         #   Even with a cryptographically secure hash function, an attacker
         #   may be able to recover data_in from hash_out, depending on the
         #   resource available and the structure of data_in. As we don't want
-        #   to get propabilistic here, we just assume this is always possible.
+        #   to get probabilistic here, we just assume this is always possible.
         #   FIXME: It may become hard to cope with protocols where the
         #   infeasibility of reversing the hash is used, e.g. password
         #   authentication.
@@ -811,14 +811,167 @@ class Primitive_hmac (Primitive):
         # Integrity guarantee can be dropped if:
         #   Integrity is not guaranteed for msg_in
         # Reason:
-        #   If integrity is not guaranteed for the input data, HMAC cannot
-        #   protect anything. Hence, it does not harm if the key is chosen
-        #   by an attacker.
+        #   If integrity is not guaranteed for the input data and attacker can
+        #   chose a key and HMAC cannot protect anything. Hence, it does not
+        #   harm if the key is chosen by an attacker.
         # Assertion:
         #   key_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_i)
         self.assert_and_track (Implies (self.i.msg.i, self.i.key.i), "key_in_i")
 
-        raise PrimitiveMissing ("hmac")
+        # Parameter
+        #   msg_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   HMAC does not achieve nor assume confidentiality
+        # Assertion:
+        #   None
+        assert (self.i.msg.c)
+
+        # Parameter
+        #   msg_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Data flow is directed. Integrity of an input parameter cannot be
+        #   influenced by an output parameter or other input parameters.
+        # Assertion:
+        #   None
+        assert (self.i.msg.i)
+
+        # Parameter
+        #   auth_out
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Without knowing the secret key, an attacker cannot create a msg/auth
+        #   pair which authenticates using that key. Hence, neither for the message
+        #   nor for the auth value the environment has to maintain confidentiality.
+        # Assertion:
+        #   None
+        assert (self.o.auth.c)
+
+        # Parameter
+        #   auth_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Without knowing the secret key, an attacker cannot create a msg/auth
+        #   pair which authenticates using that key. Hence, neither for the message
+        #   nor for the auth value the environment has to maintain integrity.
+        # Assertion:
+        #   None
+        assert (self.o.auth.i)
+
+class Primitive_sign (Primitive):
+
+    """
+    The sign primitive
+    
+    Creates an asymmetric digital signature for a message using a given set of
+    public and secret keys.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  msg, pkey, skey
+        #   Output: auth
+
+        # Parameter
+        #   msg_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Sign does not assume nor achieve confidentiality for the input
+        #   message.
+        # Assertion:
+        #   None
+        assert (self.i.msg.c)
+
+        # Parameter
+        #   msg_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Data flow is directed. Integrity of an input parameter cannot be
+        #   influenced by an output parameter or other input parameters.
+        # Assertion:
+        #   None
+        assert (self.i.msg.i)
+
+        # Parameter
+        #   pkey_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The public key is assumed to be public, hence guaranteeing
+        #   confidentiality is unnecessary.
+        # Assertion:
+        #   None
+        assert (self.i.pkey.c)
+
+        # Parameter
+        #   pkey_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is guaranteed for msg_in.
+        # Reason:
+        #   If no integrity is guaranteed for the input message in the
+        #   first place, creating a valid digital signature is useless.
+        #   FIXME: I'd assume that combining invalid pubkey/seckey pairs
+        #   would be detected by a signature algorithm, but I don't know
+        #   for sure. If not, we need to guarantee integrity also for the
+        #   public key.
+        # Assertion:
+        #   pkey_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ pkey_in_i)
+        self.assert_and_track (Implies (self.i.msg.i, self.i.pkey.i), "pkey_in_i")
+
+        # Parameter
+        #   skey_in
+        # Confidentiality guarantee can be dropped if:
+        #   If no integrity is guaranteed for msg_in
+        # Reason:
+        #   If no integrity is guaranteed for the input message in the
+        #   first place, creating a valid digital signature is useless.
+        # Assertion:
+        #   skey_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_c)
+        self.assert_and_track (Implies (self.i.msg.i, self.i.skey.c), "skey_in_c")
+
+        # Parameter
+        #   skey_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is guaranteed for msg_in.
+        # Reason:
+        #   If no integrity is guaranteed for the input message in the
+        #   first place, creating a valid digital signature is useless.
+        # Assertion:
+        #   skey_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_i)
+        self.assert_and_track (Implies (self.i.msg.i, self.i.skey.i), "pkey_in_i")
+
+        # Parameter
+        #   auth_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for data_in
+        # Reason:
+        #   Even with a cryptographically secure hash function, an attacker
+        #   may be able to recover data_in from hash_out, depending on the
+        #   resource available and the structure of data_in. As we don't want
+        #   to get probabilistic here, we just assume this is always possible.
+        # Assertion:
+        #   auth_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ auth_out_c)
+        self.assert_and_track (Implies (self.i.msg.c, self.o.auth.c), "auth_out_c")
+
+        # Parameter
+        #   auth_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Achieving integrity (in addition to authentication) cryptographically
+        #   is the purpose of a signature operation.
+        # Assertion:
+        #   None
+        assert (self.o.auth.i)
 
 ####################################################################################################
 

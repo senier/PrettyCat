@@ -1071,11 +1071,111 @@ class Primitive_sign (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        assert (self.o.auth.i)
+        self.assert_and_track (Or (self.o.auth.i, Not (self.o.auth.i)), "auth_out_i")
+
+class Primitive_verify_sig (Primitive):
+
+    """
+    The signature verification primitive
+    
+    Checks whether an auth value represents a valid message signature by a given public key.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  msg, auth, pkey
+        #   Output: result
+
+        # Parameter
+        #   msg_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Signature verification does not assume confidentiality for the input
+        #   message.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.i.msg.c, Not (self.i.msg.c)), "msg_in_c")
+
+        # Parameter
+        #   msg_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Achieving integrity (in addition to authentication) cryptographically
+        #   is the purpose of a signature operation.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.i.msg.i, Not (self.i.msg.i)), "msg_in_i")
+
+        # Parameter
+        #   auth_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Signature verification does not assume confidentiality for signature.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.i.auth.c, Not (self.i.auth.c)), "auth_in_c")
+
+        # Parameter
+        #   auth_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Achieving integrity (in addition to authentication) cryptographically
+        #   is the purpose of a signature operation.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.i.auth.i, Not (self.i.auth.i)), "auth_in_i")
+
+        # Parameter
+        #   pkey_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Public key is, by definition, public.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.i.pkey.c, Not (self.i.pkey.c)), "pkey_in_c")
+
+        # Parameter
+        #   pkey_in
+        # Integrity guarantee can be dropped if:
+        #   If no integrity is guaranteed for result
+        # Reason:
+        #   If an attacker can modify the result of a verify operation, she could
+        #   as well chose an own public key for which she has the secret key available
+        #   (and thus can create a valid signature yielding a positive result)
+        # Assertion:
+        #   pkey_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_i)
+        self.assert_and_track (Implies (self.o.result.i, self.i.pkey.i), "pkey_in_i")
+
+        # Parameter
+        #   result_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for msg_in
+        # Reason:
+        #   FIXME: Does the value of result really allow for gaining knowledge about msg?
+        # Assertion:
+        #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
+        self.assert_and_track (Implies (self.i.msg.c, self.o.result.c), "result_out_c")
+
+        # Parameter
+        #   result_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_and_track (Or (self.o.result.i, Not (self.o.result.i)), "result_out_i")
 
 # TBD:
 #
-# verify_sig
 # verify_hmac
 # counter
 # guard

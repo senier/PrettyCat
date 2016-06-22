@@ -705,8 +705,7 @@ The generic \genm{} rule in addition to the following rules apply:
             msg_i -> element [headlabel="msg"];
             pkey -> element [headlabel="pkey"];
             skey -> element [headlabel="skey"];
-            element -> msg_o [taillabel="msg"];
-            element -> sig [taillabel="sig"];
+            element -> auth [taillabel="auth"];
         }
     \end{dot2tex}
     \caption{$\sign$}
@@ -727,7 +726,7 @@ The generic \genm{} rule in addition to the following rules apply:
             msg_i -> element [headlabel="msg"];
             pkey -> element [headlabel="pkey"];
             sig -> element [headlabel="pkey"];
-            element -> msg_o [taillabel="msg"];
+            element -> result [taillabel="result"];
         }
     \end{dot2tex}
     \caption{$\signvrfy$}

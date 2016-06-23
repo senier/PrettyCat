@@ -131,6 +131,7 @@
     <xform id="rvsm">
         <flow sarg="revealed_key" sink="decrypt_gxmpi" darg="key"/>
         <flow sarg="enc_sig"      sink="assert_hmac" darg="msg"/>
+        <flow sarg="enc_sig"      sink="guard_hmac" darg="data"/>
         <flow sarg="macd_sig"     sink="assert_hmac" darg="auth"/>
         <arg name="msg"/>
     </xform>
@@ -222,9 +223,9 @@
     </comp>
 
     <guard id="guard_gxmpi">
-        <flow sarg="msg" sink="unmpi"    darg="mpi"/>
-        <flow sarg="msg" sink="min"      darg="gxmpi"/>
-        <flow sarg="msg" sink="M_rem_in" darg="gxmpi"/>
+        <flow sarg="data" sink="unmpi"    darg="mpi"/>
+        <flow sarg="data" sink="min"      darg="gxmpi"/>
+        <flow sarg="data" sink="M_rem_in" darg="gxmpi"/>
     </guard>
 
     <xform id="unmpi">

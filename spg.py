@@ -837,11 +837,12 @@ class Primitive_hash (Primitive):
         # Confidentiality guarantee can be dropped if:
         #   Anytime
         # Reason:
-        #   Data flow is directed. Integrity of an input parameter cannot be
-        #   influenced by an output parameter or other input parameters.
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
         # Assertion:
         #   None
-        assert(self.i.data.i)
+        self.assert_nothing (self.i.data.i, "data_in_i")
 
         # Parameter
         #   data_in

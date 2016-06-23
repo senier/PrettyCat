@@ -1380,6 +1380,7 @@ class Primitive_counter (Primitive):
 # guard
 # release
 # comp
+# scomp 
 # permute
 
 ####################################################################################################

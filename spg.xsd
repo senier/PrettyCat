@@ -67,6 +67,7 @@
             <xs:element name="guard"       type="forwardElement"/>
             <xs:element name="release"     type="forwardElement"/>
             <xs:element name="comp"        type="forwardElement"/>
+            <xs:element name="scomp"       type="forwardElement"/>
             <xs:element name="permute"     type="xformElement"/>
             <xs:element name="counter"     type="xformElement"/>
         </xs:choice>

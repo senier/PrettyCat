@@ -377,7 +377,8 @@
     </hash>
 
     <permute id="D_select_key">
-        <flow sarg="send_enckey" sink="D_ctr" darg="key"/>
+        <flow sarg="send_enckey" sink="D_scomp" darg="data"/>
+        <flow sarg="send_enckey" sink="D_encrypt" darg="key"/>
         <flow sarg="send_mackey" sink="D_mac" darg="key"/>
         <arg name="send_enckey"/>
         <arg name="send_mackey"/>
@@ -424,8 +425,11 @@
         <flow sarg="const" sink="D_ctr" darg="init"/>
     </const>
 
+    <scomp id="D_scomp">
+        <flow sarg="result" sink="D_ctr" darg="trigger"/>
+    </scomp>
+
     <counter id="D_ctr">
-        <flow sarg="key" sink="D_encrypt" darg="key"/>
         <flow sarg="ctr" sink="D_encrypt" darg="ctr"/>
         <flow sarg="ctr" sink="D_mac_input" darg="ctr"/>
     </counter>

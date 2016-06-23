@@ -1375,9 +1375,93 @@ class Primitive_counter (Primitive):
         #   None
         self.assert_nothing (self.o.ctr.i, "ctr_out_i")
 
+class Primitive_guard (Primitive):
+
+    """
+    Guard primitive
+    
+    This primitive guards the control the data flow in a protocol. Input data is
+    only transferred to the output interfaces if the condition on the input interfaces is
+    true.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data, cond
+        #   Output: data
+
+        # Parameter
+        #   data_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "data_in_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is to be guaranteed for data_out
+        # Reason:
+        #   If data_out requires no integrity, it is OK for data_in to be altered
+        #   by an attacker.
+        # Assertion:
+        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   cond_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "cond_in_c")
+
+        # Parameter
+        #   cond_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is to be guaranteed for data_out
+        # Reason:
+        #   If data_out requires no integrity, it is OK for data_in to be altered
+        #   by an attacker.
+        # Assertion:
+        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   data_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is to be guaranteed for data_in
+        # Reason:
+        #   If data_in has no confidentiality guarantees, it
+        #   makes no sense to keep data_out confidential.
+        # Assertion:
+        #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
+        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+
+        # Parameter
+        #   data_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_out_i")
+
 # TBD:
 #
-# guard
 # release
 # comp
 # scomp 

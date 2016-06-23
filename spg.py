@@ -1461,9 +1461,66 @@ class Primitive_guard (Primitive):
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
         self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_out_i")
 
+class Primitive_release (Primitive):
+
+    """
+    Release primitive
+    
+    This primitive allows to drop all security guarantees.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data
+        #   Output: data
+
+        # Parameter
+        #   data_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "data_in_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   This is the purpose of the component
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.i, "data_in_i")
+
+        # Parameter
+        #   data_out
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   This is the purpose of the component
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.data.c, "data_out_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.data.i, "data_out_i")
+
 # TBD:
 #
-# release
 # comp
 # scomp 
 # permute

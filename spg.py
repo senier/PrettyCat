@@ -1280,9 +1280,103 @@ class Primitive_verify_hmac (Primitive):
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
 
+class Primitive_counter (Primitive):
+
+    """
+    Monotonic counter primitive
+    
+    This primitive outputs a monotonic sequence of counters initialized by to a
+    specific value every time the trigger input receives a true value.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  init, trigger
+        #   Output: ctr
+
+        # Parameter
+        #   init_in
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for ctr_out or confidentiality
+        #   is guaranteed for trigger.
+        # Reason:
+        #   By observing the initial value and the trigger values, an attacker
+        #   may derive the value of the counter. If ctr_out requires
+        #   confidentiality guarantees, init or trigger must guarantee
+        #   confidentiality.
+        # Assertion:
+        #   init_in_c ∨ trigger_in_c ∨ ¬ctr_out_c
+        self.assert_and_track (Or (self.i.init.c, self.i.trigger.c, Not (self.o.ctr.c)), "init_in_c")
+
+        # Parameter
+        #   init_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is to be guaranteed for ctr_out
+        # Reason:
+        #   An attacker who's able to chose the initial value of the counter can
+        #   void the integrity of ctr_out
+        # Assertion:
+        #   init_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ init_in_i)
+        #   
+        self.assert_and_track (Implies (self.o.ctr.i, self.i.init.i), "init_in_i")
+
+        # Parameter
+        #   trigger_in
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for ctr_out
+        # Reason:
+        #   By observing the initial value and the trigger values, an attacker
+        #   may derive the value of the counter. As the initial value may not
+        #   be random, it is not sufficient to guarantee confidentiality for
+        #   init_in
+        # Assertion:
+        #   trigger_in_c ∨ ¬ctr_out_c (equiv: ctr_out_c ⇒ trigger_in_c)
+        self.assert_and_track (Implies (self.o.ctr.c, self.i.trigger.c), "trigger_in_c")
+
+        # Parameter
+        #   trigger_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity is to be guaranteed for ctr_out
+        # Reason:
+        #   An attacker who's able to chose a sequence of triggers can void the
+        #   integrity of ctr_out. While the initial value of the counter is
+        #   required, confidentiality for init_in is not sufficient to drop
+        #   confidentiality guarantees for trigger_in. The reason is, that even 
+        #   though init_in is be confidential, it may still be predictable and
+        #   allow and attacker to construct a specific ctr_out from a chosen
+        #   sequence of triggers.
+        # Assertion:
+        #   trigger_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ trigger_in_i)
+        #   
+        self.assert_and_track (Implies (self.o.ctr.i, self.i.trigger.i), "trigger_in_i")
+
+        # Parameter
+        #   ctr_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is guaranteed for init_in or trigger_in
+        # Reason:
+        #   If trigger_in or init_in have not confidentiality guarantees, an
+        #   attacker may derive ctr from it, hence guaranteeing confidentiality
+        #   for ctr_out is superfluous.
+        # Assertion:
+        #   ctr_out_c ∨ ¬init_in_c ∨ ¬trigger_in_c
+        self.assert_and_track (Or (self.o.ctr.c, Not (self.i.trigger.c), Not (self.i.init.c)), "ctr_out_c")
+
+        # Parameter
+        #   ctr_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.ctr.i, "ctr_out_i")
+
 # TBD:
 #
-# counter
 # guard
 # release
 # comp

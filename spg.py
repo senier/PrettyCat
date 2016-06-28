@@ -1605,9 +1605,69 @@ class Primitive_comp (Primitive):
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
 
+
+class Primitive_scomp (Primitive):
+
+    """
+    Comp primitive
+    
+    The stream comparator compares data with the previous message received on
+    the same interface. Depending on whether the current value equals the previous
+    value a boolean result is emitted on the outgoing result interfaces.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data
+        #   Output: result
+
+        # Parameter
+        #   data_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "data_in_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity guarantee is demanded for result_out
+        # Reason:
+        #   If an attacker can chose data_in, she can determine the value
+        #   of result_out
+        # Assertion:
+        #   data_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.result.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   result_out
+        # Confidentiality guarantee can be dropped if:
+        #   If confidentiality is not guaranteed for both data
+        # Reason:
+        #   If an attacker knows data result by comparing with previous values
+        # Assertion:
+        #   result_out_c ∨ ¬data_in_c (equiv: result_out_c ⇒ data_in_c)
+        self.assert_and_track (Implies (self.o.result.c, self.i.data.c), "result_out_c")
+
+        # Parameter
+        #   result_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.result.i, "result_out_i")
 # TBD:
 #
-# scomp 
 # permute
 
 ####################################################################################################

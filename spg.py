@@ -348,6 +348,109 @@ class Primitive_xform (Primitive):
             for (out_name, out_g) in self.o.guarantees().items():
                 self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
 
+        # Parameter
+        #   All output interfaces
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+
+class Primitive_permute (Primitive):
+    """
+    The permute primitive
+    
+    This primitive change the flow from input data interfaces to output
+    interfaces based on order input interfaces.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Inputs:  order, data_i
+        #   Outputs: data_j
+
+        # Parameter
+        #   All input interfaces data_i
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+
+        # Parameter
+        #   All input interfaces data_i
+        # Integrity guarantee can be dropped if:
+        #   No output data interface demands integrity
+        # Reason:
+        #   Input from a source lacking integrity guarantees can influence
+        #   any output of an xform in undetermined ways. Hence, integrity
+        #   guarantees cannot be maintained for any output interface.
+        # Assertion:
+        #   ∃out_i ⇒ ∀in_j
+        for (out_name, out_g) in self.o.guarantees().items():
+            for (in_name, in_g) in self.i.guarantees().items():
+                    if in_name == "order": pass
+                    self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
+
+        # Parameter
+        #   All output interfaces data_j
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+
+        # Parameter
+        #   All output interfaces data_j
+        # Confidentiality guarantee can be dropped if:
+        #   No input interface demands confidentiality
+        # Reason:
+        #   Input from a source demanding confidentiality guarantees can
+        #   influence any output of an xform in undetermined ways. Hence,
+        #   confidentiality must be guaranteed by all output interfaces.
+        # Assertion:
+        #   in_c -> out_c
+        for (in_name, in_g) in self.i.guarantees().items():
+            if in_name == "order": pass
+            for (out_name, out_g) in self.o.guarantees().items():
+                self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
+
+        # Parameter
+        #   order_in
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   The permute primitive assumes that receiver of the output data
+        #   copes with arbitrary permutations of the input data and that
+        #   otherwise the order input interfaces cannot influence the
+        #   integrity of output data
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.order.i, "order_in_i")
+
+        # Parameter
+        #   order_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.order.c, "order_in_c")
+
 class Primitive_const (Primitive):
     """
     The const primivive
@@ -1666,9 +1769,6 @@ class Primitive_scomp (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
-# TBD:
-#
-# permute
 
 ####################################################################################################
 

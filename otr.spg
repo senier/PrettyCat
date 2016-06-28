@@ -203,7 +203,7 @@
 
     <decrypt id="decrypt_gxmpi">
         <flow sarg="plaintext" sink="hash_gxmpi" darg="data"/>
-        <flow sarg="plaintext" sink="guard_gxmpi" darg="data"/>
+        <flow sarg="plaintext" sink="verify_gxmpi" darg="data"/>
     </decrypt>
 
     <hash id="hash_gxmpi">
@@ -211,14 +211,14 @@
     </hash>
 
     <comp id="comp_gxmpi_hash">
-        <flow sarg="result" sink="guard_gxmpi" darg="cond"/>
+        <flow sarg="result" sink="verify_gxmpi" darg="cond"/>
     </comp>
 
-    <guard id="guard_gxmpi">
+    <xform id="verify_gxmpi">
         <flow sarg="data" sink="unmpi"    darg="mpi"/>
         <flow sarg="data" sink="min"      darg="gxmpi"/>
         <flow sarg="data" sink="M_rem_in" darg="gxmpi"/>
-    </guard>
+    </xform>
 
     <xform id="unmpi">
         <flow sarg="gx" sink="s" darg="pub"/>

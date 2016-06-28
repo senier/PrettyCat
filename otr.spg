@@ -109,14 +109,6 @@
         <flow sarg="psec" sink="D_select_psec" darg="ake_psec"/>
     </dhpub>
 
-    <const id="gdhy">
-        <flow sarg="const" sink="D_dhy" darg="gen"/>
-    </const>
-
-    <const id="ggy">
-        <flow sarg="const" sink="gy" darg="gen"/>
-    </const>
-
     <!-- Generate AKE DH key -->
     <const id="len_ake">
         <flow sarg="const" sink="y_ake" darg="len"/>

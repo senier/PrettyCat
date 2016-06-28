@@ -388,17 +388,20 @@ class Primitive_permute (Primitive):
         # Parameter
         #   All input interfaces data_i
         # Integrity guarantee can be dropped if:
-        #   No output data interface demands integrity
+        #   No output data interface guarantees integrity
         # Reason:
         #   Input from a source lacking integrity guarantees can influence
-        #   any output of an xform in undetermined ways. Hence, integrity
-        #   guarantees cannot be maintained for any output interface.
+        #   any output of an xform in undetermined ways. Hence, maintaining
+        #   integrity for an input is superfluous if no output guarantees
+        #   integrity
+        #   FIXME: If any input does not guarantee integrity, we should also
+        #   be able to drop integrity guarantees.
         # Assertion:
         #   ∃out_i ⇒ ∀in_j
         for (out_name, out_g) in self.o.guarantees().items():
             for (in_name, in_g) in self.i.guarantees().items():
-                    if in_name == "order": pass
-                    self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
+                    if in_name != "order":
+                        self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
 
         # Parameter
         #   All output interfaces data_j
@@ -415,15 +418,15 @@ class Primitive_permute (Primitive):
         # Confidentiality guarantee can be dropped if:
         #   No input interface demands confidentiality
         # Reason:
-        #   Input from a source demanding confidentiality guarantees can
-        #   influence any output of an xform in undetermined ways. Hence,
-        #   confidentiality must be guaranteed by all output interfaces.
+        #   Input from an interface guaranteeing confidentiality may pass
+        #   confidential data to any output. Hence, confidentiality can
+        #   only be dropped if no input interface guarantees confidentiality
         # Assertion:
         #   in_c -> out_c
         for (in_name, in_g) in self.i.guarantees().items():
-            if in_name == "order": pass
-            for (out_name, out_g) in self.o.guarantees().items():
-                self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
+            if in_name != "order":
+                for (out_name, out_g) in self.o.guarantees().items():
+                    self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
 
         # Parameter
         #   order_in

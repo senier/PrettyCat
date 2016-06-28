@@ -541,7 +541,7 @@ class Primitive_rng (Primitive):
         #   FIXME
         # Assertion:
         #   None
-        assert(self.o.data.i)
+        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_dhpub (Primitive):
 

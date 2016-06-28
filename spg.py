@@ -1537,13 +1537,17 @@ class Primitive_guard (Primitive):
         # Parameter
         #   cond_in
         # Integrity guarantee can be dropped if:
-        #   No integrity is to be guaranteed for data_out
+        #   Never
         # Reason:
-        #   If data_out requires no integrity, it is OK for data_in to be altered
-        #   by an attacker.
+        #   Guard can be used to coordinate protocol steps, e.g. to send a reply
+        #   only if the signature of a previous message was OK. Hence, the
+        #   integrity requirements are at protocol level and cannot be derived
+        #   from the primitive (or other primitives)
+        #   FIXME: Is it true we cannot derive it from primitives? Should we
+        #   make this configurable then?
         # Assertion:
-        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+        #   cond_in_i
+        self.assert_and_track (self.i.cond.i, "cond_in_i")
 
         # Parameter
         #   data_out

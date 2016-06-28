@@ -1519,9 +1519,94 @@ class Primitive_release (Primitive):
         #   None
         self.assert_nothing (self.o.data.i, "data_out_i")
 
+class Primitive_comp (Primitive):
+
+    """
+    Comp primitive
+    
+    This primitive compares two arbitrary inputs and outputs a boolean value
+    indicating whether both inputs were identical or not.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data1, data2
+        #   Output: result
+
+        # Parameter
+        #   data1_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data1.c, "data1_in_c")
+
+        # Parameter
+        #   data1_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity guarantee is demanded for result_out
+        # Reason:
+        #   If an attacker can chose data1_in, she can influence the integrity
+        #   of result_out (at least, make result_out false with a very high
+        #   likelihood by choosing a random value for data1_in)
+        # Assertion:
+        #   data1_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data1_in_i)
+        self.assert_and_track (Implies (self.o.result.i, self.i.data1.i), "data1_in_i")
+
+        # Parameter
+        #   data2_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   As data flow is directed, confidentiality guarantees for an input
+        #   interface only depend on the primitive providing the data for that
+        #   interface.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data2.c, "data2_in_c")
+
+        # Parameter
+        #   data2_in
+        # Integrity guarantee can be dropped if:
+        #   No integrity guarantee is demanded for result_out
+        # Reason:
+        #   If an attacker can chose data2_in, she can influence the integrity
+        #   of result_out (at least, make result_out false with a very high
+        #   likelihood by choosing a random value for data2_in)
+        # Assertion:
+        #   data2_in_i ∨ ¬result_out_c (equiv: result_out_c ⇒ data2_in_i)
+        self.assert_and_track (Implies (self.o.result.i, self.i.data2.i), "data2_in_i")
+
+        # Parameter
+        #   result_out
+        # Confidentiality guarantee can be dropped if:
+        #   If confidentiality is not guaranteed for both, data1 and data2
+        # Reason:
+        #   If an attacker knows data1 and data2 she can derive result_out
+        #   by comparing both values
+        # Assertion:
+        #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
+        self.assert_and_track (Or (self.o.result.c, Not (And (self.i.data1.c, self.i.data2.c))), "result_out_c")
+
+        # Parameter
+        #   result_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.result.i, "result_out_i")
+
 # TBD:
 #
-# comp
 # scomp 
 # permute
 

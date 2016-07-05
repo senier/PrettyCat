@@ -819,13 +819,12 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   ciphertext_out
         # Integrity guarantee can be dropped if:
-        #   Anytime.
+        #   If plaintext_in has no integrity guarantees
         # Reason:
-        #   Whether integrity guarantees are required is only determined by the
-        #   primitive using the encryption result.
+        #   Counter mode encryption neither assumes nor achieves integrity.
         # Assertion:
-        #   None
-        self.assert_nothing (self.o.ciphertext.i, "ciphertext_out_i")
+        #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
+        self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name, sink, source):

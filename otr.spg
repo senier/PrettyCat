@@ -106,7 +106,6 @@
     <dhpub id="gy">
         <flow sarg="pub" sink="mpi" darg="gy"/>
         <flow sarg="pub" sink="D_rotate" darg="ake_pub_local"/>
-        <flow sarg="psec" sink="D_select_psec" darg="ake_psec"/>
     </dhpub>
 
     <!-- Generate AKE DH key -->
@@ -117,6 +116,7 @@
     <rng id="y_ake">
         <flow sarg="data" sink="gy" darg="psec"/>
         <flow sarg="data" sink="s" darg="psec"/>
+        <flow sarg="data" sink="D_select_psec" darg="ake_psec"/>
     </rng>
 
     <!-- Receiving a Reveal Signature message -->
@@ -336,12 +336,12 @@
 
     <rng id="D_dy">
         <flow sarg="data" sink="D_dhy" darg="psec"/>
+        <flow sarg="data" sink="D_select_psec" darg="psec"/>
     </rng>
 
     <dhpub id="D_dhy">
         <flow sarg="pub" sink="D_dhympi" darg="dhy"/>
         <flow sarg="pub" sink="D_rotate" darg="pub_local"/>
-        <flow sarg="psec" sink="D_select_psec" darg="psec"/>
     </dhpub>
     
     <xform id="D_dhympi">

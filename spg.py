@@ -355,12 +355,16 @@ class Primitive_xform (Primitive):
         # Parameter
         #   All output interfaces
         # Integrity guarantee can be dropped if:
-        #   Anytime.
+        #   No input interface demands integrity
         # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
+        #   FIXME: If any input interfaces guarantees integrity, we also need to guarantee
+        #   for outgoing data.
         # Assertion:
-        #   None
+        #   in_i -> out_i
+        # Assertion:
+        for (in_name, in_g) in self.i.guarantees().items():
+            for (out_name, out_g) in self.o.guarantees().items():
+                self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
 
 class Primitive_permute (Primitive):
     """

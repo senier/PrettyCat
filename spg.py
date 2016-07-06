@@ -1040,13 +1040,15 @@ class Primitive_hmac (Primitive):
         # Parameter
         #   msg_in
         # Integrity guarantee can be dropped if:
-        #   Anytime
+        #   Never
         # Reason:
-        #   Data flow is directed. Integrity of an input parameter cannot be
-        #   influenced by an output parameter or other input parameters.
+        #   We assume that an HMAC component is only used when integrity must
+        #   be guaranteed for the msg_in.
+        #   FIXME: Are there scenarios where it makes sense to HMAC data that
+        #   has not integrity requirements?
         # Assertion:
-        #   None
-        self.assert_nothing (self.i.msg.i, "msg_in_i")
+        #   msg_in_i
+        self.assert_and_track (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   auth_out

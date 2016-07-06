@@ -1002,7 +1002,7 @@ class Primitive_hmac (Primitive):
 
         # Parameters
         #   Input:  key, msg
-        #   Output: auth
+        #   Output: auth, msg
 
         # Parameter
         #   key_in
@@ -1074,6 +1074,26 @@ class Primitive_hmac (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.auth.i, "auth_out_i")
+
+        # Parameter
+        #   msg_out
+        # Confidentiality guarantee can be dropped if:
+        #   msg_in requires no confidentiality
+        # Reason:
+        #   The HMAC does not achieve confidentiality.
+        # Assertion:
+        #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
+        self.assert_and_track (Implies (self.i.msg.c, self.o.msg.c), "msg_out_c")
+
+        # Parameter
+        #   msg_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   This is the purpose of HMAC.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.msg.i, "msg_out_i")
 
 class Primitive_sign (Primitive):
 

@@ -48,7 +48,7 @@ class Graph:
     
         G = self.graph 
         for node in G.node:
-            if G.in_edges (nbunch=node) and G.out_edges (nbunch=node):
+            if G.in_edges (nbunch=node) and G.out_edges (nbunch=node) or G.node[node]['kind'] == "const":
                 G.node[node]['shape'] = "rectangle"
             elif not G.in_edges(nbunch=node) or not G.out_edges (nbunch=node):
                 G.node[node]['shape'] = "invhouse"

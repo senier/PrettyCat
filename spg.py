@@ -11,8 +11,12 @@ from z3 import *
 import networkx as nx
 
 class PrimitiveMissing (Exception):
-    def __init__ (self, primitive):
-        Exception.__init__(self, "Primitive '" + primitive + "' not implemented")
+    def __init__ (self, kind, name):
+        Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") not implemented")
+
+class PrimitiveInvalidAttributes (Exception):
+    def __init__ (self, name, kind, text):
+        Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has invalid attributes: " + text)
 
 class Graph:
 
@@ -1841,7 +1845,9 @@ def parse_graph (inpath, solver, maximize):
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node, sink, source)
         except KeyError:
-            raise PrimitiveMissing (mdg.node[node]['kind'])
+            raise PrimitiveMissing (mdg.node[node]['kind'], node)
+        except AttributeError as e:
+            raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, str(e))
 
     # Establish src -> sink relation
     for (parent, child, data) in mdg.edges (data=True):
@@ -1917,4 +1923,6 @@ if __name__ == "__main__":
     try:
         main(parser.parse_args ())
     except PrimitiveMissing as e:
+        print (e)
+    except PrimitiveInvalidAttributes as e:
         print (e)

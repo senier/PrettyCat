@@ -201,19 +201,12 @@ class SPG_Solver (SPG_Solver_Base):
             raise Exception ("Unhandled expression: " + str(uc))
 
     def mark_unsat_core (self, G):
-        print ("Unsat core:")
         unsat_core = []
         for p in self.solver.unsat_core():
             unsat_core.append (simplify (self.assert_db[str(p)]))
-            print ();
-            print ("   " + str (p) + ":")
-            print ("      " + str(simplify(self.assert_db[str(p)])))
         self.mark_expression (G, simplify (And (unsat_core)))
-        print ("Full, simplified uncore:")
+        print ("Full, simplified unsat core:")
         print (simplify (And (unsat_core)))
-        print ("Constraints:")
-        for c in self.constraints:
-            print ("   " + c)
 
 class Guarantees:
 

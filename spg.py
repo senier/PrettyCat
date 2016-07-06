@@ -1875,7 +1875,7 @@ def parse_graph (inpath, solver, maximize):
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
-        G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].i == child_primitive.i.guarantees()[darg].i, name + "i")
+        G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
 
     return G
 

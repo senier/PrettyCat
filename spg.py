@@ -63,7 +63,7 @@ class Graph:
                 val_c = val_c or G.node[current]['primitive'].o.guarantees()[sarg].val_c()
                 val_i = val_i or G.node[current]['primitive'].o.guarantees()[sarg].val_i()
 
-            G.node[node]['color'] = sec_color (val_c, val_i)
+            set_style (G.node[node], val_c, val_i)
     
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
@@ -77,7 +77,7 @@ class Graph:
             data['headlabel'] = data['darg']
 
             g = G.node[parent]['primitive'].o.guarantees()[sarg]
-            data['color'] = sec_color (g.val_c(), g.val_i())
+            set_style (data, g.val_c(), g.val_i())
         
         pd = nx.drawing.nx_pydot.to_pydot(G)
         pd.set_name("sdg")
@@ -1826,12 +1826,12 @@ def parse_graph (inpath, solver, maximize):
             mdg.add_edge (name, element.attrib['sink'], \
                 sarg = sarg, \
                 darg = darg, \
-                labelfontsize = "8", \
-                labelfontcolor="red", \
+                labelfontsize = "7", \
+                labelfontcolor="black", \
                 arrowhead="vee", \
                 labelfontname="Sans-Serif", \
                 labeljust="r", \
-                penwidth="3")
+                penwidth="2")
 
     # Initialize all objects
     for node in mdg.node:
@@ -1856,19 +1856,19 @@ def parse_graph (inpath, solver, maximize):
 
     return G
 
-def sec_color(c, i):
+def set_style (o, c, i):
 
     if c == None or i == None:
-        return "orange"
+        o['style'] = "dashed"
 
-    if c and i:
-        return "purple"
-    elif not c and not i:
-        return "black"
-    elif c:
-        return "red"
-    elif i:
-        return "blue"
+    if (c and i) or (c == None and i == None):
+        o['color'] = "purple"
+    elif not c and not i and c != None and i != None:
+        o['color'] = "black"
+    elif c or c == None:
+        o['color'] = "red"
+    elif i or i == None:
+        o['color'] = "blue"
 
 def positions (G):
     pd = nx.drawing.nx_pydot.to_pydot(G)

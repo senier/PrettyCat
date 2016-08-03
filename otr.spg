@@ -360,24 +360,15 @@
     </xform>
 
     <hash id="D_send_enckey">
-        <flow sarg="hash" sink="D_select_key" darg="send_enckey"/>
+        <flow sarg="hash" sink="D_scomp" darg="data"/>
+        <flow sarg="hash" sink="D_encrypt" darg="key"/>
         <flow sarg="hash" sink="D_mackey" darg="data"/>
     </hash>
 
     <hash id="D_mackey">
-        <flow sarg="hash" sink="D_select_key" darg="send_mackey"/>
+        <flow sarg="hash" sink="D_mac" darg="key"/>
         <flow sarg="hash" sink="reveal_old_mac_keys" darg="data"/>
     </hash>
-
-    <permute id="D_select_key">
-        <flow sarg="send_enckey" sink="D_scomp" darg="data"/>
-        <flow sarg="send_enckey" sink="D_encrypt" darg="key"/>
-        <flow sarg="send_mackey" sink="D_mac" darg="key"/>
-        <arg name="send_enckey"/>
-        <arg name="send_mackey"/>
-        <arg name="recv_enckey"/>
-        <arg name="recv_mackey"/>
-    </permute>
 
     <const id="D_initial_keyid">
         <flow sarg="const" sink="D_rotate" darg="initial_keyid"/>
@@ -385,10 +376,9 @@
 
     <xform id="D_rotate">
         <flow sarg="gy" sink="D_s" darg="pub"/>
-        <flow sarg="skid" sink="D_mac_input" darg="sender_keyid"/>
-        <flow sarg="rkid" sink="D_mac_input" darg="recipient_keyid"/>
-        <flow sarg="side" sink="D_select_key" darg="order"/>
         <flow sarg="seckey" sink="D_select_psec" darg="order"/>
+        <flow sarg="recipient_keyid" sink="D_mac_input" darg="recipient_keyid"/>
+        <flow sarg="sender_keyid" sink="D_mac_input" darg="sender_keyid"/>
         <arg name="ake_pub_local"/>
         <arg name="ake_pub_remote"/>
         <arg name="pub_local"/>

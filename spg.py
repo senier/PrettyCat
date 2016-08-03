@@ -1922,6 +1922,7 @@ def main(args):
 
     # validate input XML
     # FIXME: Is there a python way to validate using XML Schema?
+    # FIXME: Embed XSD
     print (subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]))
 
     s = SPG_Optimizer() if args.optimize else SPG_Solver()

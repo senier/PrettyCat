@@ -90,7 +90,7 @@ class Graph:
         pd.set ("nodesep", "0.5")
         pd.set ("pack", "true")
         pd.set ("size", "15.6,10.7")
-        pd.set ("label", title)
+        #pd.set ("label", title)
         pd.set ("labelloc", "t")
         pd.write(out + ".dot")
     

@@ -1,0 +1,93 @@
+<?xml version="1.0"?>
+<spg>
+    <!-- Network input -->
+    <xform id="recv_I" confidentiality="False" integrity="False">
+        <flow sarg="msg" sink="I_msg" darg="msg"/>
+    </xform>
+
+    <!-- Initiating message -->
+    <xform id="I_msg">
+        <flow sarg="gx" sink="I_unmpi" darg="mpi"/>
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="I_unmpi">
+        <flow sarg="gx" sink="I_secbytes" darg="pub"/>
+        <flow sarg="gx" sink="I_side" darg="pub_remote"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <const id="I_keylen">
+        <flow sarg="const" sink="I_rng" darg="len"/>
+    </const>
+
+    <rng id="I_rng">
+        <flow sarg="data" sink="I_secbytes" darg="psec"/>
+        <flow sarg="data" sink="I_dhpub" darg="psec"/>
+    </rng>
+
+    <dhsec id="I_secbytes">
+        <flow sarg="ssec" sink="I_sbmpi" darg="secbytes"/>
+    </dhsec>
+
+    <xform id="I_sbmpi">
+        <flow sarg="secbytes" sink="I_cat" darg="secbytes"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <xform id="I_cat">
+        <flow sarg="data" sink="I_sendkey" darg="data"/>
+        <arg name="secbytes"/>
+        <arg name="side"/>
+    </xform>
+
+    <hash id="I_sendkey">
+        <flow sarg="hash" sink="send_sendkey_I" darg="msg"/>
+        <flow sarg="hash" sink="I_mackey" darg="data"/>
+    </hash>
+
+    <hash id="I_mackey">
+        <flow sarg="hash" sink="send_mackey_I" darg="msg"/>
+    </hash>
+
+    <dhpub id="I_dhpub">
+        <flow sarg="pub" sink="I_mpi" darg="mpi"/>
+        <flow sarg="pub" sink="I_side" darg="pub_local"/>
+        <flow sarg="psec" sink="send_psec_I" darg="msg"/>
+    </dhpub>
+
+    <xform id="I_mpi">
+        <flow sarg="gx" sink="I_resp" darg="gx"/>
+        <arg name="mpi"/>
+    </xform>
+
+    <xform id="I_resp">
+        <flow sarg="msg" sink="send_I" darg="msg"/>
+        <arg name="gx"/>
+    </xform>
+
+    <xform id="I_side">
+        <flow sarg="msg" sink="I_cat" darg="side"/>
+        <arg name="pub_local"/>
+        <arg name="pub_remote"/>
+    </xform>
+
+    <!-- Key store output -->
+    <xform id="send_sendkey_I" confidentiality="True" integrity="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_mackey_I" confidentiality="True" integrity="False">
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="send_psec_I" confidentiality="True" integrity="True">
+        <arg name="msg"/>
+    </xform>
+
+    <!-- Network output -->
+    <xform id="send_I" confidentiality="False" integrity="False">
+        <arg name="msg"/>
+    </xform>
+
+</spg>

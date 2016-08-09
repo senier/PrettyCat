@@ -4,6 +4,7 @@ import sys
 import argparse
 import subprocess
 import os
+import re
 
 from io   import StringIO
 from lxml import etree
@@ -1944,14 +1945,14 @@ def parse_graph (inpath, solver, maximize):
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
 
-        label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
+        label = "<<b>" + child.attrib['id'] + "</b><font point-size=\"6\"><sub> (" + child.tag + ")</sub></font>>"
         name  = child.attrib["id"]
 
         descnode = child.find('description')
         if descnode is not None:
-            desc = descnode.text
+            desc = "<" + re.sub ('\n\s*', '&#10;', descnode.text.strip()) + ">"
         else:
-            desc = "No description available"
+            desc = "<No description&#10;available.>"
 
         mdg.add_node \
             (name, \

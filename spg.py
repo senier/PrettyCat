@@ -185,11 +185,17 @@ class Graph:
         pd.set ("nodesep", "0.5")
         pd.set ("pack", "true")
         pd.set ("size", "15.6,10.7")
-        #pd.set ("label", title)
         pd.set ("labelloc", "t")
         pd.write(out + ".dot")
+
+        if out.endswith(".pdf"):
+            dotformat = "pdf"
+        elif out.endswith(".svg"):
+            dotformat = "svg"
+        else:
+            raise Exception ("Unsupported graphviz output type")
     
-        subprocess.check_output (["dot", "-T", "pdf", "-o", out, out + ".dot"])
+        subprocess.check_output (["dot", "-T", dotformat, "-o", out, out + ".dot"])
         os.remove (out + ".dot")
 
 class Args:

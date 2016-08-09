@@ -1,0 +1,90 @@
+<?xml version="1.0"?>
+<spg>
+
+    <xform id="U_recv" confidentiality="True" integrity="True">
+        <description>
+        Foobar
+        </description>
+        <flow sarg="msg" sink="D_encrypt" darg="plaintext"/>
+    </xform>
+
+    <const id="D_pv">
+        <flow sarg="const" sink="D_auth_input" darg="proto_ver"/>
+    </const>
+
+    <const id="D_mt">
+        <flow sarg="const" sink="D_auth_input" darg="msg_type"/>
+    </const>
+
+    <const id="D_si">
+        <flow sarg="const" sink="D_auth_input" darg="send_inst"/>
+    </const>
+
+    <const id="D_ri">
+        <flow sarg="const" sink="D_auth_input" darg="recv_inst"/>
+    </const>
+
+    <const id="D_flags">
+        <flow sarg="const" sink="D_auth_input" darg="flags"/>
+    </const>
+
+    <xform id="K_rotate">
+        <flow sarg="skid" sink="D_auth_input" darg="sender_keyid"/>
+        <flow sarg="rkid" sink="D_auth_input" darg="recipient_keyid"/>
+        <flow sarg="dh_y" sink="D_auth_input" darg="dh_y"/>
+    </xform>
+
+    <xform id="K_dummy" confidentiality="True" integrity="True">
+        <flow sarg="send_key" sink="D_scomp" darg="data"/>
+        <flow sarg="send_key" sink="D_encrypt" darg="key"/>
+        <flow sarg="auth_key" sink="D_auth" darg="key"/>
+    </xform>
+
+    <const id="D_initial_ctr">
+        <flow sarg="const" sink="D_ctr" darg="init"/>
+    </const>
+
+    <scomp id="D_scomp">
+        <flow sarg="result" sink="D_ctr" darg="trigger"/>
+    </scomp>
+
+    <encrypt id="D_encrypt">
+        <flow sarg="ciphertext" sink="D_auth_input" darg="encrypted"/>
+    </encrypt>
+
+    <counter id="D_ctr">
+        <flow sarg="ctr" sink="D_encrypt" darg="ctr"/>
+        <flow sarg="ctr" sink="D_create"  darg="ctr"/>
+    </counter>
+
+    <xform id="D_auth_input">
+        <flow sarg="msg" sink="D_auth" darg="msg"/>
+        <arg name="proto_ver"/>
+        <arg name="msg_type"/>
+        <arg name="send_inst"/>
+        <arg name="recv_inst"/>
+        <arg name="flags"/>
+        <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
+        <arg name="dh_y"/>
+        <arg name="ctr"/>
+        <arg name="encrypted"/>
+    </xform>
+
+    <hmac id="D_auth">
+        <flow sarg="auth" sink="D_create" darg="auth"/>
+        <flow sarg="msg"  sink="D_create" darg="auth_msg"/>
+    </hmac>
+
+    <xform id="D_create">
+        <flow sarg="msg" sink="N_send_data" darg="msg"/>
+        <arg name="auth_msg"/>
+        <arg name="auth"/>
+        <arg name="old_mac_keys"/>
+    </xform>
+
+    <xform id="N_send_data" confidentiality="False" integrity="False">
+        <arg name="msg"/>
+    </xform>
+
+</spg>

@@ -50,7 +50,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             </xs:sequence>
             <xs:attribute name="confidentiality"/>
             <xs:attribute name="integrity"/>
-            <xs:attribute name="ordering"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>

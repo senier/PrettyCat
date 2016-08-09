@@ -1913,8 +1913,8 @@ def parse_graph (inpath, solver, maximize):
     try:
         schema_doc = etree.parse(schema_src)
         schema = etree.XMLSchema (schema_doc)
-    except:
-        print("Error compiling schema")
+    except etree.XMLSchemaParseError as err:
+        print("Error compiling schema: " + str(err))
         sys.exit(1)
 
     try:

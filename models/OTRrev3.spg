@@ -1,12 +1,35 @@
 <?xml version="1.0"?>
 <spg>
+
     <!-- Environment -->
     <env id="network" confidentiality="False" integrity="False">
-        <flow sarg="msg" sink="user" darg="msg"/>
+        <description>
+            Network environement without confidentiality or integrity guarantees.
+        </description>
+        <flow sarg="msg" sink="network" darg="msg"/>
     </env>
 
     <env id="user" confidentiality="True" integrity="True">
-        <flow sarg="msg" sink="network" darg="msg"/>
+        <description>
+            User environment guaranteeing confidentiality and integrity.
+        </description>
+        <flow sarg="msg" sink="user" darg="msg"/>
     </env>
+
+    <!-- OTR -->
+    <xform id="I_DH_Commit">
+        <description>
+            Primitive assembling the first message of the AKE,
+            the D-H Commit Message.
+        </description>
+        <flow sarg="dhcm" sink="network" darg="dhcm"/>
+        <arg name="protocol_version"/>
+        <arg name="message_type"/>
+        <arg name="sender_instance_tag"/>
+        <arg name="receiver_instance_tag"/>
+        <arg name="encrypted_g^x"/>
+        <arg name="hashed_g^x"/>
+    </xform>
+
 </spg>
 

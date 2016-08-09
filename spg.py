@@ -48,6 +48,13 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                     <xs:element name="arg" type="argElement"/>
                 </xs:choice>
             </xs:sequence>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
+<xs:complexType name="envElement">
+    <xs:complexContent>
+        <xs:extension base="xformElement">
             <xs:attribute name="confidentiality"/>
             <xs:attribute name="integrity"/>
         </xs:extension>
@@ -69,6 +76,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
+            <xs:element name="env"         type="envElement"/>
             <xs:element name="const"       type="forwardElement"/>
             <xs:element name="xform"       type="xformElement"/>
             <xs:element name="dhpub"       type="forwardElement"/>
@@ -143,12 +151,11 @@ class Graph:
     
         G = self.graph 
         for node in G.node:
-            if G.in_edges (nbunch=node) and G.out_edges (nbunch=node) or G.node[node]['kind'] == "const":
-                G.node[node]['shape'] = "rectangle"
-            elif not G.in_edges(nbunch=node) or not G.out_edges (nbunch=node):
+
+            if G.node[node]['kind'] == "env":
                 G.node[node]['shape'] = "invhouse"
             else:
-                raise Exception ("Xform without edges")
+                G.node[node]['shape'] = "rectangle"
 
             val_c = False
             val_i = False
@@ -381,6 +388,27 @@ class Primitive:
     def assert_nothing (self, cond, desc):
         self.assert_and_track (Or (cond, Not(cond)), desc)
 
+class Primitive_env (Primitive):
+    """
+    The env primitive
+    
+    Denotes sources and sinks outside the model. Fixed guarantees according to the
+    XML definition are used only here.
+    """
+
+    def __init__ (self, G, name, sink, source):
+        super ().setup (G, name)
+
+        # Guarantees explicitly set in the XML
+        g = self.node['guarantees']
+
+        for (name, guarantee) in self.i.guarantees().items():
+           guarantee.assert_c (g['c'])
+           guarantee.assert_i (g['i'])
+        for (name, guarantee) in self.o.guarantees().items():
+           guarantee.assert_c (g['c'])
+           guarantee.assert_i (g['i'])
+
 class Primitive_xform (Primitive):
     """
     The xform primitive
@@ -391,20 +419,6 @@ class Primitive_xform (Primitive):
 
     def __init__ (self, G, name, sink, source):
         super ().setup (G, name)
-
-        # Guarantees explicitly set in send/recv xforms in the XML
-        g = self.node['guarantees']
-
-        if sink:
-            # send
-            for (name, guarantee) in self.i.guarantees().items():
-               guarantee.assert_c (g['c'])
-               guarantee.assert_i (g['i'])
-        elif source:
-            # receive
-            for (name, guarantee) in self.o.guarantees().items():
-               guarantee.assert_c (g['c'])
-               guarantee.assert_i (g['i'])
 
         # Parameter
         #   All input interfaces

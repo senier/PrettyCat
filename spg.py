@@ -32,6 +32,9 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 </xs:complexType>
 
 <xs:complexType name="baseElement">
+    <xs:sequence>
+        <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
     <xs:attribute name="id" use="required" />
 </xs:complexType>
 
@@ -1938,11 +1941,19 @@ def parse_graph (inpath, solver, maximize):
         label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
         name  = child.attrib["id"]
 
+        descnode = child.find('description')
+        if descnode is not None:
+            desc = descnode.text
+        else:
+            desc = "No description available"
+
         mdg.add_node \
             (name, \
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
              label      = label, \
+             tooltip    = desc, \
+             style      = "bold", \
              penwidth   = "2", \
              width      = "2.5", \
              height     = "0.6")

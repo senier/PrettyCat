@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<spg>
+    <!-- Environment -->
+    <xform id="network" confidentiality="False" integrity="False">
+        <flow sarg="msg" sink="user" darg="msg"/>
+    </xform>
+
+    <xform id="user" confidentiality="True" integrity="True">
+        <flow sarg="msg" sink="network" darg="msg"/>
+    </xform>
+</spg>
+

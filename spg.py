@@ -1,14 +1,106 @@
 #!/usr/bin/env python3
 
 import sys
-import xml.etree.ElementTree as ET
 import argparse
 import subprocess
 import os
 
+from io   import StringIO
+from lxml import etree
+
 sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
 import networkx as nx
+
+schema_src = StringIO ('''<?xml version="1.0"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+<!-- TODO:
+    * Constrain boolean attributes to true/false
+    * Enforce non-empty sarg/sink/darg
+    * Check references for sarg/sing/darg
+-->
+
+<xs:complexType name="flowElement">
+    <xs:attribute name="sarg" use="required" />
+    <xs:attribute name="sink" use="required" />
+    <xs:attribute name="darg" use="required" />
+</xs:complexType>
+
+<xs:complexType name="argElement">
+    <xs:attribute name="name" use="required" />
+</xs:complexType>
+
+<xs:complexType name="baseElement">
+    <xs:attribute name="id" use="required" />
+</xs:complexType>
+
+<xs:complexType name="xformElement">
+    <xs:complexContent>
+        <xs:extension base="baseElement">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:choice>
+                    <xs:element name="flow" type="flowElement"/>
+                    <xs:element name="arg" type="argElement"/>
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="confidentiality"/>
+            <xs:attribute name="integrity"/>
+            <xs:attribute name="ordering"/>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
+<xs:complexType name="forwardElement">
+    <xs:complexContent>
+        <xs:extension base="baseElement">
+                <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                    <xs:choice>
+                        <xs:element name="flow" type="flowElement"/>
+                   </xs:choice>
+                </xs:sequence>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
+<xs:complexType name="baseElements">
+    <xs:sequence minOccurs="1" maxOccurs="unbounded">
+        <xs:choice>
+            <xs:element name="const"       type="forwardElement"/>
+            <xs:element name="xform"       type="xformElement"/>
+            <xs:element name="dhpub"       type="forwardElement"/>
+            <xs:element name="dhsec"       type="forwardElement"/>
+            <xs:element name="rng"         type="forwardElement"/>
+            <xs:element name="hmac"        type="forwardElement"/>
+            <xs:element name="sign"        type="forwardElement"/>
+            <xs:element name="verify_sig"  type="forwardElement"/>
+            <xs:element name="verify_hmac" type="forwardElement"/>
+            <xs:element name="hash"        type="forwardElement"/>
+            <xs:element name="decrypt"     type="forwardElement"/>
+            <xs:element name="encrypt"     type="forwardElement"/>
+            <xs:element name="guard"       type="forwardElement"/>
+            <xs:element name="release"     type="forwardElement"/>
+            <xs:element name="comp"        type="forwardElement"/>
+            <xs:element name="scomp"       type="forwardElement"/>
+            <xs:element name="permute"     type="xformElement"/>
+            <xs:element name="counter"     type="xformElement"/>
+        </xs:choice>
+    </xs:sequence>
+</xs:complexType>
+
+<xs:element name="spg" type="baseElements">
+    <xs:key name="IDKey">
+        <xs:selector xpath="*"/>
+        <xs:field xpath="@id"/>
+    </xs:key>
+    <xs:keyref name="IDRef" refer="IDKey">
+        <xs:selector xpath="*/flow"/>
+        <xs:field xpath="@sink"/>
+    </xs:keyref>
+</xs:element>
+
+</xs:schema>
+''')
 
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
@@ -1817,18 +1909,32 @@ def parse_guarantees (attribs):
     }
 
 def parse_graph (inpath, solver, maximize):
+
     try:
-        root = ET.parse(inpath).getroot()
+        schema_doc = etree.parse(schema_src)
+        schema = etree.XMLSchema (schema_doc)
+    except:
+        print("Error compiling schema")
+        sys.exit(1)
+
+    try:
+        tree = etree.parse (inpath)
     except IOError as e:
         print("Error opening XML file: " + str(e))
+        sys.exit(1)
+
+    if not schema.validate (tree):
+        print ("Invalid input file '" + inpath + "'")
+        print (schema.error_log.last_error)
         sys.exit(1)
     
     mdg = nx.MultiDiGraph()
     G   = Graph (mdg, solver, maximize)
+    root = tree.getroot()
     
     # read in graph
-    for child in root:
-    
+    for child in root.iterchildren(tag = etree.Element):
+
         label = "<" + child.tag + "<sub>" + child.attrib['id'] + "</sub>>"
         name  = child.attrib["id"]
 
@@ -1919,12 +2025,6 @@ def positions (G):
     return pos
 
 def main(args):
-
-    # validate input XML
-    # FIXME: Is there a python way to validate using XML Schema?
-    # FIXME: Embed XSD
-    print (subprocess.check_output (["xmllint", "--noout", "--schema", "spg.xsd", args.input[0]]))
-
     s = SPG_Optimizer() if args.optimize else SPG_Solver()
 
     G = parse_graph (args.input[0], s, args.maximize)

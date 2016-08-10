@@ -113,6 +113,9 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 </xs:schema>
 ''')
 
+def warn (message):
+    print ("[1m[31mWARNING: [2m" + message + "[0m")
+
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") not implemented")
@@ -1967,12 +1970,18 @@ def parse_graph (inpath, solver, maximize):
         else:
             desc = "<No description&#10;available.>"
 
+        arguments = []
+        for element in child.findall('arg'):
+            argname = element.attrib['name']
+            arguments.append (argname)
+
         mdg.add_node \
             (name, \
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
              label      = label, \
              tooltip    = desc, \
+             arguments  = arguments,
              style      = "bold", \
              penwidth   = "2", \
              width      = "2.5", \
@@ -1993,6 +2002,16 @@ def parse_graph (inpath, solver, maximize):
 
     # Initialize all objects
     for node in mdg.node:
+
+        for arg in mdg.node[node]['arguments']:
+            found = False
+            for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
+                if arg == data['darg']:
+                    found = True
+                    break
+            if not found:
+                warn ("'" + node + "' has no incoming edge for '" + arg + "'")
+
         objname = "Primitive_" + mdg.node[node]['kind']
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node)
@@ -2007,6 +2026,10 @@ def parse_graph (inpath, solver, maximize):
         child_primitive = mdg.node[child]['primitive']
         sarg = data['sarg']
         darg = data['darg']
+
+        if mdg.node[child]['kind'] == "xform" or mdg.node[child]['kind'] == "guard":
+            if not darg in mdg.node[child]['arguments']:
+                warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")

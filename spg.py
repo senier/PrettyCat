@@ -396,7 +396,7 @@ class Primitive_env (Primitive):
     XML definition are used only here.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Guarantees explicitly set in the XML
@@ -417,7 +417,7 @@ class Primitive_xform (Primitive):
     guarantees according to the XML definition.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameter
@@ -482,7 +482,7 @@ class Primitive_permute (Primitive):
     interfaces based on order input interfaces.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -575,7 +575,7 @@ class Primitive_const (Primitive):
     The const primivive
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -599,7 +599,7 @@ class Primitive_rng (Primitive):
     many bits we request from it.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -661,7 +661,7 @@ class Primitive_rng (Primitive):
 
 class Primitive_dhpub (Primitive):
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -724,7 +724,7 @@ class Primitive_dhpub (Primitive):
         self.assert_nothing (self.o.pub.i, "pub_out_i")
 
 class Primitive_dhsec (Primitive):
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -824,7 +824,7 @@ class Primitive_dhsec (Primitive):
         self.assert_nothing (self.o.ssec.i, "ssec_out_i")
 
 class Primitive_encrypt (Primitive):
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -943,7 +943,7 @@ class Primitive_encrypt (Primitive):
         self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
 
 class Primitive_decrypt (Primitive):
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1046,7 +1046,7 @@ class Primitive_decrypt (Primitive):
         self.assert_nothing (self.o.plaintext.i, "plaintext_out_i")
 
 class Primitive_hash (Primitive):
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1112,7 +1112,7 @@ class Primitive_hash (Primitive):
 
 class Primitive_hmac (Primitive):
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1219,7 +1219,7 @@ class Primitive_sign (Primitive):
     public and secret keys.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1328,7 +1328,7 @@ class Primitive_verify_sig (Primitive):
     Checks whether an auth value represents a valid message signature by a given public key.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1429,7 +1429,7 @@ class Primitive_verify_hmac (Primitive):
     Checks whether a given pair (msg, auth) was MAC'ed with key.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1533,7 +1533,7 @@ class Primitive_counter (Primitive):
     specific value every time the trigger input receives a true value.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1629,7 +1629,7 @@ class Primitive_guard (Primitive):
     true.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1716,7 +1716,7 @@ class Primitive_release (Primitive):
     This primitive allows to drop all security guarantees.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1775,7 +1775,7 @@ class Primitive_comp (Primitive):
     indicating whether both inputs were identical or not.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1863,7 +1863,7 @@ class Primitive_scomp (Primitive):
     value a boolean result is emitted on the outgoing result interfaces.
     """
 
-    def __init__ (self, G, name, sink, source):
+    def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
@@ -1994,10 +1994,8 @@ def parse_graph (inpath, solver, maximize):
     # Initialize all objects
     for node in mdg.node:
         objname = "Primitive_" + mdg.node[node]['kind']
-        sink   = mdg.in_edges (nbunch=node) and not mdg.out_edges (nbunch=node)
-        source = mdg.out_edges (nbunch=node) and not mdg.in_edges (nbunch=node)
         try:
-            mdg.node[node]['primitive'] = globals()[objname](G, node, sink, source)
+            mdg.node[node]['primitive'] = globals()[objname](G, node)
         except KeyError:
             raise PrimitiveMissing (mdg.node[node]['kind'], node)
         except AttributeError as e:

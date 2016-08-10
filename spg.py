@@ -116,6 +116,9 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 def warn (message):
     print ("[1m[31mWARNING: [2m" + message + "[0m")
 
+def info (message):
+    print ("[1m[34mINFO: [2m" + message + "[0m")
+
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") not implemented")
@@ -143,11 +146,11 @@ class Graph:
 
     def analyze (self):
         if self.solver.check() == sat:
-            print ("Solution found")
+            info ("Solution found")
             self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
         else:
-            print ("No solution")
+            warn ("No solution")
             self.solver.mark_unsat_core(self.graph)
 
     def write (self, title, out):
@@ -241,7 +244,7 @@ class SPG_Solver_Base:
         return self.solver.check()
 
     def optimize (self, graph, maximize):
-        print ("Info: Running with plain solver, performing no optimization.");
+        info ("Running with plain solver, performing no optimization.");
 
     def model (self):
         return self.solver.model()
@@ -257,7 +260,7 @@ class SPG_Optimizer (SPG_Solver_Base):
 
     def optimize (self, graph, maximize):
 
-        print ("Optimizing result")
+        info ("Optimizing result")
 
         edge_sum = Int(0)
         for (parent, child, data) in graph.edges (data=True):
@@ -275,10 +278,10 @@ class SPG_Optimizer (SPG_Solver_Base):
 
         self.solver.add (self.cost == edge_sum)
         if maximize:
-            print ("Maximizing cost")
+            info ("Maximizing cost")
             h = self.solver.maximize (self.cost)
         else:
-            print ("Minimizing cost")
+            info ("Minimizing cost")
             h = self.solver.minimize (self.cost)
 
         self.solver.check()
@@ -316,7 +319,7 @@ class SPG_Solver (SPG_Solver_Base):
         for p in self.solver.unsat_core():
             unsat_core.append (simplify (self.assert_db[str(p)]))
         self.mark_expression (G, simplify (And (unsat_core)))
-        print ("Full, simplified unsat core:")
+        info ("Full, simplified unsat core:")
         print (simplify (And (unsat_core)))
 
 class Guarantees:
@@ -1940,17 +1943,17 @@ def parse_graph (inpath, solver, maximize):
         schema_doc = etree.parse(schema_src)
         schema = etree.XMLSchema (schema_doc)
     except etree.XMLSchemaParseError as err:
-        print("Error compiling schema: " + str(err))
+        warn ("Error compiling schema: " + str(err))
         sys.exit(1)
 
     try:
         tree = etree.parse (inpath)
     except IOError as e:
-        print("Error opening XML file: " + str(e))
+        warn ("Error opening XML file: " + str(e))
         sys.exit(1)
 
     if not schema.validate (tree):
-        print ("Invalid input file '" + inpath + "'")
+        warn ("Invalid input file '" + inpath + "'")
         print (schema.error_log.last_error)
         sys.exit(1)
     
@@ -2093,6 +2096,6 @@ if __name__ == "__main__":
     try:
         main(parser.parse_args ())
     except PrimitiveMissing as e:
-        print (e)
+        warn (e)
     except PrimitiveInvalidAttributes as e:
-        print (e)
+        warn (e)

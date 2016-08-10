@@ -114,10 +114,10 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 ''')
 
 def warn (message):
-    print ("[1m[31mWARNING: [2m" + message + "[0m")
+    print ("[1m[31mWARNING: [2m" + str(message) + "[0m")
 
 def info (message):
-    print ("[1m[34mINFO: [2m" + message + "[0m")
+    print ("[1m[34mINFO: [2m" + str(message) + "[0m")
 
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):

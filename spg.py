@@ -2015,6 +2015,12 @@ def parse_graph (inpath, solver, maximize):
             if not found:
                 warn ("'" + node + "' has no incoming edge for '" + arg + "'")
 
+        if mdg.node[node]['kind'] == "xform":
+            if not mdg.in_edges (nbunch=node):
+                raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, "No inputs")
+            if not mdg.out_edges (nbunch=node):
+                raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, "No outputs")
+
         objname = "Primitive_" + mdg.node[node]['kind']
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node)

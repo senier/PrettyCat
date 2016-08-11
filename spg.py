@@ -13,14 +13,13 @@ sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
 import networkx as nx
 
+# TODO: Check for excess output parameters in fixed primitives
+# TODO: Schema: Constrain boolean attributes to true/false
+# TODO: Schema: Enforce non-empty sarg/sink/darg
+# TODO: Schame: Check references for sarg/sing/darg
+
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
-
-<!-- TODO:
-    * Constrain boolean attributes to true/false
-    * Enforce non-empty sarg/sink/darg
-    * Check references for sarg/sing/darg
--->
 
 <xs:complexType name="flowElement">
     <xs:attribute name="sarg" use="required" />

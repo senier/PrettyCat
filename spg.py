@@ -83,6 +83,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="dhsec"       type="forwardElement"/>
             <xs:element name="rng"         type="forwardElement"/>
             <xs:element name="hmac"        type="forwardElement"/>
+            <xs:element name="hmac_out"    type="forwardElement"/>
             <xs:element name="sign"        type="forwardElement"/>
             <xs:element name="verify_sig"  type="forwardElement"/>
             <xs:element name="verify_hmac" type="forwardElement"/>
@@ -1123,7 +1124,7 @@ class Primitive_hmac (Primitive):
 
         # Parameters
         #   Input:  key, msg
-        #   Output: auth, msg
+        #   Output: auth
 
         # Parameter
         #   key_in
@@ -1195,6 +1196,15 @@ class Primitive_hmac (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.auth.i, "auth_out_i")
+
+class Primitive_hmac_out (Primitive_hmac):
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  key, msg
+        #   Output: auth, msg
 
         # Parameter
         #   msg_out

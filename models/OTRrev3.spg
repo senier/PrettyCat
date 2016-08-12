@@ -1,13 +1,20 @@
 <?xml version="1.0"?>
 <spg>
 
-    <!-- Environment -->
+    <!--
+      ** Environment
+      -->
     <env id="Network" confidentiality="False" integrity="False">
         <description>
             Network environement without confidentiality or integrity guarantees.
         </description>
+        <flow sarg="dhcm" sink="D-H Commit (R)" darg="dhcm"/>
         <flow sarg="dhkm" sink="D-H Key (R)" darg="dhkm"/>
+        <flow sarg="rvsm" sink="Reveal Signature (R)" darg="rvsm"/>
         <flow sarg="sigm" sink="Signature (R)" darg="sigm"/>
+        <arg name="dhkm"/>
+        <arg name="dhcm"/>
+        <arg name="rvsm"/>
     </env>
 
 <!--
@@ -18,9 +25,195 @@
     </env>
 -->
 
-    <!-- AKE -->
+    <!--
+      ** AKE
+      -->
 
-    <!-- D-H Commit (Send) -->
+    <!--
+      ** Key derivation
+      -->
+
+    <xform id="Derive keys">
+        <description>
+            Serialize the value of shared secret s as a minimum-length MPI secbytes.
+        </description>
+        <flow sarg="secbyte" sink="Concat ssid" darg="secbytes"/>
+        <flow sarg="secbyte" sink="Concat c" darg="secbytes"/>
+        <flow sarg="secbyte" sink="Concat m1" darg="secbytes"/>
+        <flow sarg="secbyte" sink="Concat m2" darg="secbytes"/>
+        <flow sarg="secbyte" sink="Concat m1'" darg="secbytes"/>
+        <flow sarg="secbyte" sink="Concat m2'" darg="secbytes"/>
+        <arg name="ssec"/>
+    </xform>
+
+    <const id="Prefix ssid">
+        <description>
+            Prefix b to calculate ssid, value 0x00
+        </description>
+        <flow sarg="const" sink="Concat ssid" darg="b"/>
+    </const>
+
+    <xform id="Concat ssid">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash ssid" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash ssid">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="Trim ssid" darg="ssid"/>
+    </hash>
+
+    <xform id="Trim ssid">
+        <description>
+            Let ssid be the first 64 bits of h2(0x00).
+        </description>
+        <flow sarg="ssid" sink="FIXME" darg="ssid"/>
+        <arg name="ssid"/>
+    </xform>
+
+
+    <const id="Prefix c">
+        <description>
+            Prefix b to calculate c and c', value 0x01
+        </description>
+        <flow sarg="const" sink="Concat c" darg="b"/>
+    </const>
+
+    <xform id="Concat c">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash c" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash c">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="Split c" darg="c"/>
+    </hash>
+
+    <xform id="Split c">
+        <description>
+            Let c be the first 128 bits of h2(0x01),
+            and let c' be the second 128 bits of h2(0x01).
+        </description>
+        <flow sarg="c"  sink="Encrypt X_B" darg="key"/>
+        <flow sarg="c"  sink="Decrypt X_B (R)" darg="key"/>
+        <flow sarg="c'" sink="Decrypt X_A" darg="key"/>
+        <arg name="c"/>
+    </xform>
+
+    <const id="Prefix m1">
+        <description>
+            Prefix b to calculate m1, value 0x02
+        </description>
+        <flow sarg="const" sink="Concat m1" darg="b"/>
+    </const>
+
+    <xform id="Concat m1">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash m1" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash m1">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="HMAC M_B (S)" darg="key"/>
+        <flow sarg="hash" sink="HMAC M_B (R)" darg="key"/>
+    </hash>
+
+    <const id="Prefix m2">
+        <description>
+            Prefix b to calculate m2, value 0x03
+        </description>
+        <flow sarg="const" sink="Concat m2" darg="b"/>
+    </const>
+
+    <xform id="Concat m2">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash m2" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash m2">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="MAC Encrypted X_B" darg="key"/>
+    </hash>
+
+    <const id="Prefix m1'">
+        <description>
+            Prefix b to calculate m1', value 0x04
+        </description>
+        <flow sarg="const" sink="Concat m1'" darg="b"/>
+    </const>
+
+    <xform id="Concat m1'">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash m1'" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash m1'">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="HMAC M_A" darg="key"/>
+    </hash>
+
+    <const id="Prefix m2'">
+        <description>
+            Prefix b to calculate m2', value 0x05
+        </description>
+        <flow sarg="const" sink="Concat m2'" darg="b"/>
+    </const>
+
+    <xform id="Concat m2'">
+        <description>
+            Byte b followed by secbytes.
+        </description>
+        <flow sarg="result" sink="Hash m2'" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Hash m2'">
+        <description>
+            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
+            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
+        </description>
+        <flow sarg="hash" sink="Verify Encrypted X_A" darg="key"/>
+    </hash>
+
+    <!--
+      ** Send D-H Commit message
+      -->
     <xform id="D-H Commit (S)">
         <description>
             Primitive assembling the first message of the AKE,
@@ -102,7 +295,6 @@
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
         <flow sarg="pub" sink="Serialize g^x (S)" darg="data"/>
-        <flow sarg="pub" sink="Concat M_A" darg="g^x"/>
     </dhpub>
 
     <xform id="Serialize g^x (S)">
@@ -113,7 +305,8 @@
         </description>
         <flow sarg="gxmpi" sink="Encrypt g^x (S)" darg="plaintext"/>
         <flow sarg="gxmpi" sink="Hash g^x (S)" darg="data"/>
-        <flow sarg="gxmpi" sink="Concat M_B" darg="g^x"/>
+        <flow sarg="gxmpi" sink="Concat M_B (S)" darg="g^x"/>
+        <flow sarg="gxmpi" sink="Concat M_A (R)" darg="g^x"/>
         <arg name="data"/>
     </xform>
 
@@ -134,19 +327,113 @@
 
     <hash id="Hash g^x (S)">
         <description>
-            SHA256 hash of the encodex gxmpi value.
+            SHA256 hash of the encoded gxmpi value.
         </description>
         <flow sarg="hash" sink="D-H Commit (S)" darg="hashed_g^x"/>
     </hash>
 
-    <!-- D-H Key Message (Receive) -->
+    <!--
+      ** Receive D-H Commit message
+      -->
+    <xform id="D-H Commit (R)">
+        <description>
+            First message of the AKE received by peer in the responder case.
+        </description>
+        <flow sarg="encrypted_g^x" sink="Decrypt g^x" darg="ciphertext"/>
+        <flow sarg="hashed_g^x" sink="Verify hashed g^x (R)" darg="data1"/>
+        <arg name="dhcm"/>
+    </xform>
+
+    <!--
+      ** Send D-H Key message
+      -->
+    <xform id="D-H Key (S)">
+        <description>
+            Second message of the AKE send by us in the responder case.
+        </description>
+        <flow sarg="dhkm" sink="Network" darg="dhkm"/>
+        <arg name="protocol_version"/>
+        <arg name="message_type"/>
+        <arg name="sender_instance_tag"/>
+        <arg name="receiver_instance_tag"/>
+        <arg name="g^y"/>
+    </xform>
+
+    <const id="DHKM Protocol Version (S)">
+        <description>
+            The version number of the OTR protocol for outgoing D-H Commit messages.
+        </description>
+        <flow sarg="const" sink="D-H Key (S)" darg="protocol_version"/>
+    </const>
+
+    <const id="DHKM Message Type (S)">
+        <description>
+            The message type of the outgoing D-H Commit messages.
+        </description>
+        <flow sarg="const" sink="D-H Key (S)" darg="message_type"/>
+    </const>
+
+    <const id="DHKM Sender Instance Tag (S)">
+        <description>
+            The instance tag of the person sending this message.
+        </description>
+        <flow sarg="const" sink="D-H Key (S)" darg="sender_instance_tag"/>
+    </const>
+
+    <const id="DHKM Receiver Instance Tag (S)">
+        <description>
+            The instance tag of the intended recipient. Most likely 0 as
+            the other party may not have identified their instance tag, yet.
+        </description>
+        <flow sarg="const" sink="D-H Key (S)" darg="receiver_instance_tag"/>
+    </const>
+
+    <const id="Length of y (S)">
+        <description>
+            Length of the Diffie-Hellman exponent y.
+            At least 320 bits for OTR v3.
+        </description>
+        <flow sarg="const" sink="Random y (S)" darg="len"/>
+    </const>
+
+    <rng id="Random y (S)">
+        <description>
+            Random value y used to calcutate Diffie-Hellman public value
+            g^y for the responder.
+        </description>
+        <flow sarg="data" sink="Calculate g^y (S)" darg="psec"/>
+        <!-- flow sarg="data" sink="Shared secret (I)" darg="psec"/-->
+    </rng>
+
+    <dhpub id="Calculate g^y (S)">
+        <description>
+            Calcutate Diffie-Hellman public value g^y for the responder.
+        </description>
+        <flow sarg="pub" sink="Serialize g^y (S)" darg="data"/>
+    </dhpub>
+
+    <xform id="Serialize g^y (S)">
+        <description>
+            Serialize input g^y as an MPI called gxmpi
+            (typically 196 bytes long, starting with
+            "\x00\x00\x00\xc0")
+        </description>
+        <flow sarg="gympi" sink="D-H Key (S)" darg="g^y"/>
+        <!--flow sarg="gympi" sink="Concat M_A (S)" darg="g^y"/-->
+        <flow sarg="gympi" sink="Concat M_B (R)" darg="g^y"/>
+        <arg name="data"/>
+    </xform>
+
+    <!--
+      ** Receive D-H Key message
+      -->
     <xform id="D-H Key (R)">
         <description>
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
         <flow sarg="g^y" sink="Shared secret (I)" darg="pub"/>
-        <flow sarg="g^y" sink="Concat M_B" darg="g^y"/>
-        <flow sarg="g^y" sink="Concat M_A" darg="g^y"/>
+        <flow sarg="g^y" sink="Concat M_B (S)" darg="g^y"/>
+        <flow sarg="g^y" sink="Concat M_A (R)" darg="g^y"/>
         <arg name="dhkm"/>
     </xform>
 
@@ -154,184 +441,8 @@
         <description>
             Compute the Diffie-Hellman shared secret s in the intitiator case.
         </description>
-        <flow sarg="ssec" sink="Serialize s" darg="ssec"/>
+        <flow sarg="ssec" sink="Derive keys" darg="ssec"/>
     </dhsec>
-
-    <xform id="Serialize s">
-        <description>
-            Serialize the value of shared secret s as a minimum-length MPI secbytes.
-        </description>
-        <flow sarg="secbyte" sink="Concat ssid" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat c" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m1" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m2" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m1'" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m2'" darg="secbytes"/>
-        <arg name="ssec"/>
-    </xform>
-
-    <const id="Prefix ssid">
-        <description>
-            Prefix b to calculate ssid, value 0x00
-        </description>
-        <flow sarg="const" sink="Concat ssid" darg="b"/>
-    </const>
-
-    <xform id="Concat ssid">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash ssid" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash ssid">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="Trim ssid" darg="ssid"/>
-    </hash>
-
-    <xform id="Trim ssid">
-        <description>
-            Let ssid be the first 64 bits of h2(0x00).
-        </description>
-        <flow sarg="ssid" sink="FIXME" darg="ssid"/>
-        <arg name="ssid"/>
-    </xform>
-
-
-    <const id="Prefix c">
-        <description>
-            Prefix b to calculate c and c', value 0x01
-        </description>
-        <flow sarg="const" sink="Concat c" darg="b"/>
-    </const>
-
-    <xform id="Concat c">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash c" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash c">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="Split c" darg="c"/>
-    </hash>
-
-    <xform id="Split c">
-        <description>
-            Let c be the first 128 bits of h2(0x01),
-            and let c' be the second 128 bits of h2(0x01).
-        </description>
-        <flow sarg="c"  sink="Encrypt X_B" darg="key"/>
-        <flow sarg="c'" sink="Decrypt X_A" darg="key"/>
-        <arg name="c"/>
-    </xform>
-
-    <const id="Prefix m1">
-        <description>
-            Prefix b to calculate m1, value 0x02
-        </description>
-        <flow sarg="const" sink="Concat m1" darg="b"/>
-    </const>
-
-    <xform id="Concat m1">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash m1" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash m1">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="HMAC M_B" darg="key"/>
-    </hash>
-
-    <const id="Prefix m2">
-        <description>
-            Prefix b to calculate m2, value 0x03
-        </description>
-        <flow sarg="const" sink="Concat m2" darg="b"/>
-    </const>
-
-    <xform id="Concat m2">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash m2" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash m2">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="MAC Encrypted X_B" darg="key"/>
-    </hash>
-
-    <const id="Prefix m1'">
-        <description>
-            Prefix b to calculate m1', value 0x04
-        </description>
-        <flow sarg="const" sink="Concat m1'" darg="b"/>
-    </const>
-
-    <xform id="Concat m1'">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash m1'" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash m1'">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="HMAC M_A" darg="key"/>
-    </hash>
-
-    <const id="Prefix m2'">
-        <description>
-            Prefix b to calculate m2', value 0x05
-        </description>
-        <flow sarg="const" sink="Concat m2'" darg="b"/>
-    </const>
-
-    <xform id="Concat m2'">
-        <description>
-            Byte b followed by secbytes.
-        </description>
-        <flow sarg="result" sink="Hash m2'" darg="data"/>
-        <arg name="b"/>
-        <arg name="secbytes"/>
-    </xform>
-
-    <hash id="Hash m2'">
-        <description>
-            For a given byte b, define h2(b) to be the 256-bit output of the SHA256
-            hash of the (5+len) bytes consisting of the byte b followed by secbytes.
-        </description>
-        <flow sarg="hash" sink="Verify Encrypted X_A" darg="key"/>
-    </hash>
 
     <!-- Signature (Receive) -->
     <xform id="Signature (R)">
@@ -349,8 +460,25 @@
         <description>
             Check the SHA256-HMAC-160 authenticator for the encrypted signature.
         </description>
-        <flow sarg="result" sink="FIXME" darg="Verify X_A result"/>
+        <flow sarg="result" sink="Guard Encrypted X_A" darg="cond"/>
     </verify_hmac>
+
+    <const id="MSGSTATE_ENCRYPTED">
+        <description>
+            Signal that a key was established an messages can be encrypted.
+            FIXME: This has an odd semantics as we protect a constant through
+            a guard. Has the output of the guard always the value of the input
+            if the condition is true?
+        </description>
+        <flow sarg="const" sink="Guard Encrypted X_A" darg="data"/>
+    </const>
+
+    <guard id="Guard Encrypted X_A">
+        <description>
+            Signal MSGSTATE_ENCRYPTED if the HMAC was correct.
+        </description>
+        <flow sarg="data" sink="Guard Signed M_A" darg="data"/>
+    </guard>
 
     <const id="Counter for X_A Decryption">
         <description>
@@ -372,12 +500,12 @@
         </description>
         <flow sarg="pub_A" sink="Verify M_A" darg="pkey"/>
         <flow sarg="Signature" sink="Verify M_A" darg="auth"/>
-        <flow sarg="pub_A" sink="Concat M_A" darg="pub A"/>
-        <flow sarg="keyid_A" sink="Concat M_A" darg="keyid A"/>
+        <flow sarg="pub_A" sink="Concat M_A (R)" darg="pub A"/>
+        <flow sarg="keyid_A" sink="Concat M_A (R)" darg="keyid A"/>
         <arg name="X_A"/>
     </xform>
 
-    <xform id="Concat M_A">
+    <xform id="Concat M_A (R)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub A (PUBKEY), keyid A (INT)
@@ -401,10 +529,20 @@
         <description>
             Check the signature of M_A received in Signature message.
         </description>
-        <flow sarg="result" sink="FIXME" darg="Verify M_A result"/>
+        <flow sarg="result" sink="Guard Signed M_A" darg="cond"/>
     </verify_sig>
 
-    <!-- Reveal Signature Message (Send) -->
+    <guard id="Guard Signed M_A">
+        <description>
+            Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_A)
+            if the signature of M_A was correct.
+        </description>
+        <flow sarg="data" sink="FIXME" darg="Guard Signed M_A"/>
+    </guard>
+
+    <!--
+      ** Send Reveal Signature Message
+      -->
     <xform id="Reveal Signature (S)">
         <description>
             Primitive assembling the third message of the AKE,
@@ -456,7 +594,7 @@
             Select keyidB, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
-        <flow sarg="const" sink="Concat M_B" darg="keyid B"/>
+        <flow sarg="const" sink="Concat M_B (S)" darg="keyid B"/>
         <flow sarg="const" sink="Concat X_B" darg="keyid B"/>
     </const>
 
@@ -464,7 +602,7 @@
         <description>
             Public key of B.
         </description>
-        <flow sarg="const" sink="Concat M_B" darg="pub B"/>
+        <flow sarg="const" sink="Concat M_B (S)" darg="pub B"/>
         <flow sarg="const" sink="Concat X_B" darg="pub B"/>
         <flow sarg="const" sink="Sign M_B" darg="pkey"/>
     </const>
@@ -476,19 +614,19 @@
         <flow sarg="const" sink="Sign M_B" darg="skey"/>
     </const>
 
-    <xform id="Concat M_B">
+    <xform id="Concat M_B (S)">
         <description>
             Compute the 32-byte value MB to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
         </description>
-        <flow sarg="M_B Input" sink="HMAC M_B" darg="msg"/>
+        <flow sarg="M_B Input" sink="HMAC M_B (S)" darg="msg"/>
         <arg name="g^x"/>
         <arg name="g^y"/>
         <arg name="pub B"/>
         <arg name="keyid B"/>
     </xform>
 
-    <hmac id="HMAC M_B">
+    <hmac id="HMAC M_B (S)">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
@@ -546,13 +684,131 @@
         <arg name="macd_signature"/>
     </xform>
 
-    <!-- FIXME section -->
+    <!--
+      ** Receive Reveal Signature Message
+      -->
+    <xform id="Reveal Signature (R)">
+        <description>
+            Primitive assembling the third message of the AKE,
+            the Reveal Signature Message. It reveals the D-H
+            encryption key, thuse establishing and authenticating
+            the encrypted channel.
+        </description>
+        <flow sarg="revealed_key" sink="Decrypt g^x" darg="key"/>
+        <flow sarg="encrypted_signature" sink="Decrypt X_B (R)" darg="ciphertext"/>
+        <arg name="rvsm"/>
+    </xform>
+
+    <const id="Counter for g^x (R)">
+        <description>
+            Counter for decrypting g^x. This is always zero.
+        </description>
+        <flow sarg="const" sink="Decrypt g^x" darg="ctr"/>
+    </const>
+
+    <decrypt id="Decrypt g^x">
+        <description>
+            Use the received value of r to decrypt the value of g^x
+            received in the D-H Commit Message
+        </description>
+        <flow sarg="plaintext" sink="Hash g^x (R)" darg="data"/>
+        <flow sarg="plaintext" sink="Verify g^x (R)" darg="data"/>
+        <flow sarg="plaintext" sink="Concat M_B (R)" darg="g^x"/>
+    </decrypt>
+
+    <hash id="Hash g^x (R)">
+        <description>
+            SHA256 hash of the encoded gxmpi value.
+        </description>
+        <flow sarg="hash" sink="Verify hashed g^x (R)" darg="data2"/>
+    </hash>
+
+    <comp id="Verify hashed g^x (R)">
+        <description>
+            Check that the hash of the gxmpi sent encrypted in the
+            D-H Commit message matches the value decrypted with
+            the key received in the Reveal Signature Message.
+        </description>
+        <flow sarg="result" sink="Verify g^x (R)" darg="cond"/>
+    </comp>
+
+    <guard id="Verify g^x (R)">
+        <description>
+            Only use g^x if the hash was correct.
+        </description>
+        <flow sarg="data" sink="Concat M_B (R)" darg="g^x"/>
+    </guard>
+
+    <const id="Counter for X_B (R)">
+        <description>
+            Counter for decrypting X_B. Initial counter value 0.
+        </description>
+        <flow sarg="const" sink="Decrypt X_B (R)" darg="ctr"/>
+    </const>
+
+    <decrypt id="Decrypt X_B (R)">
+        <description>
+            Decrypt X_B received in Reveal Signature Message using
+            AES128-CTR with key c and initial counter value 0.
+        </description>
+        <flow sarg="plaintext" sink="Split X_B (R)" darg="X_B"/>
+    </decrypt>
+
+    <xform id="Split X_B (R)">
+        <description>
+            Split X_B into pub_B, keyid_B, sig_B(M_B)
+        </description>
+        <flow sarg="pub_B" sink="Concat M_B (R)" darg="pub B"/>
+        <flow sarg="keyid_B" sink="Concat M_B (R)" darg="keyid B"/>
+        <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
+        <flow sarg="pub_B" sink="Verify Sig M_B" darg="pkey"/>
+        <arg name="X_B"/>
+    </xform>
+
+    <xform id="Concat M_B (R)">
+        <description>
+            Compute the 32-byte value MB to be the SHA256-HMAC of the following
+            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+        </description>
+        <flow sarg="M_B Input" sink="HMAC M_B (R)" darg="msg"/>
+        <arg name="g^x"/>
+        <arg name="g^y"/>
+        <arg name="pub B"/>
+        <arg name="keyid B"/>
+    </xform>
+
+    <hmac id="HMAC M_B (R)">
+        <description>
+            Compute the 32-byte value M_B to be the SHA256-HMAC of the following
+            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+        </description>
+        <flow sarg="auth" sink="Verify Sig M_B" darg="msg"/>
+    </hmac>
+
+    <verify_sig id="Verify Sig M_B">
+        <description>
+            Verify the signature of M_B send by initiator in Reveal Signature message.
+        </description>
+        <flow sarg="result" sink="Guard Signed M_B" darg="cond"/>
+    </verify_sig>
+
+    <guard id="Guard Signed M_B">
+        <description>
+            Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_B)
+            if the signature of M_B was correct.
+        </description>
+        <flow sarg="data" sink="FIXME" darg="Guard Signed M_B"/>
+    </guard>
+
+    <!--
+      ** FIXME section
+      -->
     <env id="FIXME" confidentiality="True" integrity="True">
         <description>
             Primitive to terminate unfinished flows
         </description>
-        <arg name="Verify X_A result"/>
-        <arg name="Verify M_A result"/>
+        <arg name="Guard Signed M_A"/>
+        <arg name="Guard Signed M_B"/>
     </env>
 
 </spg>

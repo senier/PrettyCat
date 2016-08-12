@@ -18,27 +18,31 @@
         <arg name="sigm"/>
     </env>
 
-<!--
     <env id="User" confidentiality="True" integrity="True">
         <description>
             User environment guaranteeing confidentiality and integrity.
         </description>
     </env>
--->
 
     <!--
       ** AKE
       -->
 
-    <const id="MSGSTATE_ENCRYPTED">
+    <const id="State encrypted">
         <description>
-            Signal that a key was established an messages can be encrypted.
-            FIXME: This has an odd semantics as we protect a constant through
-            a guard. Has the output of the guard always the value of the input
-            if the condition is true?
+            Constant signaling successful key exchange.
         </description>
         <flow sarg="const" sink="Guard Encrypted X_A" darg="data"/>
+        <flow sarg="const" sink="Guard Encrypted X_B" darg="data"/>
     </const>
+
+    <xform id="AKE State">
+        <description>
+            Current state of the AKE
+        </description>
+        <flow sarg="encrypted" sink="Guard Signature (S)" darg="cond"/>
+        <arg name="state"/>
+    </xform>
 
     <!--
       ** Key derivation
@@ -85,10 +89,9 @@
         <description>
             Let ssid be the first 64 bits of h2(0x00).
         </description>
-        <flow sarg="ssid" sink="FIXME" darg="ssid"/>
+        <flow sarg="ssid" sink="User" darg="ssid"/>
         <arg name="ssid"/>
     </xform>
-
 
     <const id="Prefix c">
         <description>
@@ -466,7 +469,7 @@
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
         </description>
-        <flow sarg="sigm" sink="Guard Encrypted X_B" darg="data"/>
+        <flow sarg="sigm" sink="Guard Signature (S)" darg="data"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -474,6 +477,10 @@
         <arg name="encrypted_signature"/>
         <arg name="macd_signature"/>
     </xform>
+
+    <guard id="Guard Signature (S)">
+        <flow sarg="data" sink="Network" darg="sigm"/>
+    </guard>
 
     <const id="SIGM Protocol Version (S)">
         <description>
@@ -622,7 +629,7 @@
 
     <guard id="Guard Encrypted X_A">
         <description>
-            Signal MSGSTATE_ENCRYPTED if the HMAC was correct.
+            Signal encrypted state only if the HMAC was correct.
         </description>
         <flow sarg="data" sink="Guard Signed M_A" darg="data"/>
     </guard>
@@ -685,7 +692,7 @@
             Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_A)
             if the signature of M_A was correct.
         </description>
-        <flow sarg="data" sink="FIXME" darg="Guard Signed M_A"/>
+        <flow sarg="data" sink="AKE State" darg="state"/>
     </guard>
 
     <!--
@@ -961,17 +968,7 @@
             Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_B)
             if the signature of M_B was correct.
         </description>
-        <flow sarg="data" sink="Network" darg="sigm"/>
+        <flow sarg="data" sink="AKE State" darg="state"/>
     </guard>
-
-    <!--
-      ** FIXME section
-      -->
-    <env id="FIXME" confidentiality="True" integrity="True">
-        <description>
-            Primitive to terminate unfinished flows
-        </description>
-        <arg name="Guard Signed M_A"/>
-    </env>
 
 </spg>

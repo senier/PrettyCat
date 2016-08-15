@@ -2045,7 +2045,7 @@ def parse_graph (inpath, solver, maximize):
         sarg = data['sarg']
         darg = data['darg']
 
-        if mdg.node[child]['kind'] == "xform" or mdg.node[child]['kind'] == "permute":
+        if mdg.node[child]['kind'] == "xform" or (mdg.node[child]['kind'] == "permute" and darg != "order"):
             if not darg in mdg.node[child]['arguments']:
                 warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
 

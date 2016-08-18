@@ -310,7 +310,7 @@
         </description>
         <flow sarg="data" sink="Calculate g^x (S)" darg="psec"/>
         <flow sarg="data" sink="Shared secret (R)" darg="psec"/>
-        <flow sarg="data" sink="Select secret key (M)" darg="AKE initiator psec"/>
+        <flow sarg="data" sink="Select secret key (M)" darg="initiator_psec"/>
     </rng>
 
     <dhpub id="Calculate g^x (S)">
@@ -318,6 +318,7 @@
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
         <flow sarg="pub" sink="Serialize g^x (S)" darg="data"/>
+        <flow sarg="pub" sink="Select local pubkey (M)" darg="initiator_pub_local"/>
     </dhpub>
 
     <xform id="Serialize g^x (S)">
@@ -426,7 +427,7 @@
         </description>
         <flow sarg="data" sink="Calculate g^y (S)" darg="psec"/>
         <flow sarg="data" sink="Shared secret (S)" darg="psec"/>
-        <flow sarg="data" sink="Select secret key (M)" darg="AKE responder psec"/>
+        <flow sarg="data" sink="Select secret key (M)" darg="responder_psec"/>
     </rng>
 
     <dhpub id="Calculate g^y (S)">
@@ -434,6 +435,7 @@
             Calcutate Diffie-Hellman public value g^y for the responder.
         </description>
         <flow sarg="pub" sink="Serialize g^y (S)" darg="data"/>
+        <flow sarg="pub" sink="Select local pubkey (M)" darg="responder_pub_local"/>
     </dhpub>
 
     <xform id="Serialize g^y (S)">
@@ -456,9 +458,9 @@
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
         <flow sarg="g^y" sink="Shared secret (R)" darg="pub"/>
-        <flow sarg="g^y" sink="Rotate key (M)" darg="responder_remote_pub"/>
         <flow sarg="g^y" sink="Concat M_B (S)" darg="g^y"/>
         <flow sarg="g^y" sink="Concat M_A (R)" darg="g^y"/>
+        <flow sarg="g^y" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
         <arg name="dhkm"/>
     </xform>
 
@@ -879,7 +881,7 @@
         <flow sarg="plaintext" sink="Hash g^x (R)" darg="data"/>
         <flow sarg="plaintext" sink="Verify g^x (R)" darg="data"/>
         <flow sarg="plaintext" sink="Shared secret (S)" darg="pub"/>
-        <flow sarg="plaintext" sink="Rotate key (M)" darg="initiator_remote_pub"/>
+        <flow sarg="plaintext" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
     </decrypt>
 
     <hash id="Hash g^x (R)">
@@ -992,6 +994,303 @@
       ** Message encryption
       -->
 
+    <xform id="Select remote pubkey (M)">
+        <description>
+            Picks the most recent D-H encryption key received from the remote
+            party, either in a Data Message or in the AKE.
+        </description>
+        <flow sarg="current_key" sink="Select secret key (M)" darg="order"/>
+        <flow sarg="recipient_keyid" sink="Data (S)" darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid" sink="Concat authenticator (M)" darg="recipient_keyid"/>
+        <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
+        <flow sarg="pub" sink="Determine end (M)" darg="remote_pubkey"/>
+        <arg name="initiator_remote_pub"/>
+        <arg name="responder_remote_pub"/>
+        <arg name="pub_remote"/>
+    </xform>
+
+    <const id="Length of y (M)">
+        <description>
+            Lenght of the Diffie-Hellmen exponent y.
+            At least 320 bits for OTR v3.
+        </description>
+        <flow sarg="const" sink="Random y (M)" darg="len"/>
+    </const>
+
+    <rng id="Random y (M)">
+        <description>
+            Random value y used to calcutate Diffie-Hellman public value
+            g^y for the next data message.
+        </description>
+        <flow sarg="data" sink="Calculate next D-H key (M)" darg="psec"/>
+        <flow sarg="data" sink="Select secret key (M)" darg="data_psec"/>
+    </rng>
+
+    <dhpub id="Calculate next D-H key (M)">
+        <description>
+            Diffie-Hellman public value g^y for the next data message.
+        </description>
+        <flow sarg="pub" sink="Serialize g^y (M)" darg="data"/>
+        <flow sarg="pub" sink="Select local pubkey (M)" darg="pub_local"/>
+    </dhpub>
+    
+    <xform id="Serialize g^y (M)">
+        <description>
+            Serialize Diffie-Hellman public value as MPI
+        </description>
+        <flow sarg="mpi" sink="Data (S)" darg="dh_y"/>
+        <flow sarg="mpi" sink="Concat authenticator (M)" darg="dh_y"/>
+        <arg name="data"/>
+    </xform>
+
+    <xform id="Select local pubkey (M)">
+        <description>
+            Picks the most recent local D-H encryption key remote side
+            has acknowledged receiving by using it in a Data Message
+            or, failing that, in the AKE.
+        </description>
+        <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
+        <flow sarg="pub" sink="Determine end (M)" darg="local_pubkey"/>
+        <flow sarg="sender_keyid" sink="Data (S)" darg="sender_keyid"/>
+        <flow sarg="sender_keyid" sink="Concat authenticator (M)" darg="sender_keyid"/>
+        <arg name="pub_local"/>
+        <arg name="responder_pub_local"/>
+        <arg name="initiator_pub_local"/>
+    </xform>
+
+    <permute id="Select secret key (M)">
+        <description>
+            Select the shared secret for the next message to be either
+            the result of AKE or the result of a subsequent DH exchange
+            using previous dh_y contained in a data message.
+        </description>
+        <flow sarg="psec" sink="Shared secret (M)" darg="psec"/>
+        <arg name="data_psec"/>
+        <arg name="initiator_psec"/>
+        <arg name="responder_psec"/>
+    </permute>
+
+    <dhsec id="Shared secret (M)">
+        <description>
+            Calculate DH shared secret s for data message.
+        </description>
+        <flow sarg="ssec" sink="Serialize s (M)" darg="s"/>
+    </dhsec>
+
+    <xform id="Serialize s (M)">
+        <description>
+            Serialize shared secret as MPI
+        </description>
+        <flow sarg="secbytes" sink="Concat sendkey (M)" darg="secbytes"/>
+        <flow sarg="secbytes" sink="Concat recvkey (M)" darg="secbytes"/>
+        <arg name="s"/>
+    </xform>
+
+    <xform id="Determine end (M)">
+        <description>
+            The sender determines if she is the "low" end or the "high" end
+            of this Data Message. If the senders public key is numerically
+            greater than the receivers public key, then she is the "high"
+            end. Otherwise, she is the "low" end.
+        </description>
+        <flow sarg="sendbyte" sink="Concat sendkey (M)" darg="b"/>
+        <flow sarg="recvbyte" sink="Concat recvkey (M)" darg="b"/>
+        <arg name="local_pubkey"/>
+        <arg name="remote_pubkey"/>
+    </xform>
+
+    <xform id="Concat sendkey (M)">
+        <description>
+            Byte b, followed by secbytes.
+        </description>
+        <flow sarg="b|secbyte" sink="Derive sending enc key (M)" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Derive sending enc key (M)">
+        <description>
+            The 160-bit output of the SHA-1 hash of the (5+len)
+            bytes consisting of the byte b, followed by secbytes
+        </description>
+        <flow sarg="hash" sink="Truncate sending enc key (M)" darg="data"/>
+    </hash>
+
+    <xform id="Truncate sending enc key (M)">
+        <description>
+            The first 16 bytes of h1(sendbyte)
+        </description>
+        <flow sarg="data" sink="Derive sending MAC key (M)" darg="data"/>
+        <flow sarg="data" sink="Encrypt (M)" darg="key"/>
+        <flow sarg="data" sink="Compare counter" darg="data"/>
+        <arg name="data"/>
+    </xform>
+
+    <hash id="Derive sending MAC key (M)">
+        <description>
+            The 20-byte SHA-1 hash of the 16-byte sending AES key.
+        </description>
+        <flow sarg="hash" sink="Calculate authenticator (M)" darg="key"/>
+        <flow sarg="hash" sink="Release MAC key (M)" darg="data"/>
+    </hash>
+
+    <!-- FIXME: The must be logic deciding whether we can already release the key (i.e. it's not in use anymore!) -->
+    <release id="Release MAC key (M)">
+        <flow sarg="data" sink="Data (S)" darg="old_mac_keys"/>
+    </release>
+
+    <xform id="Concat recvkey (M)">
+        <description>
+            Byte b, followed by secbytes.
+        </description>
+        <flow sarg="b|secbytes" sink="Derive receiving enc key (M)" darg="data"/>
+        <arg name="b"/>
+        <arg name="secbytes"/>
+    </xform>
+
+    <hash id="Derive receiving enc key (M)">
+        <description>
+            The 160-bit output of the SHA-1 hash of the (5+len)
+            bytes consisting of the byte b, followed by secbytes
+        </description>
+        <flow sarg="hash" sink="Truncate receiving enc key (M)" darg="data"/>
+    </hash>
+
+    <xform id="Truncate receiving enc key (M)">
+        <description>
+            The first 16 bytes of h1(recvbyte)
+        </description>
+        <flow sarg="data" sink="Derive receiving MAC key (M)" darg="data"/>
+<!--
+        <flow sarg="data" sink="Decrypt (M)" darg="key"/>
+-->
+        <arg name="data"/>
+    </xform>
+
+    <hash id="Derive receiving MAC key (M)">
+        <description>
+            The 20-byte SHA-1 hash of the 16-byte sending AES key.
+        </description>
+        <flow sarg="hash" sink="User" darg="dummy"/>
+    </hash>
+
+    <const id="Initial counter (M)">
+        <flow sarg="const" sink="Counter (M)" darg="init"/>
+    </const>
+
+    <scomp id="Compare counter">
+        <flow sarg="result" sink="Counter (M)" darg="trigger"/>
+    </scomp>
+
+    <counter id="Counter (M)">
+        <flow sarg="ctr" sink="Encrypt (M)" darg="ctr"/>
+        <flow sarg="ctr" sink="Data (S)" darg="top_half_of_counter_init"/>
+        <flow sarg="ctr" sink="Concat authenticator (M)" darg="top_half_of_counter_init"/>
+    </counter>
+
+    <encrypt id="Encrypt (M)">
+        <description>
+            Perform AES128 counter-mode encryption of the message using
+            the most recent D-H encryption keys.
+        </description>
+        <flow sarg="ciphertext" sink="Data (S)" darg="encrypted_message"/>
+        <flow sarg="ciphertext" sink="Concat authenticator (M)" darg="encrypted_message"/>
+    </encrypt>
+
+    <xform id="Concat authenticator (M)">
+        <description>
+            Input for the authenticator.
+        </description>
+        <flow sarg="message" sink="Calculate authenticator (M)" darg="msg"/>
+        <arg name="protocol_version"/>
+        <arg name="message_type"/>
+        <arg name="sender_instance_tag"/>
+        <arg name="receiver_instance_tag"/>
+        <arg name="flags"/>
+        <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
+        <arg name="dh_y"/>
+        <arg name="top_half_of_counter_init"/>
+        <arg name="encrypted_message"/>
+    </xform>
+
+    <hmac id="Calculate authenticator (M)">
+        <description>
+            The SHA1-HMAC, using the appropriate MAC key of everything from
+            the Protocol version to the end of the encrypted message.
+        </description>
+        <flow sarg="auth" sink="Data (S)" darg="authenticator"/>
+    </hmac>
+
+    <const id="Data Protocol Version (M)">
+        <description>
+            The version number of the OTR protocol for outgoing D-H Commit messages.
+        </description>
+        <flow sarg="const" sink="Data (S)" darg="protocol_version"/>
+        <flow sarg="const" sink="Concat authenticator (M)" darg="protocol_version"/>
+    </const>
+
+    <const id="Data Message Type (M)">
+        <description>
+            The message type of the outgoing D-H Commit messages.
+        </description>
+        <flow sarg="const" sink="Data (S)" darg="message_type"/>
+        <flow sarg="const" sink="Concat authenticator (M)" darg="message_type"/>
+    </const>
+
+    <const id="Data Sender Instance Tag (M)">
+        <description>
+            The instance tag of the person sending this message.
+        </description>
+        <flow sarg="const" sink="Data (S)" darg="sender_instance_tag"/>
+        <flow sarg="const" sink="Concat authenticator (M)" darg="sender_instance_tag"/>
+    </const>
+
+    <const id="Data Receiver Instance Tag (M)">
+        <description>
+            The instance tag of the intended recipient. Most likely 0 as
+            the other party may not have identified their instance tag, yet.
+        </description>
+        <flow sarg="const" sink="Data (S)" darg="receiver_instance_tag"/>
+        <flow sarg="const" sink="Concat authenticator (M)" darg="receiver_instance_tag"/>
+    </const>
+
+    <const id="Data Flags (M)">
+        <description>
+            The bitwise-OR of the flags for this message.
+        </description>
+        <flow sarg="const" sink="Data (S)" darg="flags"/>
+        <flow sarg="const" sink="Concat authenticator (M)" darg="flags"/>
+    </const>
+
+    <xform id="Data (S)">
+        <description>
+            Encrypted data message sent to the network.
+        </description>
+        <flow sarg="data" sink="Network" darg="data"/>
+        <arg name="protocol_version"/>
+        <arg name="message_type"/>
+        <arg name="sender_instance_tag"/>
+        <arg name="receiver_instance_tag"/>
+        <arg name="flags"/>
+        <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
+        <arg name="dh_y"/>
+        <arg name="top_half_of_counter_init"/>
+        <arg name="encrypted_message"/>
+        <arg name="authenticator"/>
+        <arg name="old_mac_keys"/>
+    </xform>
+
+    <xform id="Data (R)">
+        <description>
+            Encrypted data message received from the network.
+        </description>
+        <flow sarg="dh_y" sink="Select remote pubkey (M)" darg="pub_remote"/>
+        <arg name="data"/>
+    </xform>
+
+<!--
     <xform id="Data (R)">
         <description>
             Encrypted data message received from the network.
@@ -1012,7 +1311,6 @@
         <arg name="data"/>
     </xform>
 
-    <!-- Session DH key -->
     <const id="Length of y (M)">
         <description>
             Lenght of the Diffie-Hellmen exponent y.
@@ -1044,14 +1342,6 @@
         </description>
         <flow sarg="mpi" sink="MAC Input (M)" darg="dh_y"/>
         <arg name="data"/>
-    </xform>
-
-    <xform id="Serialize s (M)">
-        <description>
-            Serialize shared secret as MPI
-        </description>
-        <flow sarg="secbytes" sink="D_cat_h1" darg="secbytes"/>
-        <arg name="s"/>
     </xform>
 
     <xform id="D_cat_h1">
@@ -1091,25 +1381,6 @@
         <arg name="initial_keyid"/>
     </xform>
 
-    <permute id="Select secret key (M)">
-        <description>
-            Select the shared secret for the next message to be either
-            the result of AKE or the result of a subsequent DH exchange
-            using previous dh_y contained in a data message.
-        </description>
-        <flow sarg="psec" sink="Shared secret (M)" darg="psec"/>
-        <arg name="Data psec"/>
-        <arg name="AKE initiator psec"/>
-        <arg name="AKE responder psec"/>
-    </permute>
-
-    <dhsec id="Shared secret (M)">
-        <description>
-            Calculate DH shared secret for data message.
-        </description>
-        <flow sarg="ssec" sink="Serialize s (M)" darg="s"/>
-    </dhsec>
-
     <release id="reveal_old_mac_keys">
         <flow sarg="data" sink="data" darg="old_mac_keys"/>
     </release>
@@ -1126,10 +1397,6 @@
         <flow sarg="ctr" sink="Encrypt (M)" darg="ctr"/>
         <flow sarg="ctr" sink="MAC Input (M)" darg="top_half_of_counter_init"/>
     </counter>
-
-    <encrypt id="Encrypt (M)">
-        <flow sarg="ciphertext" sink="MAC Input (M)" darg="encrypted_message"/>
-    </encrypt>
 
     <xform id="MAC Input (M)">
         <flow sarg="msg" sink="D_mac" darg="msg"/>
@@ -1156,5 +1423,5 @@
         <arg name="auth"/>
         <arg name="old_mac_keys"/>
     </xform>
-
+-->
 </spg>

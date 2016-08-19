@@ -114,10 +114,13 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 ''')
 
 def warn (message):
-    print ("[1m[31mWARNING: [2m" + str(message) + "[0m")
+    print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
 def info (message):
     print ("[1m[34mINFO: [2m" + str(message) + "[0m")
+
+def err (message):
+    print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
@@ -150,8 +153,8 @@ class Graph:
             self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
         else:
-            warn ("No solution")
             self.solver.mark_unsat_core(self.graph)
+            err ("No solution")
 
     def write (self, title, out):
     

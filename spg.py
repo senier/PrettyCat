@@ -2054,6 +2054,8 @@ def parse_graph (inpath, solver, maximize):
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
         G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
 
+    info (str(len(mdg.node)) + " nodes.")
+
     return G
 
 def set_style (o, c, i):

@@ -53,17 +53,6 @@
         <flow sarg="const" sink="Sign M_B" darg="skey"/>
     </const>
 
-    <const id="keyid">
-        <description>
-            Select keyid, a serial number for the D-H key computed earlier.
-            It is an INT, and must be greater than 0.
-        </description>
-        <flow sarg="const" sink="Concat M_A (S)" darg="keyid"/>
-        <flow sarg="const" sink="Concat X_A" darg="keyid"/>
-        <flow sarg="const" sink="Concat M_B (S)" darg="keyid"/>
-        <flow sarg="const" sink="Concat X_B" darg="keyid"/>
-    </const>
-
     <!-- AKE -->
     <const id="State encrypted">
         <description>
@@ -555,6 +544,15 @@
         <flow sarg="const" sink="Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
+    <const id="keyid A">
+        <description>
+            Select keyid, a serial number for the D-H key computed earlier.
+            It is an INT, and must be greater than 0.
+        </description>
+        <flow sarg="const" sink="Concat M_A (S)" darg="keyid"/>
+        <flow sarg="const" sink="Concat X_A" darg="keyid"/>
+    </const>
+
     <xform id="Concat M_A (S)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
@@ -585,7 +583,7 @@
 
     <xform id="Concat X_A">
         <description>
-            Let X_A be the following structure: pub_A (PUBKEY), keyid_A (INT), sig_A(M_A) (SIG)
+            Let X_A be the following structure: pub (PUBKEY), keyid (INT), sig_A(M_A) (SIG)
         </description>
         <flow sarg="X_A" sink="Encrypt X_A" darg="plaintext"/>
         <arg name="pub"/>
@@ -670,12 +668,12 @@
 
     <xform id="Split X_A">
         <description>
-            Split X_A into pub_A, keyid_A, sig_A(M_A)
+            Split X_A into pub, keyid, sig_A(M_A)
         </description>
-        <flow sarg="pub_A" sink="Verify Sig M_A (R)" darg="pkey"/>
+        <flow sarg="pub" sink="Verify Sig M_A (R)" darg="pkey"/>
         <flow sarg="Signature" sink="Verify Sig M_A (R)" darg="auth"/>
-        <flow sarg="pub_A" sink="Concat M_A (R)" darg="pub"/>
-        <flow sarg="keyid_A" sink="Concat M_A (R)" darg="keyid"/>
+        <flow sarg="pub" sink="Concat M_A (R)" darg="pub"/>
+        <flow sarg="keyid" sink="Concat M_A (R)" darg="keyid"/>
         <arg name="X_A"/>
     </xform>
 
@@ -763,6 +761,15 @@
         <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
+    <const id="keyid B">
+        <description>
+            Select keyid, a serial number for the D-H key computed earlier.
+            It is an INT, and must be greater than 0.
+        </description>
+        <flow sarg="const" sink="Concat M_B (S)" darg="keyid"/>
+        <flow sarg="const" sink="Concat X_B" darg="keyid"/>
+    </const>
+
     <xform id="Concat M_B (S)">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
@@ -793,7 +800,7 @@
 
     <xform id="Concat X_B">
         <description>
-            Let X_B be the following structure: pub_B (PUBKEY), keyid_B (INT), sig_B(M_B) (SIG)
+            Let X_B be the following structure: pub (PUBKEY), keyid (INT), sig_B(M_B) (SIG)
         </description>
         <flow sarg="X_B" sink="Encrypt X_B" darg="plaintext"/>
         <arg name="pub"/>
@@ -923,12 +930,12 @@
 
     <xform id="Split X_B (R)">
         <description>
-            Split X_B into pub_B, keyid_B, sig_B(M_B)
+            Split X_B into pub, keyid, sig_B(M_B)
         </description>
-        <flow sarg="pub_B" sink="Concat M_B (R)" darg="pub"/>
-        <flow sarg="keyid_B" sink="Concat M_B (R)" darg="keyid"/>
+        <flow sarg="pub" sink="Concat M_B (R)" darg="pub"/>
+        <flow sarg="keyid" sink="Concat M_B (R)" darg="keyid"/>
         <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
-        <flow sarg="pub_B" sink="Verify Sig M_B" darg="pkey"/>
+        <flow sarg="pub" sink="Verify Sig M_B" darg="pkey"/>
         <arg name="X_B"/>
     </xform>
 

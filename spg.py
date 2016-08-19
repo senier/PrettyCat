@@ -1980,6 +1980,7 @@ def parse_graph (inpath, solver, maximize):
         if descnode is not None:
             desc = "<" + re.sub ('\n\s*', '&#10;', descnode.text.strip()) + ">"
         else:
+            warn ("No description for " + name)
             desc = "<No description&#10;available.>"
 
         arguments = []

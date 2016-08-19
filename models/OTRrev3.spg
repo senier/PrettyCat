@@ -32,6 +32,39 @@
       ** AKE
       -->
 
+    <!-- Long term keys -->
+    <const id="pub">
+        <description>
+            Public key
+        </description>
+        <flow sarg="const" sink="Concat M_A (S)" darg="pub"/>
+        <flow sarg="const" sink="Concat X_A" darg="pub"/>
+        <flow sarg="const" sink="Sign M_A" darg="pkey"/>
+        <flow sarg="const" sink="Concat M_B (S)" darg="pub"/>
+        <flow sarg="const" sink="Concat X_B" darg="pub"/>
+        <flow sarg="const" sink="Sign M_B" darg="pkey"/>
+    </const>
+
+    <const id="priv">
+        <description>
+            Private key
+        </description>
+        <flow sarg="const" sink="Sign M_A" darg="skey"/>
+        <flow sarg="const" sink="Sign M_B" darg="skey"/>
+    </const>
+
+    <const id="keyid">
+        <description>
+            Select keyid, a serial number for the D-H key computed earlier.
+            It is an INT, and must be greater than 0.
+        </description>
+        <flow sarg="const" sink="Concat M_A (S)" darg="keyid"/>
+        <flow sarg="const" sink="Concat X_A" darg="keyid"/>
+        <flow sarg="const" sink="Concat M_B (S)" darg="keyid"/>
+        <flow sarg="const" sink="Concat X_B" darg="keyid"/>
+    </const>
+
+    <!-- AKE -->
     <const id="State encrypted">
         <description>
             Constant signaling successful key exchange.
@@ -522,54 +555,29 @@
         <flow sarg="const" sink="Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="keyid A">
-        <description>
-            Select keyid A, a serial number for the D-H key computed earlier.
-            It is an INT, and must be greater than 0.
-        </description>
-        <flow sarg="const" sink="Concat M_A (S)" darg="keyid A"/>
-        <flow sarg="const" sink="Concat X_A" darg="keyid A"/>
-    </const>
-
-    <const id="pub A">
-        <description>
-            Public key of A.
-        </description>
-        <flow sarg="const" sink="Concat M_A (S)" darg="pub A"/>
-        <flow sarg="const" sink="Concat X_A" darg="pub A"/>
-        <flow sarg="const" sink="Sign M_A" darg="pkey"/>
-    </const>
-
-    <const id="priv A">
-        <description>
-            Private key of A.
-        </description>
-        <flow sarg="const" sink="Sign M_A" darg="skey"/>
-    </const>
-
     <xform id="Concat M_A (S)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
-            data, using the key m1': g^y (MPI), g^x (MPI), pub A (PUBKEY), keyid A (INT)
+            data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="M_B Input" sink="HMAC M_A (S)" darg="msg"/>
         <arg name="g^y"/>
         <arg name="g^x"/>
-        <arg name="pub A"/>
-        <arg name="keyid A"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
     </xform>
 
     <hmac id="HMAC M_A (S)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
-            data, using the key m1': g^y (MPI), g^x (MPI), pub A (PUBKEY), keyid A (INT)
+            data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="auth" sink="Sign M_A" darg="msg"/>
     </hmac>
 
     <sign id="Sign M_A">
         <description>
-            This is the signature, using the private part of the key pub A, of the
+            This is the signature, using the private part of the key pub, of the
             32-byte MB (which does not need to be hashed again to produce the signature).
         </description>
         <flow sarg="auth" sink="Concat X_A" darg="Signed M_A"/>
@@ -580,8 +588,8 @@
             Let X_A be the following structure: pub_A (PUBKEY), keyid_A (INT), sig_A(M_A) (SIG)
         </description>
         <flow sarg="X_A" sink="Encrypt X_A" darg="plaintext"/>
-        <arg name="pub A"/>
-        <arg name="keyid A"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
         <arg name="Signed M_A"/>
     </xform>
 
@@ -666,27 +674,27 @@
         </description>
         <flow sarg="pub_A" sink="Verify Sig M_A (R)" darg="pkey"/>
         <flow sarg="Signature" sink="Verify Sig M_A (R)" darg="auth"/>
-        <flow sarg="pub_A" sink="Concat M_A (R)" darg="pub A"/>
-        <flow sarg="keyid_A" sink="Concat M_A (R)" darg="keyid A"/>
+        <flow sarg="pub_A" sink="Concat M_A (R)" darg="pub"/>
+        <flow sarg="keyid_A" sink="Concat M_A (R)" darg="keyid"/>
         <arg name="X_A"/>
     </xform>
 
     <xform id="Concat M_A (R)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
-            data, using the key m1': g^y (MPI), g^x (MPI), pub A (PUBKEY), keyid A (INT)
+            data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="M_A Input" sink="HMAC M_A (R)" darg="msg"/>
         <arg name="g^y"/>
         <arg name="g^x"/>
-        <arg name="pub A"/>
-        <arg name="keyid A"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
     </xform>
 
     <hmac id="HMAC M_A (R)">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
-            data, using the key m1: g^y (MPI), g^x (MPI), pub A (PUBKEY), keyid A (INT)
+            data, using the key m1: g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="auth" sink="Verify Sig M_A (R)" darg="msg"/>
     </hmac>
@@ -755,54 +763,29 @@
         <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="keyid B">
-        <description>
-            Select keyid_B, a serial number for the D-H key computed earlier.
-            It is an INT, and must be greater than 0.
-        </description>
-        <flow sarg="const" sink="Concat M_B (S)" darg="keyid B"/>
-        <flow sarg="const" sink="Concat X_B" darg="keyid B"/>
-    </const>
-
-    <const id="pub B">
-        <description>
-            Public key of B.
-        </description>
-        <flow sarg="const" sink="Concat M_B (S)" darg="pub B"/>
-        <flow sarg="const" sink="Concat X_B" darg="pub B"/>
-        <flow sarg="const" sink="Sign M_B" darg="pkey"/>
-    </const>
-
-    <const id="priv B">
-        <description>
-            Private key of B.
-        </description>
-        <flow sarg="const" sink="Sign M_B" darg="skey"/>
-    </const>
-
     <xform id="Concat M_B (S)">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
-            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="M_B Input" sink="HMAC M_B (S)" darg="msg"/>
         <arg name="g^x"/>
         <arg name="g^y"/>
-        <arg name="pub B"/>
-        <arg name="keyid B"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
     </xform>
 
     <hmac id="HMAC M_B (S)">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
-            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="auth" sink="Sign M_B" darg="msg"/>
     </hmac>
 
     <sign id="Sign M_B">
         <description>
-            This is the signature, using the private part of the key pub B, of the
+            This is the signature, using the private part of the key pub, of the
             32-byte M_B (which does not need to be hashed again to produce the signature).
         </description>
         <flow sarg="auth" sink="Concat X_B" darg="Signed M_B"/>
@@ -813,8 +796,8 @@
             Let X_B be the following structure: pub_B (PUBKEY), keyid_B (INT), sig_B(M_B) (SIG)
         </description>
         <flow sarg="X_B" sink="Encrypt X_B" darg="plaintext"/>
-        <arg name="pub B"/>
-        <arg name="keyid B"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
         <arg name="Signed M_B"/>
     </xform>
 
@@ -942,8 +925,8 @@
         <description>
             Split X_B into pub_B, keyid_B, sig_B(M_B)
         </description>
-        <flow sarg="pub_B" sink="Concat M_B (R)" darg="pub B"/>
-        <flow sarg="keyid_B" sink="Concat M_B (R)" darg="keyid B"/>
+        <flow sarg="pub_B" sink="Concat M_B (R)" darg="pub"/>
+        <flow sarg="keyid_B" sink="Concat M_B (R)" darg="keyid"/>
         <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
         <flow sarg="pub_B" sink="Verify Sig M_B" darg="pkey"/>
         <arg name="X_B"/>
@@ -952,19 +935,19 @@
     <xform id="Concat M_B (R)">
         <description>
             Compute the 32-byte value MB to be the SHA256-HMAC of the following
-            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="M_B Input" sink="HMAC M_B (R)" darg="msg"/>
         <arg name="g^x"/>
         <arg name="g^y"/>
-        <arg name="pub B"/>
-        <arg name="keyid B"/>
+        <arg name="pub"/>
+        <arg name="keyid"/>
     </xform>
 
     <hmac id="HMAC M_B (R)">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
-            data, using the key m1: g^x (MPI), g^y (MPI), pub B (PUBKEY), keyid B (INT)
+            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
         <flow sarg="auth" sink="Verify Sig M_B" darg="msg"/>
     </hmac>

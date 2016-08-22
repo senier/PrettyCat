@@ -513,6 +513,10 @@
     </xform>
 
     <guard id="Guard Signature (S)">
+        <description>
+            Only send a Signature message once the reveal signature message
+            was verified correctly.
+        </description>
         <flow sarg="data" sink="Network" darg="sigm"/>
     </guard>
 
@@ -1132,7 +1136,7 @@
         </description>
         <flow sarg="data" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data" sink="Encrypt (M)" darg="key"/>
-        <flow sarg="data" sink="Compare counter" darg="data"/>
+        <flow sarg="data" sink="Detect key change (M)" darg="data"/>
         <arg name="data"/>
     </xform>
 
@@ -1162,14 +1166,25 @@
     </release>
 
     <const id="Initial counter (M)">
+        <description>
+            Initial value for counter to encrypt data message. Must not be 0.
+        </description>
         <flow sarg="const" sink="Counter (M)" darg="init"/>
     </const>
 
-    <scomp id="Compare counter">
+    <scomp id="Detect key change (M)">
+        <description>
+            Compare key stream and trigger whenever the current key equals the
+            previous key to ensures that the counter is increase whenever we
+            use a key twice.
+        </description>
         <flow sarg="result" sink="Counter (M)" darg="trigger"/>
     </scomp>
 
     <counter id="Counter (M)">
+        <description>
+            Monotonic counter used in counter mode encryption of data messages.
+        </description>
         <flow sarg="ctr" sink="Encrypt (M)" darg="ctr"/>
         <flow sarg="ctr" sink="Data (S)" darg="top_half_of_counter_init"/>
         <flow sarg="ctr" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>

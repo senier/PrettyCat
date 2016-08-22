@@ -75,26 +75,27 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
-            <xs:element name="env"         type="envElement"/>
-            <xs:element name="const"       type="forwardElement"/>
-            <xs:element name="xform"       type="xformElement"/>
-            <xs:element name="dhpub"       type="forwardElement"/>
-            <xs:element name="dhsec"       type="forwardElement"/>
-            <xs:element name="rng"         type="forwardElement"/>
-            <xs:element name="hmac"        type="forwardElement"/>
-            <xs:element name="hmac_out"    type="forwardElement"/>
-            <xs:element name="sign"        type="forwardElement"/>
-            <xs:element name="verify_sig"  type="forwardElement"/>
-            <xs:element name="verify_hmac" type="forwardElement"/>
-            <xs:element name="hash"        type="forwardElement"/>
-            <xs:element name="decrypt"     type="forwardElement"/>
-            <xs:element name="encrypt"     type="forwardElement"/>
-            <xs:element name="guard"       type="forwardElement"/>
-            <xs:element name="release"     type="forwardElement"/>
-            <xs:element name="comp"        type="forwardElement"/>
-            <xs:element name="scomp"       type="forwardElement"/>
-            <xs:element name="permute"     type="xformElement"/>
-            <xs:element name="counter"     type="xformElement"/>
+            <xs:element name="env"           type="envElement"/>
+            <xs:element name="const"         type="forwardElement"/>
+            <xs:element name="xform"         type="xformElement"/>
+            <xs:element name="dhpub"         type="forwardElement"/>
+            <xs:element name="dhsec"         type="forwardElement"/>
+            <xs:element name="rng"           type="forwardElement"/>
+            <xs:element name="hmac"          type="forwardElement"/>
+            <xs:element name="hmac_out"      type="forwardElement"/>
+            <xs:element name="sign"          type="forwardElement"/>
+            <xs:element name="verify_sig"    type="forwardElement"/>
+            <xs:element name="verify_hmac"   type="forwardElement"/>
+            <xs:element name="hash"          type="forwardElement"/>
+            <xs:element name="decrypt"       type="forwardElement"/>
+            <xs:element name="encrypt"       type="forwardElement"/>
+            <xs:element name="guard"         type="forwardElement"/>
+            <xs:element name="release"       type="forwardElement"/>
+            <xs:element name="comp"          type="forwardElement"/>
+            <xs:element name="scomp"         type="forwardElement"/>
+            <xs:element name="verify_commit" type="forwardElement"/>
+            <xs:element name="permute"       type="xformElement"/>
+            <xs:element name="counter"       type="xformElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>
@@ -1931,6 +1932,95 @@ class Primitive_scomp (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
+
+class Primitive_verify_commit (Primitive):
+    """
+    Primitive for a verifying a commitment.
+
+    This primitives verifies a commitment using a cryptographic hash function. It
+    takes a hash value h and a data value d. If the hash value is received prior to
+    the data value and the hash(d) == h, then the primitive outputs d.
+    """
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data, hash
+        #   Output: data
+
+        # Parameter
+        #   data
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "data_in_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantees can be dropped if:
+        #   No integrity is guaranteed for data_out
+        # Reason:
+        #   If an attacker can chose data, she may change the output data.
+        # Truth table
+        #   data_in_i data_out_i result
+        #   0         0          1
+        #   0         1          0
+        # Assertion:
+        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   hash
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.hash.c, "hash_in_c")
+
+        # Parameter
+        #   hash
+        # Integrity guarantees can be dropped if:
+        #   Anytime
+        #   FIXME: Really?
+        # Reason:
+        #   Output data is not influenced by hash input parameter.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.hash.i, "hash_in_i")
+
+        # Parameter
+        #   data_out
+        # Confidentiality guarantee can be dropped if:
+        #   No confidentiality is to be guaranteed for data_in
+        # Reason:
+        #   If data_in has no confidentiality guarantees, it
+        #   makes no sense to keep data_out confidential.
+        # Assertion:
+        #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
+        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+
+        # Parameter
+        #   data_out
+        # Integrity guarantees can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.data.i, "data_out_i")
 
 ####################################################################################################
 

@@ -387,7 +387,7 @@
             First message of the AKE received by peer in the responder case.
         </description>
         <flow sarg="encrypted_g^x" sink="Decrypt g^x" darg="ciphertext"/>
-        <flow sarg="hashed_g^x" sink="Verify hashed g^x (R)" darg="data1"/>
+        <flow sarg="hashed_g^x" sink="Verify g^x (R)" darg="hash"/>
         <arg name="dhcm"/>
     </xform>
 
@@ -874,35 +874,19 @@
             Use the received value of r to decrypt the value of g^x
             received in the D-H Commit Message
         </description>
-        <flow sarg="plaintext" sink="Hash g^x (R)" darg="data"/>
         <flow sarg="plaintext" sink="Verify g^x (R)" darg="data"/>
         <flow sarg="plaintext" sink="Shared secret (S)" darg="pub"/>
         <flow sarg="plaintext" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
     </decrypt>
 
-    <hash id="Hash g^x (R)">
+    <verify_commit id="Verify g^x (R)">
         <description>
-            SHA256 hash of the encoded gxmpi value.
-        </description>
-        <flow sarg="hash" sink="Verify hashed g^x (R)" darg="data2"/>
-    </hash>
-
-    <comp id="Verify hashed g^x (R)">
-        <description>
-            Check that the hash of the gxmpi sent encrypted in the
-            D-H Commit message matches the value decrypted with
-            the key received in the Reveal Signature Message.
-        </description>
-        <flow sarg="result" sink="Verify g^x (R)" darg="cond"/>
-    </comp>
-
-    <guard id="Verify g^x (R)">
-        <description>
-            Only use g^x if the hash was correct.
+            Check that the hash of decrypted g^x matches the value of the
+            hashed g^x sent in D-H Commit message.
         </description>
         <flow sarg="data" sink="Concat M_B (R)" darg="g^x"/>
         <flow sarg="data" sink="Concat M_A (S)" darg="g^x"/>
-    </guard>
+    </verify_commit>
 
     <verify_hmac id="Verify Encrypted X_B">
         <description>

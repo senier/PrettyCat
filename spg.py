@@ -75,27 +75,28 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
-            <xs:element name="env"           type="envElement"/>
-            <xs:element name="const"         type="forwardElement"/>
-            <xs:element name="xform"         type="xformElement"/>
-            <xs:element name="dhpub"         type="forwardElement"/>
-            <xs:element name="dhsec"         type="forwardElement"/>
-            <xs:element name="rng"           type="forwardElement"/>
-            <xs:element name="hmac"          type="forwardElement"/>
-            <xs:element name="hmac_out"      type="forwardElement"/>
-            <xs:element name="sign"          type="forwardElement"/>
-            <xs:element name="verify_sig"    type="forwardElement"/>
-            <xs:element name="verify_hmac"   type="forwardElement"/>
-            <xs:element name="hash"          type="forwardElement"/>
-            <xs:element name="decrypt"       type="forwardElement"/>
-            <xs:element name="encrypt"       type="forwardElement"/>
-            <xs:element name="guard"         type="forwardElement"/>
-            <xs:element name="release"       type="forwardElement"/>
-            <xs:element name="comp"          type="forwardElement"/>
-            <xs:element name="scomp"         type="forwardElement"/>
-            <xs:element name="verify_commit" type="forwardElement"/>
-            <xs:element name="permute"       type="xformElement"/>
-            <xs:element name="counter"       type="xformElement"/>
+            <xs:element name="env"             type="envElement"/>
+            <xs:element name="const"           type="forwardElement"/>
+            <xs:element name="xform"           type="xformElement"/>
+            <xs:element name="dhpub"           type="forwardElement"/>
+            <xs:element name="dhsec"           type="forwardElement"/>
+            <xs:element name="rng"             type="forwardElement"/>
+            <xs:element name="hmac"            type="forwardElement"/>
+            <xs:element name="hmac_out"        type="forwardElement"/>
+            <xs:element name="sign"            type="forwardElement"/>
+            <xs:element name="verify_sig"      type="forwardElement"/>
+            <xs:element name="verify_hmac"     type="forwardElement"/>
+            <xs:element name="verify_hmac_out" type="forwardElement"/>
+            <xs:element name="hash"            type="forwardElement"/>
+            <xs:element name="decrypt"         type="forwardElement"/>
+            <xs:element name="encrypt"         type="forwardElement"/>
+            <xs:element name="guard"           type="forwardElement"/>
+            <xs:element name="release"         type="forwardElement"/>
+            <xs:element name="comp"            type="forwardElement"/>
+            <xs:element name="scomp"           type="forwardElement"/>
+            <xs:element name="verify_commit"   type="forwardElement"/>
+            <xs:element name="permute"         type="xformElement"/>
+            <xs:element name="counter"         type="xformElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>
@@ -1542,6 +1543,36 @@ class Primitive_verify_hmac (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.result.i, "result_out_i")
+
+class Primitive_verify_hmac_out (Primitive_verify_hmac):
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  msg, auth, key
+        #   Output: result, msg
+
+        # Parameter
+        #   msg_out
+        # Confidentiality guarantee can be dropped if:
+        #   msg_in requires no confidentiality
+        # Reason:
+        #   The HMAC does not achieve confidentiality.
+        # Assertion:
+        #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
+        self.assert_and_track (Implies (self.i.msg.c, self.o.msg.c), "msg_out_c")
+
+        # Parameter
+        #   msg_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.msg.i, "msg_out_i")
 
 class Primitive_counter (Primitive):
 

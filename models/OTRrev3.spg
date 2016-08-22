@@ -1315,15 +1315,12 @@
         <flow sarg="flags"                    sink="Concat authenticator (R)" darg="flags"/>
         <flow sarg="sender_keyid"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
         <flow sarg="sender_keyid"             sink="Concat authenticator (R)" darg="sender_keyid"/>
-        <flow sarg="sender_keyid"             sink="Verify counter (M)"       darg="sender_keyid"/>
         <flow sarg="recipient_keyid"          sink="Select local pubkey (M)"  darg="recipient_keyid"/>
         <flow sarg="recipient_keyid"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
-        <flow sarg="recipient_keyid"          sink="Verify counter (M)"       darg="recipient_keyid"/>
         <flow sarg="dh_y"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
         <flow sarg="dh_y"                     sink="Concat authenticator (R)" darg="dh_y"/>
         <flow sarg="top_half_of_counter_init" sink="Decrypt (M)"              darg="ctr"/>
         <flow sarg="top_half_of_counter_init" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
-        <flow sarg="top_half_of_counter_init" sink="Verify counter (M)"       darg="counter"/>
         <flow sarg="encrypted_message"        sink="Guard MAC (M)"            darg="data"/>
         <flow sarg="encrypted_message"        sink="Concat authenticator (R)" darg="encrypted_message"/>
         <flow sarg="authenticator"            sink="Verify MAC (M)"           darg="auth"/>
@@ -1347,12 +1344,13 @@
         <arg name="encrypted_message"/>
     </xform>
 
-    <verify_hmac id="Verify MAC (M)">
+    <verify_hmac_out id="Verify MAC (M)">
         <description>
              Use the "receiving MAC key" to verify the MAC on the message.
         </description>
         <flow sarg="result" sink="Guard MAC (M)" darg="cond"/>
-    </verify_hmac>
+        <flow sarg="msg"    sink="Verify counter (M)" darg="data"/>
+    </verify_hmac_out>
 
     <guard id="Guard MAC (M)">
         <description>
@@ -1366,15 +1364,13 @@
             Check that the counter in the Data message is strictly larger
             than the last counter you saw using this pair of keys.
         </description>
-        <flow sarg="result" sink="Guard counter (M)" darg="cond"/>
-        <arg name="sender_keyid"/>
-        <arg name="recipient_keyid"/>
-        <arg name="counter"/>
+        <flow sarg="cond" sink="Guard counter (M)" darg="cond"/>
+        <arg name="data"/>
     </xform>
 
     <guard id="Guard counter (M)">
         <description>
-            If counter is invalid, reject the message.
+              If the MAC does not verify, reject the message.
         </description>
         <flow sarg="data" sink="Decrypt (M)" darg="ciphertext"/>
     </guard>

@@ -1724,8 +1724,8 @@ class Primitive_guard (Primitive):
         #   Whether integrity needs to be guaranteed only depends on the primitive using
         #   the result.
         # Assertion:
-        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_out_i")
+        #   None
+        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_release (Primitive):
 

@@ -489,7 +489,8 @@
 
     <dhsec id="Shared secret (R)">
         <description>
-            Compute the Diffie-Hellman shared secret s in the intitiator case.
+            Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
+            compute the Diffie-Hellman shared secret s in the intitiator case.
         </description>
         <flow sarg="ssec" sink="Derive keys" darg="Initiator ssec"/>
     </dhsec>
@@ -976,7 +977,8 @@
 
     <dhsec id="Shared secret (S)">
         <description>
-            Compute the Diffie-Hellman shared secret s in the responder case.
+            Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
+            compute the Diffie-Hellman shared secret s in the responder case.
         </description>
         <flow sarg="ssec" sink="Derive keys" darg="Responder ssec"/>
     </dhsec>
@@ -1077,7 +1079,8 @@
 
     <dhsec id="Shared secret (M)">
         <description>
-            Calculate DH shared secret s for data message.
+            Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
+            calculate DH shared secret s for data message.
         </description>
         <flow sarg="ssec" sink="Serialize s (M)" darg="s"/>
     </dhsec>

@@ -15,8 +15,6 @@ import networkx as nx
 
 # TODO: Check for excess output parameters in fixed primitives
 # TODO: Schema: Constrain boolean attributes to true/false
-# TODO: Schema: Enforce non-empty sarg/sink/darg
-# TODO: Schame: Check references for sarg/sing/darg
 
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">

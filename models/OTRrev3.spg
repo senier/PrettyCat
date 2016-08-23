@@ -481,8 +481,8 @@
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
         <flow sarg="g^y" sink="Shared secret (R)" darg="pub"/>
-        <flow sarg="g^y" sink="Concat M_B (S)" darg="g^y"/>
-        <flow sarg="g^y" sink="Concat M_A (R)" darg="g^y"/>
+        <flow sarg="g^y" sink="Layout M_B (S)" darg="uncontrolled"/>
+        <flow sarg="g^y" sink="Layout M_A (R)" darg="uncontrolled"/>
         <flow sarg="g^y" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
         <arg name="dhkm"/>
     </xform>
@@ -687,12 +687,19 @@
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="M_A Input" sink="HMAC M_A (R)" darg="msg"/>
-        <arg name="g^y"/>
+        <flow sarg="M_A Input" sink="Layout M_A (R)" darg="controlled"/>
         <arg name="g^x"/>
         <arg name="pub"/>
         <arg name="keyid"/>
     </xform>
+
+    <layout id="Layout M_A (R)">
+        <description>
+            Compute the 32-byte value M_A to be the SHA256-HMAC of the following
+            data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
+        </description>
+        <flow sarg="data" sink="HMAC M_A (R)" darg="msg"/>
+    </layout>
 
     <hmac id="HMAC M_A (R)">
         <description>
@@ -780,12 +787,19 @@
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="M_B Input" sink="HMAC M_B (S)" darg="msg"/>
+        <flow sarg="controlled" sink="Layout M_B (S)" darg="controlled"/>
         <arg name="g^x"/>
-        <arg name="g^y"/>
         <arg name="pub"/>
         <arg name="keyid"/>
     </xform>
+
+    <layout id="Layout M_B (S)">
+        <description>
+            Compute the 32-byte value M_B to be the SHA256-HMAC of the following
+            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
+        </description>
+        <flow sarg="data" sink="HMAC M_B (S)" darg="msg"/>
+    </layout>
 
     <hmac id="HMAC M_B (S)">
         <description>

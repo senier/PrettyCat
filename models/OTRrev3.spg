@@ -333,7 +333,7 @@
         </description>
         <flow sarg="data" sink="Calculate g^x (S)" darg="psec"/>
         <flow sarg="data" sink="Shared secret (R)" darg="psec"/>
-        <flow sarg="data" sink="Select secret key (M)" darg="initiator_psec"/>
+        <flow sarg="data" sink="Join secret key (M)" darg="initiator_psec"/>
     </rng>
 
     <dhpub id="Calculate g^x (S)">
@@ -450,7 +450,7 @@
         </description>
         <flow sarg="data" sink="Calculate g^y (S)" darg="psec"/>
         <flow sarg="data" sink="Shared secret (S)" darg="psec"/>
-        <flow sarg="data" sink="Select secret key (M)" darg="responder_psec"/>
+        <flow sarg="data" sink="Join secret key (M)" darg="responder_psec"/>
     </rng>
 
     <dhpub id="Calculate g^y (S)">
@@ -982,7 +982,7 @@
             Picks the most recent D-H encryption key received from the remote
             party, either in a Data Message or in the AKE.
         </description>
-        <flow sarg="current_key" sink="Select secret key (M)" darg="order"/>
+        <flow sarg="current_key" sink="Select secret key (M)" darg="uncontrolled"/>
         <flow sarg="recipient_keyid" sink="Data (S)" darg="recipient_keyid"/>
         <flow sarg="recipient_keyid" sink="Concat authenticator (S)" darg="recipient_keyid"/>
         <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
@@ -1009,7 +1009,7 @@
             g^y for the next data message.
         </description>
         <flow sarg="data" sink="Calculate next D-H key (M)" darg="psec"/>
-        <flow sarg="data" sink="Select secret key (M)" darg="data_psec"/>
+        <flow sarg="data" sink="Join secret key (M)" darg="data_psec"/>
     </rng>
 
     <dhpub id="Calculate next D-H key (M)">
@@ -1048,7 +1048,17 @@
         <arg name="recipient_keyid"/>
     </xform>
 
-    <permute id="Select secret key (M)">
+    <xform id="Join secret key (M)">
+        <description>
+            Join secret keys from AKE initiator/responder/last data message.
+        </description>
+        <flow sarg="psec" sink="Select secret key (M)" darg="controlled"/>
+        <arg name="data_psec"/>
+        <arg name="initiator_psec"/>
+        <arg name="responder_psec"/>
+    </xform>
+
+    <layout id="Select secret key (M)">
         <!-- FIXME: If the "recipient keyid" in the Data message equals
          our_keyid, then he's seen the public part of our most recent DH key
          pair, so you must securely forget our_dh[our_keyid-1], increment
@@ -1059,11 +1069,8 @@
             the result of AKE or the result of a subsequent DH exchange
             using previous dh_y contained in a data message.
         </description>
-        <flow sarg="psec" sink="Shared secret (M)" darg="psec"/>
-        <arg name="data_psec"/>
-        <arg name="initiator_psec"/>
-        <arg name="responder_psec"/>
-    </permute>
+        <flow sarg="data" sink="Shared secret (M)" darg="psec"/>
+    </layout>
 
     <dhsec id="Shared secret (M)">
         <description>

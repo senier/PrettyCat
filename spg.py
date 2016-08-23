@@ -76,8 +76,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
             <xs:element name="env"             type="envElement"/>
-            <xs:element name="const"           type="forwardElement"/>
             <xs:element name="xform"           type="xformElement"/>
+            <xs:element name="const"           type="forwardElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
             <xs:element name="dhsec"           type="forwardElement"/>
             <xs:element name="rng"             type="forwardElement"/>
@@ -95,8 +95,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="comp"            type="forwardElement"/>
             <xs:element name="scomp"           type="forwardElement"/>
             <xs:element name="verify_commit"   type="forwardElement"/>
-            <xs:element name="permute"         type="xformElement"/>
-            <xs:element name="counter"         type="xformElement"/>
+            <xs:element name="layout"          type="forwardElement"/>
+            <xs:element name="counter"         type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
 </xs:complexType>
@@ -485,23 +485,33 @@ class Primitive_xform (Primitive):
             for (out_name, out_g) in self.o.guarantees().items():
                 self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
 
-class Primitive_permute (Primitive):
+class Primitive_layout (Primitive):
     """
-    The permute primitive
-    
-    This primitive change the flow from input data interfaces to output
-    interfaces based on order input interfaces.
+    The layout primitive
+
+    This primitive controls the layout of an output message. Input may either
+    be controlled (i.e. with integrity guarantees) or uncontrolled. The latter
+    input has only limited influence on the output, e.g. the permutation of
+    trusted input fields or the content of specific fixed untrusted fields of
+    the output message.
+
+    This can be used to feed a MAC data that contains untrusted portions (like
+    a DH public key received over the Internet) as well as trusted portions
+    like the local DH key to authenticate a connection. It can also be used
+    to let untrusted data control the layout (but not the content) of trusted
+    data, e.g. the selection of trusted keys from an untrusted ID contained
+    in a message.
     """
 
     def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
-        #   Inputs:  order, data_i
-        #   Outputs: data_j
+        #   Inputs:  uncontrolled, controlled
+        #   Outputs: data
 
         # Parameter
-        #   All input interfaces data_i
+        #   uncontrolled
         # Confidentiality guarantee can be dropped if:
         #   Anytime.
         # Reason:
@@ -511,65 +521,32 @@ class Primitive_permute (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
+        self.assert_nothing (self.i.uncontrolled.c, "uncontrolled_in_c")
 
         # Parameter
-        #   All input interfaces data_i
+        #   uncontrolled
         # Integrity guarantee can be dropped if:
-        #   No output data interface guarantees integrity
+        #   Anytime
         # Reason:
-        #   Input from a source lacking integrity guarantees can influence
-        #   any output of an xform in undetermined ways. Hence, maintaining
-        #   integrity for an input is superfluous if no output guarantees
-        #   integrity
-        #   FIXME: If any input does not guarantee integrity, we should also
-        #   be able to drop integrity guarantees.
-        # Assertion:
-        #   ∃out_i ⇒ ∀in_j
-        for (out_name, out_g) in self.o.guarantees().items():
-            for (in_name, in_g) in self.i.guarantees().items():
-                    if in_name != "order":
-                        self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
-
-        # Parameter
-        #   All output interfaces data_j
-        # Integrity guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
+        #   Having uncontrolled data influence the layout of the output
+        #   securely is one purpose of this component.
         # Assertion:
         #   None
+        self.assert_nothing (self.i.uncontrolled.i, "uncontrolled_in_i")
 
         # Parameter
-        #   All output interfaces data_j
-        # Confidentiality guarantee can be dropped if:
-        #   No input interface demands confidentiality
-        # Reason:
-        #   Input from an interface guaranteeing confidentiality may pass
-        #   confidential data to any output. Hence, confidentiality can
-        #   only be dropped if no input interface guarantees confidentiality
-        # Assertion:
-        #   in_c -> out_c
-        for (in_name, in_g) in self.i.guarantees().items():
-            if in_name != "order":
-                for (out_name, out_g) in self.o.guarantees().items():
-                    self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
-
-        # Parameter
-        #   order_in
+        #   controlled
         # Integrity guarantee can be dropped if:
-        #   Anytime.
+        #   If the output data interfaces has not security guarantees.
         # Reason:
-        #   The permute primitive assumes that receiver of the output data
-        #   copes with arbitrary permutations of the input data and that
-        #   otherwise the order input interfaces cannot influence the
-        #   integrity of output data
+        #   Otherwise, an attacker could change the content of data
+        #   by changing the controlled input data.
         # Assertion:
-        #   None
-        self.assert_nothing (self.i.order.i, "order_in_i")
+        #   controlled_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ controlled_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.controlled.i), "controlled_in_i")
 
         # Parameter
-        #   order_in
+        #   controlled
         # Confidentiality guarantee can be dropped if:
         #   Anytime
         # Reason:
@@ -579,7 +556,30 @@ class Primitive_permute (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.order.c, "order_in_c")
+        self.assert_nothing (self.i.controlled.c, "controlled_in_c")
+
+        # Parameter
+        #   data
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.data.i, "data_out_i")
+
+        # Parameter
+        #   data
+        # Confidentiality guarantee can be dropped if:
+        #   No input interface demands confidentiality
+        # Reason:
+        #   Input from an interface guaranteeing confidentiality may pass
+        #   confidential data to any output. Hence, confidentiality can
+        #   only be dropped if no input interface guarantees confidentiality
+        # Assertion:
+        #   controlled_c ∨ uncontrolled_c -> data_c
+        self.assert_and_track (Implies (Or (self.i.controlled.c, self.i.uncontrolled.c), self.o.data.c), "data_out_c")
 
 class Primitive_const (Primitive):
     """
@@ -2170,7 +2170,7 @@ def parse_graph (inpath, solver, maximize):
         sarg = data['sarg']
         darg = data['darg']
 
-        if mdg.node[child]['kind'] == "xform" or (mdg.node[child]['kind'] == "permute" and darg != "order"):
+        if mdg.node[child]['kind'] == "xform":
             if not darg in mdg.node[child]['arguments']:
                 warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
 

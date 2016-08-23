@@ -159,8 +159,8 @@ class Graph:
             err ("No solution")
 
     def write (self, title, out):
-    
-        G = self.graph 
+
+        G = self.graph
         for node in G.node:
 
             if G.node[node]['kind'] == "env":
@@ -181,21 +181,21 @@ class Graph:
                 val_i = val_i or G.node[current]['primitive'].o.guarantees()[sarg].val_i()
 
             set_style (G.node[node], val_c, val_i)
-    
+
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
-    
+
             # sarg guarantees of parent should are the same as darg guarantees of child
             darg = data['darg']
             sarg = data['sarg']
-    
+
             data['xlabel']    = ""
             data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
             data['headlabel'] = data['darg']
 
             g = G.node[parent]['primitive'].o.guarantees()[sarg]
             set_style (data, g.val_c(), g.val_i())
-        
+
         pd = nx.drawing.nx_pydot.to_pydot(G)
         pd.set_name("sdg")
         pd.set ("splines", "ortho")
@@ -212,7 +212,7 @@ class Graph:
             dotformat = "svg"
         else:
             raise Exception ("Unsupported graphviz output type")
-    
+
         subprocess.check_output (["dot", "-T", dotformat, "-o", out, out + ".dot"])
         os.remove (out + ".dot")
 
@@ -226,7 +226,7 @@ class Args:
         self._name   = name
         self._mode   = mode
 
-    def add_guarantee (self, name): 
+    def add_guarantee (self, name):
         self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name, self._mode)})
 
     def guarantees (self):
@@ -350,7 +350,7 @@ class Guarantees:
         return i
 
     def assert_x (self, var, value, tag):
-        if value != None: 
+        if value != None:
             self.graph.solver.assert_and_track (var == value, self.base + "_" + tag)
 
     def assert_c (self, value):
@@ -402,7 +402,7 @@ class Primitive:
 class Primitive_env (Primitive):
     """
     The env primitive
-    
+
     Denotes sources and sinks outside the model. Fixed guarantees according to the
     XML definition are used only here.
     """
@@ -423,7 +423,7 @@ class Primitive_env (Primitive):
 class Primitive_xform (Primitive):
     """
     The xform primitive
-    
+
     This mainly identifies sources and sinks and sets the fixed
     guarantees according to the XML definition.
     """
@@ -1234,7 +1234,7 @@ class Primitive_sign (Primitive):
 
     """
     The sign primitive
-    
+
     Creates an asymmetric digital signature for a message using a given set of
     public and secret keys.
     """
@@ -1344,7 +1344,7 @@ class Primitive_verify_sig (Primitive):
 
     """
     The signature verification primitive
-    
+
     Checks whether an auth value represents a valid message signature by a given public key.
     """
 
@@ -1445,7 +1445,7 @@ class Primitive_verify_hmac (Primitive):
 
     """
     HMAC verification primitive
-    
+
     Checks whether a given pair (msg, auth) was MAC'ed with key.
     """
 
@@ -1578,7 +1578,7 @@ class Primitive_counter (Primitive):
 
     """
     Monotonic counter primitive
-    
+
     This primitive outputs a monotonic sequence of counters initialized by to a
     specific value every time the trigger input receives a true value.
     """
@@ -1613,7 +1613,7 @@ class Primitive_counter (Primitive):
         #   void the integrity of ctr_out
         # Assertion:
         #   init_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ init_in_i)
-        #   
+        #
         self.assert_and_track (Implies (self.o.ctr.i, self.i.init.i), "init_in_i")
 
         # Parameter
@@ -1637,13 +1637,13 @@ class Primitive_counter (Primitive):
         #   An attacker who's able to chose a sequence of triggers can void the
         #   integrity of ctr_out. While the initial value of the counter is
         #   required, confidentiality for init_in is not sufficient to drop
-        #   confidentiality guarantees for trigger_in. The reason is, that even 
+        #   confidentiality guarantees for trigger_in. The reason is, that even
         #   though init_in is be confidential, it may still be predictable and
         #   allow and attacker to construct a specific ctr_out from a chosen
         #   sequence of triggers.
         # Assertion:
         #   trigger_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ trigger_in_i)
-        #   
+        #
         self.assert_and_track (Implies (self.o.ctr.i, self.i.trigger.i), "trigger_in_i")
 
         # Parameter
@@ -1673,7 +1673,7 @@ class Primitive_guard (Primitive):
 
     """
     Guard primitive
-    
+
     This primitive guards the control the data flow in a protocol. Input data is
     only transferred to the output interfaces if the condition on the input interfaces is
     true.
@@ -1762,7 +1762,7 @@ class Primitive_release (Primitive):
 
     """
     Release primitive
-    
+
     This primitive allows to drop all security guarantees.
     """
 
@@ -1820,7 +1820,7 @@ class Primitive_comp (Primitive):
 
     """
     Comp primitive
-    
+
     This primitive compares two arbitrary inputs and outputs a boolean value
     indicating whether both inputs were identical or not.
     """
@@ -1907,7 +1907,7 @@ class Primitive_scomp (Primitive):
 
     """
     Comp primitive
-    
+
     The stream comparator compares data with the previous message received on
     the same interface. Depending on whether the current value equals the previous
     value a boolean result is emitted on the outgoing result interfaces.
@@ -2089,11 +2089,11 @@ def parse_graph (inpath, solver, maximize):
         warn ("Invalid input file '" + inpath + "'")
         print (schema.error_log.last_error)
         sys.exit(1)
-    
+
     mdg = nx.MultiDiGraph()
     G   = Graph (mdg, solver, maximize)
     root = tree.getroot()
-    
+
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
 
@@ -2123,7 +2123,7 @@ def parse_graph (inpath, solver, maximize):
              penwidth   = "2", \
              width      = "2.5", \
              height     = "0.6")
-    
+
         for element in child.findall('flow'):
             sarg = element.attrib['sarg']
             darg = element.attrib['darg']

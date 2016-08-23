@@ -194,8 +194,9 @@ class Graph:
             data['headlabel'] = data['darg']
             data['tooltip'] = parent + ":" + data['sarg'] + " ==> " + child + ":" + data['darg']
 
-            g = G.node[parent]['primitive'].o.guarantees()[sarg]
-            set_style (data, g.val_c(), g.val_i())
+            pg = G.node[parent]['primitive'].o.guarantees()[sarg]
+            cg = G.node[child]['primitive'].i.guarantees()[darg]
+            set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
         pd = nx.drawing.nx_pydot.to_pydot(G)
         pd.set_name("sdg")

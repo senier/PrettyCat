@@ -2179,6 +2179,14 @@ def parse_graph (inpath, solver, maximize):
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
         G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
 
+
+    for node in mdg.node:
+        args = set(())
+        for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
+            if data['darg'] in args:
+                raise Exception ("Node '" + node + "' has duplicate input argument '" + data['darg'] + "'")
+            args.add (data['darg'])
+
     info (str(len(mdg.node)) + " nodes.")
 
     return G

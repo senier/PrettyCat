@@ -998,7 +998,7 @@
         </description>
         <flow sarg="current_key" sink="Select secret key (M)" darg="uncontrolled"/>
         <flow sarg="recipient_keyid" sink="Data (S)" darg="recipient_keyid"/>
-        <flow sarg="recipient_keyid" sink="Concat authenticator (S)" darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid" sink="Layout authenticator (S)" darg="uncontrolled"/>
         <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
         <flow sarg="pub" sink="Determine end (M)" darg="remote_pubkey"/>
         <arg name="initiator_remote_pub"/>
@@ -1208,18 +1208,24 @@
         <description>
             Input for the authenticator to MAC outgoing messages.
         </description>
-        <flow sarg="message" sink="Calculate authenticator (M)" darg="msg"/>
+        <flow sarg="message" sink="Layout authenticator (S)" darg="controlled"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
         <arg name="receiver_instance_tag"/>
         <arg name="flags"/>
         <arg name="sender_keyid"/>
-        <arg name="recipient_keyid"/>
         <arg name="dh_y"/>
         <arg name="top_half_of_counter_init"/>
         <arg name="encrypted_message"/>
     </xform>
+
+    <layout id="Layout authenticator (S)">
+        <description>
+            Input for the authenticator to MAC outgoing messages.
+        </description>
+        <flow sarg="data" sink="Calculate authenticator (M)" darg="msg"/>
+    </layout>
 
     <hmac id="Calculate authenticator (M)">
         <description>

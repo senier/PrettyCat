@@ -67,7 +67,8 @@
             Current state of the AKE
         </description>
         <flow sarg="encrypted" sink="Guard Signature (S)" darg="cond"/>
-        <arg name="state"/>
+        <arg name="initiator_state"/>
+        <arg name="responder_state"/>
     </xform>
 
     <!--
@@ -721,7 +722,7 @@
             Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_A)
             if the signature of M_A was correct.
         </description>
-        <flow sarg="data" sink="AKE State" darg="state"/>
+        <flow sarg="data" sink="AKE State" darg="initiator_state"/>
     </guard>
 
     <!--
@@ -974,7 +975,7 @@
             Only signal MSGSTATE_ENCRYPTED (passed on from Guard Encrypted X_B)
             if the signature of M_B was correct.
         </description>
-        <flow sarg="data" sink="AKE State" darg="state"/>
+        <flow sarg="data" sink="AKE State" darg="responder_state"/>
     </guard>
 
     <dhsec id="Shared secret (S)">
@@ -1073,7 +1074,6 @@
             the design of the layout comonent. It will be removed
             as soon as composites are implemented.
         </description>
-        <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
         <flow sarg="pub" sink="Determine end (M)" darg="controlled"/>
         <flow sarg="sender_keyid" sink="Data (S)" darg="sender_keyid"/>
         <flow sarg="sender_keyid" sink="Concat authenticator (S)" darg="sender_keyid"/>

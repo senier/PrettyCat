@@ -1000,7 +1000,7 @@
         <flow sarg="recipient_keyid" sink="Data (S)" darg="recipient_keyid"/>
         <flow sarg="recipient_keyid" sink="Layout authenticator (S)" darg="uncontrolled"/>
         <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
-        <flow sarg="pub" sink="Determine end (M)" darg="remote_pubkey"/>
+        <flow sarg="pub" sink="Determine end (M)" darg="uncontrolled"/>
         <arg name="initiator_remote_pub"/>
         <arg name="responder_remote_pub"/>
         <arg name="pub_remote"/>
@@ -1074,7 +1074,7 @@
             as soon as composites are implemented.
         </description>
         <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
-        <flow sarg="pub" sink="Determine end (M)" darg="local_pubkey"/>
+        <flow sarg="pub" sink="Determine end (M)" darg="controlled"/>
         <flow sarg="sender_keyid" sink="Data (S)" darg="sender_keyid"/>
         <flow sarg="sender_keyid" sink="Concat authenticator (S)" darg="sender_keyid"/>
         <arg name="data"/>
@@ -1121,18 +1121,16 @@
         <arg name="s"/>
     </xform>
 
-    <xform id="Determine end (M)">
+    <layout id="Determine end (M)">
         <description>
             The sender determines if she is the "low" end or the "high" end
             of this Data Message. If the senders public key is numerically
             greater than the receivers public key, then she is the "high"
             end. Otherwise, she is the "low" end.
         </description>
-        <flow sarg="sendbyte" sink="Concat sendkey (M)" darg="b"/>
-        <flow sarg="recvbyte" sink="Concat recvkey (M)" darg="b"/>
-        <arg name="local_pubkey"/>
-        <arg name="remote_pubkey"/>
-    </xform>
+        <flow sarg="data" sink="Concat sendkey (M)" darg="b"/>
+        <flow sarg="data" sink="Concat recvkey (M)" darg="b"/>
+    </layout>
 
     <!-- Sending a data message to the network -->
 

@@ -341,7 +341,7 @@
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
         <flow sarg="pub" sink="Serialize g^x (S)" darg="data"/>
-        <flow sarg="pub" sink="Select local pubkey (M)" darg="initiator_pub_local"/>
+        <flow sarg="pub" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
     </dhpub>
 
     <xform id="Serialize g^x (S)">
@@ -458,7 +458,7 @@
             Calcutate Diffie-Hellman public value g^y for the responder.
         </description>
         <flow sarg="pub" sink="Serialize g^y (S)" darg="data"/>
-        <flow sarg="pub" sink="Select local pubkey (M)" darg="responder_pub_local"/>
+        <flow sarg="pub" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
     </dhpub>
 
     <xform id="Serialize g^y (S)">
@@ -1031,7 +1031,7 @@
             Diffie-Hellman public value g^y for the next data message.
         </description>
         <flow sarg="pub" sink="Serialize g^y (M)" darg="data"/>
-        <flow sarg="pub" sink="Select local pubkey (M)" darg="pub_local"/>
+        <flow sarg="pub" sink="Join local pubkeys (M)" darg="pub_local"/>
     </dhpub>
     
     <xform id="Serialize g^y (M)">
@@ -1043,23 +1043,41 @@
         <arg name="data"/>
     </xform>
 
-    <xform id="Select local pubkey (M)">
+    <xform id="Join local pubkeys (M)">
+        <description>
+            Pass all potential local pubkeys to layout component.
+            FIXME: This component exists due to a limitation in 
+            the design of the layout comonent. It will be removed
+            as soon as composites are implemented.
+        </description>
+        <flow sarg="data" sink="Select local pubkey (M)" darg="controlled"/>
+        <arg name="pub_local"/>
+        <arg name="responder_pub_local"/>
+        <arg name="initiator_pub_local"/>
+    </xform>
+
+    <layout id="Select local pubkey (M)">
         <description>
             Picks the most recent local D-H encryption key remote side
             has acknowledged receiving by using it in a Data Message
             or, failing that, in the AKE.
         </description>
+        <flow sarg="data" sink="Split local pubkey (M)" darg="data"/>
+    </layout>
+
+    <xform id="Split local pubkey (M)">
+        <description>
+            Split public keys and key IDs received from layout
+            component.
+            FIXME: This component exists due to a limitation in 
+            the design of the layout comonent. It will be removed
+            as soon as composites are implemented.
+        </description>
         <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
         <flow sarg="pub" sink="Determine end (M)" darg="local_pubkey"/>
         <flow sarg="sender_keyid" sink="Data (S)" darg="sender_keyid"/>
         <flow sarg="sender_keyid" sink="Concat authenticator (S)" darg="sender_keyid"/>
-        <arg name="pub_local"/>
-        <arg name="responder_pub_local"/>
-        <arg name="initiator_pub_local"/>
-        <!-- This is the recipient_pubkey value we receive in encrypted data
-        messages sent to us. It denotes our pubkey the peer has used for
-        encryption/integrity protection. -->
-        <arg name="recipient_keyid"/>
+        <arg name="data"/>
     </xform>
 
     <xform id="Join secret key (M)">
@@ -1342,7 +1360,7 @@
         <flow sarg="flags"                    sink="Concat authenticator (R)" darg="flags"/>
         <flow sarg="sender_keyid"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
         <flow sarg="sender_keyid"             sink="Concat authenticator (R)" darg="sender_keyid"/>
-        <flow sarg="recipient_keyid"          sink="Select local pubkey (M)"  darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid"          sink="Select local pubkey (M)"  darg="uncontrolled"/>
         <flow sarg="recipient_keyid"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
         <flow sarg="dh_y"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
         <flow sarg="dh_y"                     sink="Concat authenticator (R)" darg="dh_y"/>

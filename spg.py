@@ -192,6 +192,7 @@ class Graph:
             data['xlabel']    = ""
             data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
             data['headlabel'] = data['darg']
+            data['tooltip'] = parent + ":" + data['sarg'] + " ==> " + child + ":" + data['darg']
 
             g = G.node[parent]['primitive'].o.guarantees()[sarg]
             set_style (data, g.val_c(), g.val_i())

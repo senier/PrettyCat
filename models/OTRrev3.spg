@@ -37,30 +37,54 @@
         <description>
             Public key
         </description>
-        <flow sarg="const" sink="Concat M_A (S)" darg="pub"/>
-        <flow sarg="const" sink="Concat X_A" darg="pub"/>
-        <flow sarg="const" sink="Sign M_A" darg="pkey"/>
-        <flow sarg="const" sink="Concat M_B (S)" darg="pub"/>
-        <flow sarg="const" sink="Concat X_B" darg="pub"/>
-        <flow sarg="const" sink="Sign M_B" darg="pkey"/>
+        <flow sarg="const" sink="Split pub const" darg="const"/>
     </const>
+
+    <xform id="Split pub const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Concat M_A (S)" darg="pub"/>
+        <flow sarg="const#2" sink="Concat X_A" darg="pub"/>
+        <flow sarg="const#3" sink="Sign M_A" darg="pkey"/>
+        <flow sarg="const#4" sink="Concat M_B (S)" darg="pub"/>
+        <flow sarg="const#5" sink="Concat X_B" darg="pub"/>
+        <flow sarg="const#6" sink="Sign M_B" darg="pkey"/>
+        <arg name="const"/>
+    </xform>
 
     <const id="priv">
         <description>
             Private key
         </description>
-        <flow sarg="const" sink="Sign M_A" darg="skey"/>
-        <flow sarg="const" sink="Sign M_B" darg="skey"/>
+        <flow sarg="const" sink="Split priv const" darg="const"/>
     </const>
+
+    <xform id="Split priv const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Sign M_A" darg="skey"/>
+        <flow sarg="const#2" sink="Sign M_B" darg="skey"/>
+        <arg name="const"/>
+    </xform>
 
     <!-- AKE -->
     <const id="State encrypted">
         <description>
             Constant signaling successful key exchange.
         </description>
-        <flow sarg="const" sink="Guard Encrypted X_A" darg="data"/>
-        <flow sarg="const" sink="Guard Encrypted X_B" darg="data"/>
+        <flow sarg="const" sink="Split State encrypted const" darg="const"/>
     </const>
+
+    <xform id="Split State encrypted const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Guard Encrypted X_A" darg="data"/>
+        <flow sarg="const#2" sink="Guard Encrypted X_B" darg="data"/>
+        <arg name="const"/>
+    </xform>
 
     <xform id="AKE State">
         <description>
@@ -79,12 +103,12 @@
         <description>
             Serialize the value of shared secret s as a minimum-length MPI secbytes.
         </description>
-        <flow sarg="secbyte" sink="Concat ssid" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat c" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m1" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m2" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m1'" darg="secbytes"/>
-        <flow sarg="secbyte" sink="Concat m2'" darg="secbytes"/>
+        <flow sarg="secbyte#1" sink="Concat ssid" darg="secbytes"/>
+        <flow sarg="secbyte#2" sink="Concat c" darg="secbytes"/>
+        <flow sarg="secbyte#3" sink="Concat m1" darg="secbytes"/>
+        <flow sarg="secbyte#4" sink="Concat m2" darg="secbytes"/>
+        <flow sarg="secbyte#5" sink="Concat m1'" darg="secbytes"/>
+        <flow sarg="secbyte#6" sink="Concat m2'" darg="secbytes"/>
         <arg name="Responder ssec"/>
         <arg name="Initiator ssec"/>
     </xform>
@@ -150,10 +174,10 @@
             Let c be the first 128 bits of h2(0x01),
             and let c' be the second 128 bits of h2(0x01).
         </description>
-        <flow sarg="c"  sink="Encrypt X_B" darg="key"/>
-        <flow sarg="c"  sink="Decrypt X_B" darg="key"/>
-        <flow sarg="c'" sink="Encrypt X_A" darg="key"/>
-        <flow sarg="c'" sink="Decrypt X_A" darg="key"/>
+        <flow sarg="c#1"  sink="Encrypt X_B" darg="key"/>
+        <flow sarg="c#2"  sink="Decrypt X_B" darg="key"/>
+        <flow sarg="c'#1" sink="Encrypt X_A" darg="key"/>
+        <flow sarg="c'#2" sink="Decrypt X_A" darg="key"/>
         <arg name="c"/>
     </xform>
 
@@ -178,9 +202,17 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="HMAC M_B (S)" darg="key"/>
-        <flow sarg="hash" sink="HMAC M_B (R)" darg="key"/>
+        <flow sarg="hash" sink="Split Hash m1" darg="hash"/>
     </hash>
+
+    <xform id="Split Hash m1">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key"/>
+        <flow sarg="hash#2" sink="HMAC M_B (R)" darg="key"/>
+        <arg name="hash"/>
+    </xform>
 
     <const id="Prefix m2">
         <description>
@@ -203,9 +235,17 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="MAC Encrypted X_B" darg="key"/>
-        <flow sarg="hash" sink="Verify Encrypted X_B" darg="key"/>
+        <flow sarg="hash" sink="Split Hash m2 hash" darg="hash"/>
     </hash>
+
+    <xform id="Split Hash m2 hash">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="hash#1" sink="MAC Encrypted X_B" darg="key"/>
+        <flow sarg="hash#2" sink="Verify Encrypted X_B" darg="key"/>
+        <arg name="hash"/>
+    </xform>
 
     <const id="Prefix m1'">
         <description>
@@ -228,9 +268,17 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="HMAC M_A (R)" darg="key"/>
-        <flow sarg="hash" sink="HMAC M_A (S)" darg="key"/>
+        <flow sarg="hash" sink="Split Hash m1' hash" darg="hash"/>
     </hash>
+
+    <xform id="Split Hash m1' hash">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="hash#1" sink="HMAC M_A (R)" darg="key"/>
+        <flow sarg="hash#2" sink="HMAC M_A (S)" darg="key"/>
+        <arg name="hash"/>
+    </xform>
 
     <const id="Prefix m2'">
         <description>
@@ -253,9 +301,17 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Verify Encrypted X_A" darg="key"/>
-        <flow sarg="hash" sink="MAC Encrypted X_A" darg="key"/>
+        <flow sarg="hash" sink="Split Hash m2' hash" darg="hash"/>
     </hash>
+
+    <xform id="Split Hash m2' hash">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="hash#1" sink="Verify Encrypted X_A" darg="key"/>
+        <flow sarg="hash#2" sink="MAC Encrypted X_A" darg="key"/>
+        <arg name="hash"/>
+    </xform>
 
     <!--
       ** Send D-H Commit message
@@ -332,18 +388,34 @@
             Random value x used to calcutate Diffie-Hellman public value
             g^x for the initiator.
         </description>
-        <flow sarg="data" sink="Calculate g^x (S)" darg="psec"/>
-        <flow sarg="data" sink="Shared secret (R)" darg="psec"/>
-        <flow sarg="data" sink="Join secret key (M)" darg="initiator_psec"/>
+        <flow sarg="data" sink="Split Random x (S) data" darg="data"/>
     </rng>
+
+    <xform id="Split Random x (S) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Calculate g^x (S)" darg="psec"/>
+        <flow sarg="data#2" sink="Shared secret (R)" darg="psec"/>
+        <flow sarg="data#3" sink="Join secret key (M)" darg="initiator_psec"/>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate g^x (S)">
         <description>
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
-        <flow sarg="pub" sink="Serialize g^x (S)" darg="data"/>
-        <flow sarg="pub" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
+        <flow sarg="pub" sink="Split Calculate g^x (S) pub" darg="pub"/>
     </dhpub>
+
+    <xform id="Split Calculate g^x (S) pub">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="pub#1" sink="Serialize g^x (S)" darg="data"/>
+        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
+        <arg name="pub"/>
+    </xform>
 
     <xform id="Serialize g^x (S)">
         <description>
@@ -351,10 +423,10 @@
             (typically 196 bytes long, starting with
             "\x00\x00\x00\xc0")
         </description>
-        <flow sarg="gxmpi" sink="Encrypt g^x (S)" darg="plaintext"/>
-        <flow sarg="gxmpi" sink="Hash g^x (S)" darg="data"/>
-        <flow sarg="gxmpi" sink="Concat M_B (S)" darg="g^x"/>
-        <flow sarg="gxmpi" sink="Concat M_A (R)" darg="g^x"/>
+        <flow sarg="gxmpi#1" sink="Encrypt g^x (S)" darg="plaintext"/>
+        <flow sarg="gxmpi#2" sink="Hash g^x (S)" darg="data"/>
+        <flow sarg="gxmpi#3" sink="Concat M_B (S)" darg="g^x"/>
+        <flow sarg="gxmpi#4" sink="Concat M_A (R)" darg="g^x"/>
         <arg name="data"/>
     </xform>
 
@@ -369,9 +441,17 @@
         <description>
             Random value r used for the commitment scheme.
         </description>
-        <flow sarg="data" sink="Encrypt g^x (S)" darg="key"/>
-        <flow sarg="data" sink="Reveal Signature (S)" darg="revealed_key"/>
+        <flow sarg="data" sink="Split Random r (S) data" darg="data"/>
     </rng>
+
+    <xform id="Split Random r (S) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Encrypt g^x (S)" darg="key"/>
+        <flow sarg="data#2" sink="Reveal Signature (S)" darg="revealed_key"/>
+        <arg name="data"/>
+    </xform>
 
     <hash id="Hash g^x (S)">
         <description>
@@ -449,18 +529,34 @@
             Random value y used to calcutate Diffie-Hellman public value
             g^y for the responder.
         </description>
-        <flow sarg="data" sink="Calculate g^y (S)" darg="psec"/>
-        <flow sarg="data" sink="Shared secret (S)" darg="psec"/>
-        <flow sarg="data" sink="Join secret key (M)" darg="responder_psec"/>
+        <flow sarg="data" sink="Split Random y (S) data" darg="data"/>
     </rng>
+
+    <xform id="Split Random y (S) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Calculate g^y (S)" darg="psec"/>
+        <flow sarg="data#2" sink="Shared secret (S)" darg="psec"/>
+        <flow sarg="data#3" sink="Join secret key (M)" darg="responder_psec"/>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate g^y (S)">
         <description>
             Calcutate Diffie-Hellman public value g^y for the responder.
         </description>
-        <flow sarg="pub" sink="Serialize g^y (S)" darg="data"/>
-        <flow sarg="pub" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
+        <flow sarg="pub" sink="Split Calculate g^y (S) pub" darg="pub"/>
     </dhpub>
+
+    <xform id="Split Calculate g^y (S) pub">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="pub#1" sink="Serialize g^y (S)" darg="data"/>
+        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
+        <arg name="pub"/>
+    </xform>
 
     <xform id="Serialize g^y (S)">
         <description>
@@ -468,9 +564,9 @@
             (typically 196 bytes long, starting with
             "\x00\x00\x00\xc0")
         </description>
-        <flow sarg="gympi" sink="D-H Key (S)" darg="g^y"/>
-        <flow sarg="gympi" sink="Concat M_A (S)" darg="g^y"/>
-        <flow sarg="gympi" sink="Concat M_B (R)" darg="g^y"/>
+        <flow sarg="gympi#1" sink="D-H Key (S)" darg="g^y"/>
+        <flow sarg="gympi#2" sink="Concat M_A (S)" darg="g^y"/>
+        <flow sarg="gympi#3" sink="Concat M_B (R)" darg="g^y"/>
         <arg name="data"/>
     </xform>
 
@@ -481,10 +577,10 @@
         <description>
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
-        <flow sarg="g^y" sink="Shared secret (R)" darg="pub"/>
-        <flow sarg="g^y" sink="Layout M_B (S)" darg="uncontrolled"/>
-        <flow sarg="g^y" sink="Layout M_A (R)" darg="uncontrolled"/>
-        <flow sarg="g^y" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
+        <flow sarg="g^y#1" sink="Shared secret (R)" darg="pub"/>
+        <flow sarg="g^y#2" sink="Layout M_B (S)" darg="uncontrolled"/>
+        <flow sarg="g^y#3" sink="Layout M_A (R)" darg="uncontrolled"/>
+        <flow sarg="g^y#4" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
         <arg name="dhkm"/>
     </xform>
 
@@ -555,9 +651,17 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
-        <flow sarg="const" sink="Concat M_A (S)" darg="keyid"/>
-        <flow sarg="const" sink="Concat X_A" darg="keyid"/>
+        <flow sarg="const" sink="Split keyid A const" darg="const"/>
     </const>
+
+    <xform id="Split keyid A const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Concat M_A (S)" darg="keyid"/>
+        <flow sarg="const#2" sink="Concat X_A" darg="keyid"/>
+        <arg name="const"/>
+    </xform>
 
     <xform id="Concat M_A (S)">
         <description>
@@ -608,9 +712,17 @@
         <description>
             Encrypt X_A using AES128-CTR with key c and initial counter value 0.
         </description>
-        <flow sarg="ciphertext" sink="Signature (S)" darg="encrypted_signature"/>
-        <flow sarg="ciphertext" sink="MAC Encrypted X_A" darg="msg"/>
+        <flow sarg="ciphertext" sink="Split Encrypt X_A ciphertext" darg="ciphertext"/>
     </encrypt>
+
+    <xform id="Split Encrypt X_A ciphertext">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="ciphertext#1" sink="Signature (S)" darg="encrypted_signature"/>
+        <flow sarg="ciphertext#2" sink="MAC Encrypted X_A" darg="msg"/>
+        <arg name="ciphertext"/>
+    </xform>
 
     <!-- FIXME: Add DATA/MAC etc. encoding -->
     <hmac id="MAC Encrypted X_A">
@@ -637,8 +749,8 @@
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
         </description>
-        <flow sarg="encrypted_signature" sink="Decrypt X_A" darg="ciphertext"/>
-        <flow sarg="encrypted_signature" sink="Verify Encrypted X_A" darg="msg"/>
+        <flow sarg="encrypted_signature#1" sink="Decrypt X_A" darg="ciphertext"/>
+        <flow sarg="encrypted_signature#2" sink="Verify Encrypted X_A" darg="msg"/>
         <flow sarg="macd_signature" sink="Verify Encrypted X_A" darg="auth"/>
         <arg name="sigm"/>
     </xform>
@@ -676,9 +788,9 @@
         <description>
             Split X_A into pub, keyid, sig_A(M_A)
         </description>
-        <flow sarg="pub" sink="Verify Sig M_A (R)" darg="pkey"/>
+        <flow sarg="pub#1" sink="Verify Sig M_A (R)" darg="pkey"/>
+        <flow sarg="pub#2" sink="Concat M_A (R)" darg="pub"/>
         <flow sarg="Signature" sink="Verify Sig M_A (R)" darg="auth"/>
-        <flow sarg="pub" sink="Concat M_A (R)" darg="pub"/>
         <flow sarg="keyid" sink="Concat M_A (R)" darg="keyid"/>
         <arg name="X_A"/>
     </xform>
@@ -779,9 +891,17 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
-        <flow sarg="const" sink="Concat M_B (S)" darg="keyid"/>
-        <flow sarg="const" sink="Concat X_B" darg="keyid"/>
+        <flow sarg="const" sink="Split keyid B keyid" darg="const"/>
     </const>
+
+    <xform id="Split keyid B keyid">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Concat M_B (S)" darg="keyid"/>
+        <flow sarg="const#2" sink="Concat X_B" darg="keyid"/>
+        <arg name="const"/>
+    </xform>
 
     <xform id="Concat M_B (S)">
         <description>
@@ -839,9 +959,17 @@
         <description>
             Encrypt X_B using AES128-CTR with key c and initial counter value 0.
         </description>
-        <flow sarg="ciphertext" sink="Reveal Signature (S)" darg="encrypted_signature"/>
-        <flow sarg="ciphertext" sink="MAC Encrypted X_B" darg="msg"/>
+        <flow sarg="ciphertext" sink="Split Encrypt X_B ciphertext" darg="ciphertext"/>
     </encrypt>
+
+    <xform id="Split Encrypt X_B ciphertext">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="ciphertext#1" sink="Reveal Signature (S)" darg="encrypted_signature"/>
+        <flow sarg="ciphertext#2" sink="MAC Encrypted X_B" darg="msg"/>
+        <arg name="ciphertext"/>
+    </xform>
 
     <!-- FIXME: Add DATA/MAC etc. encoding -->
     <hmac id="MAC Encrypted X_B">
@@ -871,8 +999,8 @@
             the encrypted channel.
         </description>
         <flow sarg="revealed_key" sink="Decrypt g^x" darg="key"/>
-        <flow sarg="encrypted_signature" sink="Decrypt X_B" darg="ciphertext"/>
-        <flow sarg="encrypted_signature" sink="Verify Encrypted X_B" darg="msg"/>
+        <flow sarg="encrypted_signature#1" sink="Decrypt X_B" darg="ciphertext"/>
+        <flow sarg="encrypted_signature#2" sink="Verify Encrypted X_B" darg="msg"/>
         <flow sarg="macd_signature" sink="Verify Encrypted X_B" darg="auth"/>
         <arg name="rvsm"/>
     </xform>
@@ -889,19 +1017,36 @@
             Use the received value of r to decrypt the value of g^x
             received in the D-H Commit Message
         </description>
-        <flow sarg="plaintext" sink="Verify g^x (R)" darg="data"/>
-        <flow sarg="plaintext" sink="Shared secret (S)" darg="pub"/>
-        <flow sarg="plaintext" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
+        <flow sarg="plaintext" sink="Split Decrypt g^x plaintext" darg="plaintext"/>
     </decrypt>
+
+    <xform id="Split Decrypt g^x plaintext">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="plaintext#1" sink="Verify g^x (R)" darg="data"/>
+        <flow sarg="plaintext#2" sink="Shared secret (S)" darg="pub"/>
+        <flow sarg="plaintext#3" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
+        <arg name="plaintext"/>
+    </xform>
+
 
     <verify_commit id="Verify g^x (R)">
         <description>
             Check that the hash of decrypted g^x matches the value of the
             hashed g^x sent in D-H Commit message.
         </description>
-        <flow sarg="data" sink="Concat M_B (R)" darg="g^x"/>
-        <flow sarg="data" sink="Concat M_A (S)" darg="g^x"/>
+        <flow sarg="data" sink="Split Verify g^x (R) data" darg="data"/>
     </verify_commit>
+
+    <xform id="Split Verify g^x (R) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Concat M_B (R)" darg="g^x"/>
+        <flow sarg="data#2" sink="Concat M_A (S)" darg="g^x"/>
+        <arg name="data"/>
+    </xform>
 
     <verify_hmac id="Verify Encrypted X_B">
         <description>
@@ -936,10 +1081,10 @@
         <description>
             Split X_B into pub, keyid, sig_B(M_B)
         </description>
-        <flow sarg="pub" sink="Concat M_B (R)" darg="pub"/>
+        <flow sarg="pub#1" sink="Concat M_B (R)" darg="pub"/>
+        <flow sarg="pub#2" sink="Verify Sig M_B" darg="pkey"/>
         <flow sarg="keyid" sink="Concat M_B (R)" darg="keyid"/>
         <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
-        <flow sarg="pub" sink="Verify Sig M_B" darg="pkey"/>
         <arg name="X_B"/>
     </xform>
 
@@ -998,10 +1143,10 @@
             party, either in a Data Message or in the AKE.
         </description>
         <flow sarg="current_key" sink="Select secret key (M)" darg="uncontrolled"/>
-        <flow sarg="recipient_keyid" sink="Data (S)" darg="recipient_keyid"/>
-        <flow sarg="recipient_keyid" sink="Layout authenticator (S)" darg="uncontrolled"/>
-        <flow sarg="pub" sink="Shared secret (M)" darg="pub"/>
-        <flow sarg="pub" sink="Determine end (M)" darg="uncontrolled"/>
+        <flow sarg="recipient_keyid#1" sink="Data (S)" darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid#2" sink="Layout authenticator (S)" darg="uncontrolled"/>
+        <flow sarg="pub#1" sink="Shared secret (M)" darg="pub"/>
+        <flow sarg="pub#2" sink="Determine end (M)" darg="uncontrolled"/>
         <arg name="initiator_remote_pub"/>
         <arg name="responder_remote_pub"/>
         <arg name="pub_remote"/>
@@ -1023,24 +1168,40 @@
             Random value y used to calcutate Diffie-Hellman public value
             g^y for the next data message.
         </description>
-        <flow sarg="data" sink="Calculate next D-H key (M)" darg="psec"/>
-        <flow sarg="data" sink="Join secret key (M)" darg="data_psec"/>
+        <flow sarg="data" sink="Split Random y (M) data" darg="data"/>
     </rng>
+
+    <xform id="Split Random y (M) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Calculate next D-H key (M)" darg="psec"/>
+        <flow sarg="data#2" sink="Join secret key (M)" darg="data_psec"/>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate next D-H key (M)">
         <description>
             Diffie-Hellman public value g^y for the next data message.
         </description>
-        <flow sarg="pub" sink="Serialize g^y (M)" darg="data"/>
-        <flow sarg="pub" sink="Join local pubkeys (M)" darg="pub_local"/>
+        <flow sarg="pub" sink="Split Calculate next D-H key (M) pub" darg="pub"/>
     </dhpub>
+
+    <xform id="Split Calculate next D-H key (M) pub">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="pub#1" sink="Serialize g^y (M)" darg="data"/>
+        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="pub_local"/>
+        <arg name="pub"/>
+    </xform>
     
     <xform id="Serialize g^y (M)">
         <description>
             Serialize Diffie-Hellman public value as MPI
         </description>
-        <flow sarg="mpi" sink="Data (S)" darg="dh_y"/>
-        <flow sarg="mpi" sink="Concat authenticator (S)" darg="dh_y"/>
+        <flow sarg="mpi#1" sink="Data (S)" darg="dh_y"/>
+        <flow sarg="mpi#2" sink="Concat authenticator (S)" darg="dh_y"/>
         <arg name="data"/>
     </xform>
 
@@ -1075,8 +1236,8 @@
             as soon as composites are implemented.
         </description>
         <flow sarg="pub" sink="Determine end (M)" darg="controlled"/>
-        <flow sarg="sender_keyid" sink="Data (S)" darg="sender_keyid"/>
-        <flow sarg="sender_keyid" sink="Concat authenticator (S)" darg="sender_keyid"/>
+        <flow sarg="sender_keyid#1" sink="Data (S)" darg="sender_keyid"/>
+        <flow sarg="sender_keyid#2" sink="Concat authenticator (S)" darg="sender_keyid"/>
         <arg name="data"/>
     </xform>
 
@@ -1116,8 +1277,8 @@
         <description>
             Serialize shared secret as MPI
         </description>
-        <flow sarg="secbytes" sink="Concat sendkey (M)" darg="secbytes"/>
-        <flow sarg="secbytes" sink="Concat recvkey (M)" darg="secbytes"/>
+        <flow sarg="secbytes#1" sink="Concat sendkey (M)" darg="secbytes"/>
+        <flow sarg="secbytes#2" sink="Concat recvkey (M)" darg="secbytes"/>
         <arg name="s"/>
     </xform>
 
@@ -1128,9 +1289,17 @@
             greater than the receivers public key, then she is the "high"
             end. Otherwise, she is the "low" end.
         </description>
-        <flow sarg="data" sink="Concat sendkey (M)" darg="b"/>
-        <flow sarg="data" sink="Concat recvkey (M)" darg="b"/>
+        <flow sarg="data" sink="Split Determine end (M) data" darg="data"/>
     </layout>
+
+    <xform id="Split Determine end (M) data">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="data#1" sink="Concat sendkey (M)" darg="b"/>
+        <flow sarg="data#2" sink="Concat recvkey (M)" darg="b"/>
+        <arg name="data"/>
+    </xform>
 
     <!-- Sending a data message to the network -->
 
@@ -1155,9 +1324,9 @@
         <description>
             The first 16 bytes of h1(sendbyte)
         </description>
-        <flow sarg="data" sink="Derive sending MAC key (M)" darg="data"/>
-        <flow sarg="data" sink="Encrypt (M)" darg="key"/>
-        <flow sarg="data" sink="Detect key change (M)" darg="data"/>
+        <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
+        <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
+        <flow sarg="data#3" sink="Detect key change (M)" darg="data"/>
         <arg name="data"/>
     </xform>
 
@@ -1206,19 +1375,35 @@
         <description>
             Monotonic counter used in counter mode encryption of data messages.
         </description>
-        <flow sarg="ctr" sink="Encrypt (M)" darg="ctr"/>
-        <flow sarg="ctr" sink="Data (S)" darg="top_half_of_counter_init"/>
-        <flow sarg="ctr" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>
+        <flow sarg="ctr" sink="Split Counter (M) ctr" darg="ctr"/>
     </counter>
+
+    <xform id="Split Counter (M) ctr">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="ctr#1" sink="Encrypt (M)" darg="ctr"/>
+        <flow sarg="ctr#2" sink="Data (S)" darg="top_half_of_counter_init"/>
+        <flow sarg="ctr#3" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>
+        <arg name="ctr"/>
+    </xform>
 
     <encrypt id="Encrypt (M)">
         <description>
             Perform AES128 counter-mode encryption of the message using
             the most recent D-H encryption keys.
         </description>
-        <flow sarg="ciphertext" sink="Data (S)" darg="encrypted_message"/>
-        <flow sarg="ciphertext" sink="Concat authenticator (S)" darg="encrypted_message"/>
+        <flow sarg="ciphertext" sink="Split Encrypt (M) ciphertext" darg="ciphertext"/>
     </encrypt>
+
+    <xform id="Split Encrypt (M) ciphertext">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="ciphertext#1" sink="Data (S)" darg="encrypted_message"/>
+        <flow sarg="ciphertext#2" sink="Concat authenticator (S)" darg="encrypted_message"/>
+        <arg name="ciphertext"/>
+    </xform>
 
     <xform id="Concat authenticator (S)">
         <description>
@@ -1255,42 +1440,82 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
-        <flow sarg="const" sink="Data (S)" darg="protocol_version"/>
-        <flow sarg="const" sink="Concat authenticator (S)" darg="protocol_version"/>
+        <flow sarg="const" sink="Split Data Protocol Version (M) const" darg="const"/>
     </const>
+
+    <xform id="Split Data Protocol Version (M) const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Data (S)" darg="protocol_version"/>
+        <flow sarg="const#2" sink="Concat authenticator (S)" darg="protocol_version"/>
+        <arg name="const"/>
+    </xform>
 
     <const id="Data Message Type (M)">
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
-        <flow sarg="const" sink="Data (S)" darg="message_type"/>
-        <flow sarg="const" sink="Concat authenticator (S)" darg="message_type"/>
+        <flow sarg="const" sink="Split Data Message Type (M) const" darg="const"/>
     </const>
+
+    <xform id="Split Data Message Type (M) const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Data (S)" darg="message_type"/>
+        <flow sarg="const#2" sink="Concat authenticator (S)" darg="message_type"/>
+        <arg name="const"/>
+    </xform>
 
     <const id="Data Sender Instance Tag (M)">
         <description>
             The instance tag of the person sending this message.
         </description>
-        <flow sarg="const" sink="Data (S)" darg="sender_instance_tag"/>
-        <flow sarg="const" sink="Concat authenticator (S)" darg="sender_instance_tag"/>
+        <flow sarg="const" sink="Split Data Sender Instance Tag (M) const" darg="const"/>
     </const>
+
+    <xform id="Split Data Sender Instance Tag (M) const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Data (S)" darg="sender_instance_tag"/>
+        <flow sarg="const#2" sink="Concat authenticator (S)" darg="sender_instance_tag"/>
+        <arg name="const"/>
+    </xform>
 
     <const id="Data Receiver Instance Tag (M)">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <flow sarg="const" sink="Data (S)" darg="receiver_instance_tag"/>
-        <flow sarg="const" sink="Concat authenticator (S)" darg="receiver_instance_tag"/>
+        <flow sarg="const" sink="Split Data Receiver Instance Tag (M) const" darg="const"/>
     </const>
+
+    <xform id="Split Data Receiver Instance Tag (M) const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Data (S)" darg="receiver_instance_tag"/>
+        <flow sarg="const#2" sink="Concat authenticator (S)" darg="receiver_instance_tag"/>
+        <arg name="const"/>
+    </xform>
 
     <const id="Data Flags (M)">
         <description>
             The bitwise-OR of the flags for this message.
         </description>
-        <flow sarg="const" sink="Data (S)" darg="flags"/>
-        <flow sarg="const" sink="Concat authenticator (S)" darg="flags"/>
+        <flow sarg="const" sink="Split Data Flags (M) const" darg="const"/>
     </const>
+
+    <xform id="Split Data Flags (M) const">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="const#1" sink="Data (S)" darg="flags"/>
+        <flow sarg="const#2" sink="Concat authenticator (S)" darg="flags"/>
+        <arg name="const"/>
+    </xform>
 
     <xform id="Data (S)">
         <description>
@@ -1334,8 +1559,8 @@
         <description>
             The first 16 bytes of h1(recvbyte)
         </description>
-        <flow sarg="data" sink="Derive receiving MAC key (M)" darg="data"/>
-        <flow sarg="data" sink="Decrypt (M)" darg="key"/>
+        <flow sarg="data#1" sink="Derive receiving MAC key (M)" darg="data"/>
+        <flow sarg="data#2" sink="Decrypt (M)" darg="key"/>
         <arg name="data"/>
     </xform>
 
@@ -1343,30 +1568,38 @@
         <description>
             The 20-byte SHA-1 hash of the 16-byte sending AES key.
         </description>
-        <flow sarg="hash" sink="Verify MAC (M)" darg="key"/>
-        <flow sarg="hash" sink="Reveal old MAC keys (M)" darg="key"/>
+        <flow sarg="hash" sink="Split Derive receiving MAC key (M) hash" darg="hash"/>
     </hash>
+
+    <xform id="Split Derive receiving MAC key (M) hash">
+        <description>
+            Split output arguments
+        </description>
+        <flow sarg="hash#1" sink="Verify MAC (M)" darg="key"/>
+        <flow sarg="hash#2" sink="Reveal old MAC keys (M)" darg="key"/>
+        <arg name="hash"/>
+    </xform>
 
     <xform id="Data (R)">
         <description>
             Encrypted data message received from the network.
         </description>
-        <flow sarg="protocol_version"         sink="Concat authenticator (R)" darg="protocol_version"/>
-        <flow sarg="message_type"             sink="Concat authenticator (R)" darg="message_type"/>
-        <flow sarg="sender_instance_tag"      sink="Concat authenticator (R)" darg="sender_instance_tag"/>
-        <flow sarg="receiver_instance_tag"    sink="Concat authenticator (R)" darg="receiver_instance_tag"/>
-        <flow sarg="flags"                    sink="Concat authenticator (R)" darg="flags"/>
-        <flow sarg="sender_keyid"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
-        <flow sarg="sender_keyid"             sink="Concat authenticator (R)" darg="sender_keyid"/>
-        <flow sarg="recipient_keyid"          sink="Select local pubkey (M)"  darg="uncontrolled"/>
-        <flow sarg="recipient_keyid"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
-        <flow sarg="dh_y"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
-        <flow sarg="dh_y"                     sink="Concat authenticator (R)" darg="dh_y"/>
-        <flow sarg="top_half_of_counter_init" sink="Decrypt (M)"              darg="ctr"/>
-        <flow sarg="top_half_of_counter_init" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
-        <flow sarg="encrypted_message"        sink="Guard MAC (M)"            darg="data"/>
-        <flow sarg="encrypted_message"        sink="Concat authenticator (R)" darg="encrypted_message"/>
-        <flow sarg="authenticator"            sink="Verify MAC (M)"           darg="auth"/>
+        <flow sarg="protocol_version"           sink="Concat authenticator (R)" darg="protocol_version"/>
+        <flow sarg="message_type"               sink="Concat authenticator (R)" darg="message_type"/>
+        <flow sarg="sender_instance_tag"        sink="Concat authenticator (R)" darg="sender_instance_tag"/>
+        <flow sarg="receiver_instance_tag"      sink="Concat authenticator (R)" darg="receiver_instance_tag"/>
+        <flow sarg="flags"                      sink="Concat authenticator (R)" darg="flags"/>
+        <flow sarg="sender_keyid#1"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
+        <flow sarg="sender_keyid#2"             sink="Concat authenticator (R)" darg="sender_keyid"/>
+        <flow sarg="recipient_keyid#1"          sink="Select local pubkey (M)"  darg="uncontrolled"/>
+        <flow sarg="recipient_keyid#2"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
+        <flow sarg="dh_y#1"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
+        <flow sarg="dh_y#2"                     sink="Concat authenticator (R)" darg="dh_y"/>
+        <flow sarg="top_half_of_counter_init#1" sink="Decrypt (M)"              darg="ctr"/>
+        <flow sarg="top_half_of_counter_init#2" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
+        <flow sarg="encrypted_message#1"        sink="Guard MAC (M)"            darg="data"/>
+        <flow sarg="encrypted_message#2"        sink="Concat authenticator (R)" darg="encrypted_message"/>
+        <flow sarg="authenticator"              sink="Verify MAC (M)"           darg="auth"/>
         <arg name="data"/>
     </xform>
 

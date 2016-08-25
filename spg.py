@@ -481,9 +481,10 @@ class Primitive_xform (Primitive):
         # Assertion:
         #   in_i -> out_i
         # Assertion:
-        for (in_name, in_g) in self.i.guarantees().items():
-            for (out_name, out_g) in self.o.guarantees().items():
-                self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
+
+        #for (in_name, in_g) in self.i.guarantees().items():
+        #    for (out_name, out_g) in self.o.guarantees().items():
+        #        self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
 
 class Primitive_layout (Primitive):
     """
@@ -2176,15 +2177,21 @@ def parse_graph (inpath, solver, maximize):
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
-        G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
+        #G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
+        G.solver.assert_and_track (child_primitive.i.guarantees()[darg].i == parent_primitive.o.guarantees()[sarg].i, name + "i")
 
 
     for node in mdg.node:
-        args = set(())
+        iargs = set(())
         for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
-            if data['darg'] in args:
+            if data['darg'] in iargs:
                 raise Exception ("Node '" + node + "' has duplicate input argument '" + data['darg'] + "'")
-            args.add (data['darg'])
+            iargs.add (data['darg'])
+        oargs = set(())
+        for (parent, child, data) in mdg.out_edges (nbunch=node, data=True):
+            if data['sarg'] in oargs:
+                raise Exception ("Node '" + node + "' has duplicate output argument '" + data['sarg'] + "'")
+            oargs.add (data['sarg'])
 
     info (str(len(mdg.node)) + " nodes.")
 

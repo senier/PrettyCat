@@ -37,10 +37,10 @@
         <description>
             Public key
         </description>
-        <flow sarg="const" sink="Branch pub const" darg="const"/>
+        <flow sarg="const" sink="Branch pub const" darg="data"/>
     </const>
 
-    <xform id="Branch pub const">
+    <branch id="Branch pub const">
         <description>
             Branch output arguments
         </description>
@@ -50,41 +50,38 @@
         <flow sarg="const#4" sink="Concat M_B (S)" darg="pub"/>
         <flow sarg="const#5" sink="Concat X_B" darg="pub"/>
         <flow sarg="const#6" sink="Sign M_B" darg="pkey"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <const id="priv">
         <description>
             Private key
         </description>
-        <flow sarg="const" sink="Branch priv const" darg="const"/>
+        <flow sarg="const" sink="Branch priv const" darg="data"/>
     </const>
 
-    <xform id="Branch priv const">
+    <branch id="Branch priv const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Sign M_A" darg="skey"/>
         <flow sarg="const#2" sink="Sign M_B" darg="skey"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <!-- AKE -->
     <const id="State encrypted">
         <description>
             Constant signaling successful key exchange.
         </description>
-        <flow sarg="const" sink="Branch State encrypted const" darg="const"/>
+        <flow sarg="const" sink="Branch State encrypted const" darg="data"/>
     </const>
 
-    <xform id="Branch State encrypted const">
+    <branch id="Branch State encrypted const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Guard Encrypted X_A" darg="data"/>
         <flow sarg="const#2" sink="Guard Encrypted X_B" darg="data"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <xform id="AKE State">
         <description>
@@ -202,17 +199,16 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m1" darg="hash"/>
+        <flow sarg="hash" sink="Branch Hash m1" darg="data"/>
     </hash>
 
-    <xform id="Branch Hash m1">
+    <branch id="Branch Hash m1">
         <description>
             Branch output arguments
         </description>
         <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key"/>
         <flow sarg="hash#2" sink="HMAC M_B (R)" darg="key"/>
-        <arg name="hash"/>
-    </xform>
+    </branch>
 
     <const id="Prefix m2">
         <description>
@@ -235,17 +231,16 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m2 hash" darg="hash"/>
+        <flow sarg="hash" sink="Branch Hash m2 hash" darg="data"/>
     </hash>
 
-    <xform id="Branch Hash m2 hash">
+    <branch id="Branch Hash m2 hash">
         <description>
             Branch output arguments
         </description>
         <flow sarg="hash#1" sink="MAC Encrypted X_B" darg="key"/>
         <flow sarg="hash#2" sink="Verify Encrypted X_B" darg="key"/>
-        <arg name="hash"/>
-    </xform>
+    </branch>
 
     <const id="Prefix m1'">
         <description>
@@ -268,17 +263,16 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m1' hash" darg="hash"/>
+        <flow sarg="hash" sink="Branch Hash m1' hash" darg="data"/>
     </hash>
 
-    <xform id="Branch Hash m1' hash">
+    <branch id="Branch Hash m1' hash">
         <description>
             Branch output arguments
         </description>
         <flow sarg="hash#1" sink="HMAC M_A (R)" darg="key"/>
         <flow sarg="hash#2" sink="HMAC M_A (S)" darg="key"/>
-        <arg name="hash"/>
-    </xform>
+    </branch>
 
     <const id="Prefix m2'">
         <description>
@@ -301,17 +295,16 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m2' hash" darg="hash"/>
+        <flow sarg="hash" sink="Branch Hash m2' hash" darg="data"/>
     </hash>
 
-    <xform id="Branch Hash m2' hash">
+    <branch id="Branch Hash m2' hash">
         <description>
             Branch output arguments
         </description>
         <flow sarg="hash#1" sink="Verify Encrypted X_A" darg="key"/>
         <flow sarg="hash#2" sink="MAC Encrypted X_A" darg="key"/>
-        <arg name="hash"/>
-    </xform>
+    </branch>
 
     <!--
       ** Send D-H Commit message
@@ -391,31 +384,29 @@
         <flow sarg="data" sink="Branch Random x (S) data" darg="data"/>
     </rng>
 
-    <xform id="Branch Random x (S) data">
+    <branch id="Branch Random x (S) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Calculate g^x (S)" darg="psec"/>
         <flow sarg="data#2" sink="Shared secret (R)" darg="psec"/>
         <flow sarg="data#3" sink="Join secret key (M)" darg="initiator_psec"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <dhpub id="Calculate g^x (S)">
         <description>
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
-        <flow sarg="pub" sink="Branch Calculate g^x (S) pub" darg="pub"/>
+        <flow sarg="pub" sink="Branch Calculate g^x (S) pub" darg="data"/>
     </dhpub>
 
-    <xform id="Branch Calculate g^x (S) pub">
+    <branch id="Branch Calculate g^x (S) pub">
         <description>
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^x (S)" darg="data"/>
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
-        <arg name="pub"/>
-    </xform>
+    </branch>
 
     <xform id="Serialize g^x (S)">
         <description>
@@ -444,14 +435,13 @@
         <flow sarg="data" sink="Branch Random r (S) data" darg="data"/>
     </rng>
 
-    <xform id="Branch Random r (S) data">
+    <branch id="Branch Random r (S) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Encrypt g^x (S)" darg="key"/>
         <flow sarg="data#2" sink="Reveal Signature (S)" darg="revealed_key"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <hash id="Hash g^x (S)">
         <description>
@@ -532,31 +522,29 @@
         <flow sarg="data" sink="Branch Random y (S) data" darg="data"/>
     </rng>
 
-    <xform id="Branch Random y (S) data">
+    <branch id="Branch Random y (S) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Calculate g^y (S)" darg="psec"/>
         <flow sarg="data#2" sink="Shared secret (S)" darg="psec"/>
         <flow sarg="data#3" sink="Join secret key (M)" darg="responder_psec"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <dhpub id="Calculate g^y (S)">
         <description>
             Calcutate Diffie-Hellman public value g^y for the responder.
         </description>
-        <flow sarg="pub" sink="Branch Calculate g^y (S) pub" darg="pub"/>
+        <flow sarg="pub" sink="Branch Calculate g^y (S) pub" darg="data"/>
     </dhpub>
 
-    <xform id="Branch Calculate g^y (S) pub">
+    <branch id="Branch Calculate g^y (S) pub">
         <description>
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (S)" darg="data"/>
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
-        <arg name="pub"/>
-    </xform>
+    </branch>
 
     <xform id="Serialize g^y (S)">
         <description>
@@ -651,17 +639,16 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
-        <flow sarg="const" sink="Branch keyid A const" darg="const"/>
+        <flow sarg="const" sink="Branch keyid A const" darg="data"/>
     </const>
 
-    <xform id="Branch keyid A const">
+    <branch id="Branch keyid A const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Concat M_A (S)" darg="keyid"/>
         <flow sarg="const#2" sink="Concat X_A" darg="keyid"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <xform id="Concat M_A (S)">
         <description>
@@ -712,17 +699,16 @@
         <description>
             Encrypt X_A using AES128-CTR with key c and initial counter value 0.
         </description>
-        <flow sarg="ciphertext" sink="Branch Encrypt X_A ciphertext" darg="ciphertext"/>
+        <flow sarg="ciphertext" sink="Branch Encrypt X_A ciphertext" darg="data"/>
     </encrypt>
 
-    <xform id="Branch Encrypt X_A ciphertext">
+    <branch id="Branch Encrypt X_A ciphertext">
         <description>
             Branch output arguments
         </description>
         <flow sarg="ciphertext#1" sink="Signature (S)" darg="encrypted_signature"/>
         <flow sarg="ciphertext#2" sink="MAC Encrypted X_A" darg="msg"/>
-        <arg name="ciphertext"/>
-    </xform>
+    </branch>
 
     <!-- FIXME: Add DATA/MAC etc. encoding -->
     <hmac id="MAC Encrypted X_A">
@@ -891,17 +877,16 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
-        <flow sarg="const" sink="Branch keyid B keyid" darg="const"/>
+        <flow sarg="const" sink="Branch keyid B keyid" darg="data"/>
     </const>
 
-    <xform id="Branch keyid B keyid">
+    <branch id="Branch keyid B keyid">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Concat M_B (S)" darg="keyid"/>
         <flow sarg="const#2" sink="Concat X_B" darg="keyid"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <xform id="Concat M_B (S)">
         <description>
@@ -959,17 +944,16 @@
         <description>
             Encrypt X_B using AES128-CTR with key c and initial counter value 0.
         </description>
-        <flow sarg="ciphertext" sink="Branch Encrypt X_B ciphertext" darg="ciphertext"/>
+        <flow sarg="ciphertext" sink="Branch Encrypt X_B ciphertext" darg="data"/>
     </encrypt>
 
-    <xform id="Branch Encrypt X_B ciphertext">
+    <branch id="Branch Encrypt X_B ciphertext">
         <description>
             Branch output arguments
         </description>
         <flow sarg="ciphertext#1" sink="Reveal Signature (S)" darg="encrypted_signature"/>
         <flow sarg="ciphertext#2" sink="MAC Encrypted X_B" darg="msg"/>
-        <arg name="ciphertext"/>
-    </xform>
+    </branch>
 
     <!-- FIXME: Add DATA/MAC etc. encoding -->
     <hmac id="MAC Encrypted X_B">
@@ -1017,18 +1001,17 @@
             Use the received value of r to decrypt the value of g^x
             received in the D-H Commit Message
         </description>
-        <flow sarg="plaintext" sink="Branch Decrypt g^x plaintext" darg="plaintext"/>
+        <flow sarg="plaintext" sink="Branch Decrypt g^x plaintext" darg="data"/>
     </decrypt>
 
-    <xform id="Branch Decrypt g^x plaintext">
+    <branch id="Branch Decrypt g^x plaintext">
         <description>
             Branch output arguments
         </description>
         <flow sarg="plaintext#1" sink="Verify g^x (R)" darg="data"/>
         <flow sarg="plaintext#2" sink="Shared secret (S)" darg="pub"/>
         <flow sarg="plaintext#3" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
-        <arg name="plaintext"/>
-    </xform>
+    </branch>
 
 
     <verify_commit id="Verify g^x (R)">
@@ -1039,14 +1022,13 @@
         <flow sarg="data" sink="Branch Verify g^x (R) data" darg="data"/>
     </verify_commit>
 
-    <xform id="Branch Verify g^x (R) data">
+    <branch id="Branch Verify g^x (R) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Concat M_B (R)" darg="g^x"/>
         <flow sarg="data#2" sink="Concat M_A (S)" darg="g^x"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <verify_hmac id="Verify Encrypted X_B">
         <description>
@@ -1171,30 +1153,28 @@
         <flow sarg="data" sink="Branch Random y (M) data" darg="data"/>
     </rng>
 
-    <xform id="Branch Random y (M) data">
+    <branch id="Branch Random y (M) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Calculate next D-H key (M)" darg="psec"/>
         <flow sarg="data#2" sink="Join secret key (M)" darg="data_psec"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <dhpub id="Calculate next D-H key (M)">
         <description>
             Diffie-Hellman public value g^y for the next data message.
         </description>
-        <flow sarg="pub" sink="Branch Calculate next D-H key (M) pub" darg="pub"/>
+        <flow sarg="pub" sink="Branch Calculate next D-H key (M) pub" darg="data"/>
     </dhpub>
 
-    <xform id="Branch Calculate next D-H key (M) pub">
+    <branch id="Branch Calculate next D-H key (M) pub">
         <description>
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (M)" darg="data"/>
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="pub_local"/>
-        <arg name="pub"/>
-    </xform>
+    </branch>
     
     <xform id="Serialize g^y (M)">
         <description>
@@ -1292,14 +1272,13 @@
         <flow sarg="data" sink="Branch Determine end (M) data" darg="data"/>
     </layout>
 
-    <xform id="Branch Determine end (M) data">
+    <branch id="Branch Determine end (M) data">
         <description>
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Concat sendkey (M)" darg="b"/>
         <flow sarg="data#2" sink="Concat recvkey (M)" darg="b"/>
-        <arg name="data"/>
-    </xform>
+    </branch>
 
     <!-- Sending a data message to the network -->
 
@@ -1375,35 +1354,33 @@
         <description>
             Monotonic counter used in counter mode encryption of data messages.
         </description>
-        <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="ctr"/>
+        <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="data"/>
     </counter>
 
-    <xform id="Branch Counter (M) ctr">
+    <branch id="Branch Counter (M) ctr">
         <description>
             Branch output arguments
         </description>
         <flow sarg="ctr#1" sink="Encrypt (M)" darg="ctr"/>
         <flow sarg="ctr#2" sink="Data (S)" darg="top_half_of_counter_init"/>
         <flow sarg="ctr#3" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>
-        <arg name="ctr"/>
-    </xform>
+    </branch>
 
     <encrypt id="Encrypt (M)">
         <description>
             Perform AES128 counter-mode encryption of the message using
             the most recent D-H encryption keys.
         </description>
-        <flow sarg="ciphertext" sink="Branch Encrypt (M) ciphertext" darg="ciphertext"/>
+        <flow sarg="ciphertext" sink="Branch Encrypt (M) ciphertext" darg="data"/>
     </encrypt>
 
-    <xform id="Branch Encrypt (M) ciphertext">
+    <branch id="Branch Encrypt (M) ciphertext">
         <description>
             Branch output arguments
         </description>
         <flow sarg="ciphertext#1" sink="Data (S)" darg="encrypted_message"/>
         <flow sarg="ciphertext#2" sink="Concat authenticator (S)" darg="encrypted_message"/>
-        <arg name="ciphertext"/>
-    </xform>
+    </branch>
 
     <xform id="Concat authenticator (S)">
         <description>
@@ -1440,82 +1417,77 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
-        <flow sarg="const" sink="Branch Data Protocol Version (M) const" darg="const"/>
+        <flow sarg="const" sink="Branch Data Protocol Version (M) const" darg="data"/>
     </const>
 
-    <xform id="Branch Data Protocol Version (M) const">
+    <branch id="Branch Data Protocol Version (M) const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Data (S)" darg="protocol_version"/>
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="protocol_version"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <const id="Data Message Type (M)">
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
-        <flow sarg="const" sink="Branch Data Message Type (M) const" darg="const"/>
+        <flow sarg="const" sink="Branch Data Message Type (M) const" darg="data"/>
     </const>
 
-    <xform id="Branch Data Message Type (M) const">
+    <branch id="Branch Data Message Type (M) const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Data (S)" darg="message_type"/>
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="message_type"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <const id="Data Sender Instance Tag (M)">
         <description>
             The instance tag of the person sending this message.
         </description>
-        <flow sarg="const" sink="Branch Data Sender Instance Tag (M) const" darg="const"/>
+        <flow sarg="const" sink="Branch Data Sender Instance Tag (M) const" darg="data"/>
     </const>
 
-    <xform id="Branch Data Sender Instance Tag (M) const">
+    <branch id="Branch Data Sender Instance Tag (M) const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Data (S)" darg="sender_instance_tag"/>
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="sender_instance_tag"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <const id="Data Receiver Instance Tag (M)">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <flow sarg="const" sink="Branch Data Receiver Instance Tag (M) const" darg="const"/>
+        <flow sarg="const" sink="Branch Data Receiver Instance Tag (M) const" darg="data"/>
     </const>
 
-    <xform id="Branch Data Receiver Instance Tag (M) const">
+    <branch id="Branch Data Receiver Instance Tag (M) const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Data (S)" darg="receiver_instance_tag"/>
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="receiver_instance_tag"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <const id="Data Flags (M)">
         <description>
             The bitwise-OR of the flags for this message.
         </description>
-        <flow sarg="const" sink="Branch Data Flags (M) const" darg="const"/>
+        <flow sarg="const" sink="Branch Data Flags (M) const" darg="data"/>
     </const>
 
-    <xform id="Branch Data Flags (M) const">
+    <branch id="Branch Data Flags (M) const">
         <description>
             Branch output arguments
         </description>
         <flow sarg="const#1" sink="Data (S)" darg="flags"/>
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="flags"/>
-        <arg name="const"/>
-    </xform>
+    </branch>
 
     <xform id="Data (S)">
         <description>
@@ -1568,17 +1540,16 @@
         <description>
             The 20-byte SHA-1 hash of the 16-byte sending AES key.
         </description>
-        <flow sarg="hash" sink="Branch Derive receiving MAC key (M) hash" darg="hash"/>
+        <flow sarg="hash" sink="Branch Derive receiving MAC key (M) hash" darg="data"/>
     </hash>
 
-    <xform id="Branch Derive receiving MAC key (M) hash">
+    <branch id="Branch Derive receiving MAC key (M) hash">
         <description>
             Branch output arguments
         </description>
         <flow sarg="hash#1" sink="Verify MAC (M)" darg="key"/>
         <flow sarg="hash#2" sink="Reveal old MAC keys (M)" darg="key"/>
-        <arg name="hash"/>
-    </xform>
+    </branch>
 
     <xform id="Data (R)">
         <description>

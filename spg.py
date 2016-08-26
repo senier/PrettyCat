@@ -75,6 +75,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
         <xs:choice>
             <xs:element name="env"             type="envElement"/>
             <xs:element name="xform"           type="xformElement"/>
+            <xs:element name="branch"          type="forwardElement"/>
             <xs:element name="const"           type="forwardElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
             <xs:element name="dhsec"           type="forwardElement"/>
@@ -481,10 +482,30 @@ class Primitive_xform (Primitive):
         # Assertion:
         #   in_i -> out_i
         # Assertion:
-
         #for (in_name, in_g) in self.i.guarantees().items():
         #    for (out_name, out_g) in self.o.guarantees().items():
         #        self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
+
+class Primitive_branch (Primitive):
+    """
+    The branch primitive
+
+    Copy the input parameter into all output parameters.
+    """
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        if len(self.i.guarantees().items()) > 1:
+            raise PrimitiveInvalidAttributes ("More than one input parameters")
+
+        # Parameters
+        #   Inputs:  data
+        #   Outputs: data_1..data_n
+
+        for (out_name, out_g) in self.o.guarantees().items():
+            self.assert_and_track (out_g.c == self.i.data.c, out_name + "_data_c")
+            self.assert_and_track (Implies (out_g.i, self.i.data.i), out_name + "_data_i")
 
 class Primitive_layout (Primitive):
     """

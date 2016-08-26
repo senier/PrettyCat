@@ -114,11 +114,14 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 </xs:schema>
 ''')
 
+args = ()
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
 def info (message):
-    print ("[1m[34mINFO: [2m" + str(message) + "[0m")
+    if not args.test:
+        print ("[1m[34mINFO: [2m" + str(message) + "[0m")
 
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
@@ -153,9 +156,11 @@ class Graph:
             info ("Solution found")
             self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
+            return True
         else:
             self.solver.mark_unsat_core(self.graph)
             err ("No solution")
+            return False
 
     def write (self, title, out):
 
@@ -2215,22 +2220,31 @@ def positions (G):
 
     return pos
 
-def main(args):
+def main():
     s = SPG_Optimizer() if args.optimize else SPG_Solver()
 
     G = parse_graph (args.input[0], s, args.maximize)
-    G.analyze()
+    result = G.analyze()
+    if args.test:
+        if result:
+            sys.exit (0)
+        sys.exit (1)
+
     G.write ("Final", args.output[0])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
-    parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--optimize', action='store_true', help='Use optimizer (disables uncore generation)', dest='optimize');
     parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
 
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument('--test', action='store_true', help='Do not produce output', dest='test');
+    action.add_argument('--output', action='store', nargs=1, help='Output file', dest='output');
+
     try:
-        main(parser.parse_args ())
+        args = parser.parse_args ()
+        main()
     except PrimitiveMissing as e:
         warn (e)
     except PrimitiveInvalidAttributes as e:

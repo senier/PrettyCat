@@ -1,0 +1,21 @@
+<spg>
+    <env id="Input" confidentiality="False" integrity="True">
+        <description>
+            Input guaranteeing confidentiality
+        </description>
+        <flow sarg="data" sink="Branch" darg="data"/>
+    </env>
+
+    <branch id="Branch">
+        <description>
+            Dummy branch operation
+        </description>
+        <flow sarg="data" sink="Output" darg="data"/>
+    </branch>
+
+    <env id="Output" confidentiality="False" integrity="False">
+        <description>
+            Output *not* guaranteeing confidentiality
+        </description>
+    </env>
+</spg>

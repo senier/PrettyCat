@@ -1,0 +1,71 @@
+<spg>
+
+    <env id="Input" integrity="True" confidentiality="True">
+        <description>
+            Trusted input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="plaintext"/>
+    </env>
+
+    <const id="IV">
+        <description>
+            Static IV
+        </description>
+        <flow sarg="const" sink="Encrypt" darg="ctr"/>
+    </const>
+
+    <const id="Encryption key">
+        <description>
+            Static key
+        </description>
+        <flow sarg="const" sink="Encrypt" darg="key"/>
+    </const>
+
+    <encrypt id="Encrypt">
+        <description>
+            Symmetric counter mode encryption
+        </description>
+        <flow sarg="ciphertext" sink="Branch" darg="data"/>
+    </encrypt>
+
+    <branch id="Branch">
+        <description>
+            Duplicate ciphertext
+        </description>
+        <flow sarg="data#1" sink="HMAC" darg="msg"/>
+        <flow sarg="data#2" sink="Message" darg="msg"/>
+        <!-- FIXME: This is bogus and should be detected => Create dedicated test case! -->
+        <flow sarg="data#3" sink="Output" darg="foo"/>
+    </branch>
+
+    <const id="MAC key">
+        <description>
+            Static key
+        </description>
+        <flow sarg="const" sink="HMAC" darg="key"/>
+    </const>
+
+    <hmac id="HMAC">
+        <description>
+            MAC encrypted message
+        </description>
+        <flow sarg="auth" sink="Message" darg="auth"/>
+    </hmac>
+
+    <xform id="Message">
+        <description>
+            Assemble message
+        </description>
+        <flow sarg="data" sink="Output" darg="data"/>
+        <arg name="msg"/>
+        <arg name="auth"/>
+    </xform>
+
+    <env id="Output" integrity="False" confidentiality="False">
+        <description>
+            Send out encrypted/integrity protected message
+        </description>
+        <arg name="data"/>
+        <arg name="foo"/>
+    </env>
+</spg>

@@ -772,12 +772,6 @@ class Primitive_dhsec (Primitive):
         # Reason:
         #   With knowledge of pub (g^y) and psec_in (x) an attacker can
         #   calculate ssec (the shared secret g^yx ≡ g^xy)
-        # Truth table:
-        #   psec_in_c ssec_out_c pub_in_c result
-        #   0         0          0        1
-        #   0         0          1        1
-        #   0         1          0        0
-        #   0         1          1        1
         # Assertion:
         #   psec_in_c ∨ ssec_out_c ∨ ¬pub_in_c
         self.assert_and_track (Or (self.i.psec.c, self.o.ssec.c, Not (self.i.pub.c)), "psec_in_c")
@@ -785,15 +779,11 @@ class Primitive_dhsec (Primitive):
         # Parameter
         #   psec_in
         # Integrity guarantees can be dropped if:
-        #   Anytime
+        #   No confidentiality is guaranteed for ssec (g^xy in DH terms)
         # Reason:
-        #   If an attacker can choose psec_in (x) in the dhsec step, she can
-        #   influence the resulting g^yx. However, this is not the shared
-        #   secret unless psec was consistently changed for the respective
-        #   dhpub step. This case is handled there.
         # Assertion:
-        #   None.
-        self.assert_nothing (self.i.psec.i, "psec_in_i")
+        #   ssec_out_c => psec_in_i
+        self.assert_and_track (Implies (self.o.ssec.c, self.i.psec.i), "psec_in_i")
 
         # Parameter
         #   pub_in

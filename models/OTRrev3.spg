@@ -46,10 +46,8 @@
         </description>
         <flow sarg="const#1" sink="Concat M_A (S)" darg="pub"/>
         <flow sarg="const#2" sink="Concat X_A" darg="pub"/>
-        <flow sarg="const#3" sink="Sign M_A" darg="pkey"/>
-        <flow sarg="const#4" sink="Concat M_B (S)" darg="pub"/>
-        <flow sarg="const#5" sink="Concat X_B" darg="pub"/>
-        <flow sarg="const#6" sink="Sign M_B" darg="pkey"/>
+        <flow sarg="const#3" sink="Concat M_B (S)" darg="pub"/>
+        <flow sarg="const#4" sink="Concat X_B" darg="pub"/>
     </branch>
 
     <const id="priv">

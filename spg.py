@@ -1255,7 +1255,7 @@ class Primitive_sign (Primitive):
         super ().setup (G, name)
 
         # Parameters
-        #   Input:  msg, pkey, skey
+        #   Input:  msg, skey
         #   Output: auth
 
         # Parameter

@@ -907,12 +907,10 @@ class Primitive_encrypt (Primitive):
         # Parameter
         #   key_in
         # Integrity guarantee can be dropped if:
-        #   Same as for confidentiality.
+        #   Never
         # Reason:
-        #   See above
         # Assertion:
-        #   key_in_i ∨ ¬(plaintext_in_c ∧ ctr_in_i ∧ ¬cipertext_out_c)
-        self.assert_and_track (Or (self.i.key.i, Not (And (self.i.plaintext.c, self.i.ctr.i, Not (self.o.ciphertext.c)))), "key_in_c")
+        self.assert_and_track (self.i.key.i, "key_in_i")
 
         # Parameter
         #   ctr_in
@@ -938,7 +936,8 @@ class Primitive_encrypt (Primitive):
         #   does no harm.
         # Assertion:
         #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_c")
+        self.assert_and_track (self.i.ctr.i, "ctr_in_i")
+        #self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_c")
 
         # Parameter
         #   ciphertext_out
@@ -1272,61 +1271,30 @@ class Primitive_sign (Primitive):
         # Parameter
         #   msg_in
         # Integrity guarantee can be dropped if:
-        #   Anytime
+        #   Always
         # Reason:
-        #   Data flow is directed. Integrity of an input parameter cannot be
-        #   influenced by an output parameter or other input parameters.
+        #   Signing arbitrary data makes no sense.
         # Assertion:
-        #   None
-        self.assert_nothing (self.i.msg.i, "msg_in_i")
-
-        # Parameter
-        #   pkey_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The public key is assumed to be public, hence guaranteeing
-        #   confidentiality is unnecessary.
-        # Assertion:
-        #   None
-        self.assert_nothing (self.i.pkey.c, "pkey_i_c")
-
-        # Parameter
-        #   pkey_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity is guaranteed for msg_in.
-        # Reason:
-        #   If no integrity is guaranteed for the input message in the
-        #   first place, creating a valid digital signature is useless.
-        #   FIXME: I'd assume that combining invalid pubkey/seckey pairs
-        #   would be detected by a signature algorithm, but I don't know
-        #   for sure. If not, we need to guarantee integrity also for the
-        #   public key.
-        # Assertion:
-        #   pkey_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ pkey_in_i)
-        self.assert_and_track (Implies (self.i.msg.i, self.i.pkey.i), "pkey_in_i")
+        #   msg_in_i
+        self.assert_and_track (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   skey_in
         # Confidentiality guarantee can be dropped if:
-        #   If no integrity is guaranteed for msg_in
+        #   Never
         # Reason:
-        #   If no integrity is guaranteed for the input message in the
-        #   first place, creating a valid digital signature is useless.
         # Assertion:
         #   skey_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_c)
-        self.assert_and_track (Implies (self.i.msg.i, self.i.skey.c), "skey_in_c")
+        self.assert_and_track (self.i.skey.c, "skey_in_c")
 
         # Parameter
         #   skey_in
         # Integrity guarantee can be dropped if:
-        #   No integrity is guaranteed for msg_in.
+        #   Never
         # Reason:
-        #   If no integrity is guaranteed for the input message in the
-        #   first place, creating a valid digital signature is useless.
         # Assertion:
-        #   skey_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_i)
-        self.assert_and_track (Implies (self.i.msg.i, self.i.skey.i), "pkey_in_i")
+        #   skey_in_i
+        self.assert_and_track (self.i.skey.i, "skey_in_i")
 
         # Parameter
         #   auth_out

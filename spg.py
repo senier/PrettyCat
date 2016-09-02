@@ -98,6 +98,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="counter"         type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
+    <xs:attribute name="assert_fail" type="xs:boolean" />
 </xs:complexType>
 
 <xs:element name="spg" type="baseElements">
@@ -136,11 +137,12 @@ class PrimitiveInvalidAttributes (Exception):
 
 class Graph:
 
-    def __init__ (self, graph, solver, maximize):
+    def __init__ (self, graph, solver, maximize, fail):
         self.graph    = graph
         self.solver   = solver
         self.model    = None
         self.maximize = maximize
+        self.fail     = fail
 
     def graph (self):
         return self.graph
@@ -153,12 +155,23 @@ class Graph:
 
     def analyze (self):
         if self.solver.check() == sat:
+
+            if self.fail:
+                err ("Failure expected, but solution found");
+                return False
+
             info ("Solution found")
             self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
             return True
+
         else:
             self.solver.mark_unsat_core(self.graph)
+
+            # We expect a failure - exit without error
+            if self.fail:
+                return True
+
             err ("No solution")
             return False
 
@@ -331,7 +344,7 @@ class SPG_Solver (SPG_Solver_Base):
             unsat_core.append (simplify (self.assert_db[str(p)]))
         self.mark_expression (G, simplify (And (unsat_core)))
         info ("Full, simplified unsat core:")
-        print (simplify (And (unsat_core)))
+        info (str(simplify (And (unsat_core))))
 
 class Guarantees:
 
@@ -2075,9 +2088,13 @@ def parse_graph (inpath, solver, maximize):
         print (schema.error_log.last_error)
         sys.exit(1)
 
-    mdg = nx.MultiDiGraph()
-    G   = Graph (mdg, solver, maximize)
     root = tree.getroot()
+    assert_fail = False
+    if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
+        assert_fail = True
+
+    mdg = nx.MultiDiGraph()
+    G   = Graph (mdg, solver, maximize, assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):

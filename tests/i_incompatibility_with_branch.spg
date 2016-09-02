@@ -1,4 +1,4 @@
-<spg>
+<spg assert_fail="true">
     <env id="Input" confidentiality="false" integrity="true">
         <description>
             Input guaranteeing confidentiality

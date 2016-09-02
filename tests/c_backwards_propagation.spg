@@ -34,8 +34,6 @@
         </description>
         <flow sarg="data#1" sink="HMAC" darg="msg"/>
         <flow sarg="data#2" sink="Message" darg="msg"/>
-        <!-- FIXME: This is bogus and should be detected => Create dedicated test case! -->
-        <flow sarg="data#3" sink="Output" darg="foo"/>
     </branch>
 
     <const id="MAC key">
@@ -66,6 +64,5 @@
             Send out encrypted/integrity protected message
         </description>
         <arg name="data"/>
-        <arg name="foo"/>
     </env>
 </spg>

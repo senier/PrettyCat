@@ -1,6 +1,6 @@
 <spg>
 
-    <env id="Input" integrity="True" confidentiality="True">
+    <env id="Input" integrity="true" confidentiality="true">
         <description>
             Trusted input
         </description>
@@ -61,7 +61,7 @@
         <arg name="auth"/>
     </xform>
 
-    <env id="Output" integrity="False" confidentiality="False">
+    <env id="Output" integrity="false" confidentiality="false">
         <description>
             Send out encrypted/integrity protected message
         </description>

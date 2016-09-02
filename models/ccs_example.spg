@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg>
     <!-- Network input -->
-    <xform id="recv_I" confidentiality="False" integrity="False">
+    <xform id="recv_I" confidentiality="false" integrity="false">
         <flow sarg="msg" sink="I_msg" darg="msg"/>
     </xform>
 
@@ -73,20 +73,20 @@
     </xform>
 
     <!-- Key store output -->
-    <xform id="send_sendkey_I" confidentiality="True" integrity="False">
+    <xform id="send_sendkey_I" confidentiality="true" integrity="false">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_mackey_I" confidentiality="True" integrity="False">
+    <xform id="send_mackey_I" confidentiality="true" integrity="false">
         <arg name="msg"/>
     </xform>
 
-    <xform id="send_psec_I" confidentiality="True" integrity="True">
+    <xform id="send_psec_I" confidentiality="true" integrity="true">
         <arg name="msg"/>
     </xform>
 
     <!-- Network output -->
-    <xform id="send_I" confidentiality="False" integrity="False">
+    <xform id="send_I" confidentiality="false" integrity="false">
         <arg name="msg"/>
     </xform>
 

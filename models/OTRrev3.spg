@@ -4,7 +4,7 @@
     <!--
       ** Environment
       -->
-    <env id="Network" confidentiality="False" integrity="False">
+    <env id="Network" confidentiality="false" integrity="false">
         <description>
             Network environement without confidentiality or integrity guarantees.
         </description>
@@ -20,7 +20,7 @@
         <arg name="data"/>
     </env>
 
-    <env id="User" confidentiality="True" integrity="True">
+    <env id="User" confidentiality="true" integrity="true">
         <description>
             User environment guaranteeing confidentiality and integrity.
         </description>

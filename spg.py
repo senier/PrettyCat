@@ -52,8 +52,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="envElement">
     <xs:complexContent>
         <xs:extension base="xformElement">
-            <xs:attribute name="confidentiality"/>
-            <xs:attribute name="integrity"/>
+            <xs:attribute name="confidentiality" type="xs:boolean"/>
+            <xs:attribute name="integrity" type="xs:boolean"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -2043,9 +2043,9 @@ class Primitive_verify_commit (Primitive):
 def parse_bool (attrib, name):
     if not name in attrib:
         return None
-    if attrib[name] == "True":
+    if attrib[name] == "true":
         return True
-    if attrib[name] == "False":
+    if attrib[name] == "false":
         return False
     raise Exception ("Invalid boolean value for '" + name + "'")
 

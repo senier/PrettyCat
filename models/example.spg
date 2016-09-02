@@ -11,7 +11,7 @@
         <flow sarg="const" sink="encrypt" darg="iv"/>
     </const>
 
-    <receive id="input" confidentiality="True" integrity="False" freshness="False">
+    <receive id="input" confidentiality="true" integrity="false" freshness="false">
         <flow sarg="plaintext" sink="encrypt" darg="plaintext"/>
     </receive>
 
@@ -19,7 +19,7 @@
         <flow sarg="ciphertext" sink="output" darg="msg"/>
     </encrypt>
 
-    <send id="output" integrity="False" confidentiality="False" freshness="False">
+    <send id="output" integrity="false" confidentiality="false" freshness="false">
         <arg name="msg"/>
     </send>
 

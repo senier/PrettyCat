@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg>
 
-    <xform id="U_recv" confidentiality="True" integrity="True">
+    <xform id="U_recv" confidentiality="true" integrity="true">
         <description>
         Foobar
         </description>
@@ -34,7 +34,7 @@
         <flow sarg="dh_y" sink="D_auth_input" darg="dh_y"/>
     </xform>
 
-    <xform id="K_dummy" confidentiality="True" integrity="True">
+    <xform id="K_dummy" confidentiality="true" integrity="true">
         <flow sarg="send_key" sink="D_scomp" darg="data"/>
         <flow sarg="send_key" sink="D_encrypt" darg="key"/>
         <flow sarg="auth_key" sink="D_auth" darg="key"/>
@@ -83,7 +83,7 @@
         <arg name="old_mac_keys"/>
     </xform>
 
-    <xform id="N_send_data" confidentiality="False" integrity="False">
+    <xform id="N_send_data" confidentiality="false" integrity="false">
         <arg name="msg"/>
     </xform>
 

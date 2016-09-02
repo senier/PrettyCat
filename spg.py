@@ -14,7 +14,6 @@ from z3 import *
 import networkx as nx
 
 # TODO: Check for excess output parameters in fixed primitives
-# TODO: Schema: Constrain boolean attributes to true/false
 
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -23,6 +22,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:attribute name="sarg" use="required" />
     <xs:attribute name="sink" use="required" />
     <xs:attribute name="darg" use="required" />
+    <xs:attribute name="assert_c" type="xs:boolean" />
+    <xs:attribute name="assert_i" type="xs:boolean" />
 </xs:complexType>
 
 <xs:complexType name="argElement">
@@ -153,6 +154,28 @@ class Graph:
     def model (self):
         return self.solver.model()
 
+    def check_assertions (self):
+
+        failed = False
+
+        for (parent, child, data) in self.graph.edges (data=True):
+            darg = data['darg']
+            sarg = data['sarg']
+
+            if data['assert_c'] != None:
+                val_c = self.graph.node[parent]['primitive'].o.guarantees()[darg].val_c()
+                if val_c != data['assert_c']:
+                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
+                    failed = True
+
+            if data['assert_i'] != None:
+                val_i = self.graph.node[parent]['primitive'].o.guarantees()[darg].val_i()
+                if val_i != data['assert_i']:
+                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
+                    failed = True
+
+        return failed
+
     def analyze (self):
         if self.solver.check() == sat:
 
@@ -163,7 +186,9 @@ class Graph:
             info ("Solution found")
             self.solver.optimize (self.graph, self.maximize)
             self.model = self.solver.model
-            return True
+
+            # Check assertions
+            return self.check_assertions()
 
         else:
             self.solver.mark_unsat_core(self.graph)
@@ -2129,9 +2154,15 @@ def parse_graph (inpath, solver, maximize):
         for element in child.findall('flow'):
             sarg = element.attrib['sarg']
             darg = element.attrib['darg']
+
+            assert_c = parse_bool (element.attrib, 'assert_c') if 'assert_c' in element.attrib else None
+            assert_i = parse_bool (element.attrib, 'assert_i') if 'assert_i' in element.attrib else None
+
             mdg.add_edge (name, element.attrib['sink'], \
                 sarg = sarg, \
                 darg = darg, \
+                assert_c = assert_c, \
+                assert_i = assert_i, \
                 labelfontsize = "7", \
                 labelfontcolor="black", \
                 arrowhead="vee", \
@@ -2178,7 +2209,6 @@ def parse_graph (inpath, solver, maximize):
 
         name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
         G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
-        #G.solver.assert_and_track (Implies (child_primitive.i.guarantees()[darg].i, parent_primitive.o.guarantees()[sarg].i), name + "i")
         G.solver.assert_and_track (child_primitive.i.guarantees()[darg].i == parent_primitive.o.guarantees()[sarg].i, name + "i")
 
 
@@ -2242,12 +2272,14 @@ def main():
 
     G = parse_graph (args.input[0], s, args.maximize)
     result = G.analyze()
-    if args.test:
-        if result:
-            sys.exit (0)
+
+    if not args.test:
+        G.write ("Final", args.output[0])
+
+    if not result:
         sys.exit (1)
 
-    G.write ("Final", args.output[0])
+    sys.exit (0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

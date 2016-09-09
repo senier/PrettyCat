@@ -136,6 +136,26 @@ class PrimitiveInvalidAttributes (Exception):
     def __init__ (self, name, kind, text):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has invalid attributes: " + text)
 
+def mark_partition (G, node, partition):
+
+    # Partition already set
+    if 'partition' in G.node[node]:
+        return False
+
+    G.node[node]['partition'] = partition
+
+    # Partition towards parents
+    for (parent, child) in G.in_edges (nbunch=node):
+        if G.node[parent]['c'] == G.node[node]['c'] and G.node[parent]['i'] == G.node[node]['i']:
+            mark_partition (G, parent, partition)
+
+    # Partition towards children
+    for (parent, child) in G.out_edges (nbunch=node):
+        if G.node[child]['c'] == G.node[node]['c'] and G.node[child]['i'] == G.node[node]['i']:
+            mark_partition (G, child, partition)
+
+    return True
+
 class Graph:
 
     def __init__ (self, graph, solver, maximize, fail):
@@ -200,6 +220,25 @@ class Graph:
             err ("No solution")
             return False
 
+    def partition (self):
+
+        part = 1
+        G = self.graph
+
+        for node in G.node:
+            new_partition = mark_partition (G, node, str(part))
+            if new_partition:
+                part = part + 1
+
+        info ("Created " + str(part) + " partitions")
+
+        for node in G.node:
+            label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + G.node[node]['partition'] + ">"
+            G.node[node]['label'] = label
+
+        pd = nx.drawing.nx_pydot.to_pydot(self.graph)
+        return pd
+
     def write (self, title, out):
 
         G = self.graph
@@ -224,6 +263,10 @@ class Graph:
 
             set_style (G.node[node], val_c, val_i)
 
+            # Store node guarantees
+            G.node[node]['c'] = val_c
+            G.node[node]['i'] = val_i
+
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
 
@@ -240,7 +283,7 @@ class Graph:
             cg = G.node[child]['primitive'].i.guarantees()[darg]
             set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
-        pd = nx.drawing.nx_pydot.to_pydot(G)
+        pd = self.partition()
         pd.set_name("sdg")
         pd.set ("splines", "ortho")
         pd.set ("forcelabels", "true")
@@ -2124,7 +2167,6 @@ def parse_graph (inpath, solver, maximize):
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
 
-        label = "<<b>" + child.attrib['id'] + "</b><font point-size=\"6\"><sub> (" + child.tag + ")</sub></font>>"
         name  = child.attrib["id"]
 
         descnode = child.find('description')
@@ -2143,7 +2185,6 @@ def parse_graph (inpath, solver, maximize):
             (name, \
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
-             label      = label, \
              tooltip    = desc, \
              arguments  = arguments,
              style      = "bold", \
@@ -2212,6 +2253,7 @@ def parse_graph (inpath, solver, maximize):
         G.solver.assert_and_track (child_primitive.i.guarantees()[darg].i == parent_primitive.o.guarantees()[sarg].i, name + "i")
 
 
+    # Check arguments
     for node in mdg.node:
         iargs = set(())
         for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):

@@ -2242,31 +2242,6 @@ def set_style (o, c, i):
     elif i or i == None:
         o['color'] = "blue"
 
-def positions (G):
-    pd = nx.drawing.nx_pydot.to_pydot(G)
-    pd.set ("splines", "ortho")
-    pd.set ("forcelabels", "true")
-    pd.set ("nodesep", "0.5")
-    pd.set ("pack", "true")
-
-    pos = nx.drawing.nx_pydot.pydot_layout(G, prog="dot")
-
-    maxy = 0
-    for k in pos:
-        if maxy < pos[k][1]:
-            maxy = pos[k][1]
-
-    miny = maxy
-    for k in pos:
-        if miny > pos[k][1]:
-            miny = pos[k][1]
-
-    for k in pos:
-        y = maxy - pos[k][1] + miny
-        pos[k] = (pos[k][0], y)
-
-    return pos
-
 def main():
     s = SPG_Optimizer() if args.optimize else SPG_Solver()
 

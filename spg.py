@@ -5,6 +5,7 @@ import argparse
 import subprocess
 import os
 import re
+import pydot
 
 from io   import StringIO
 from lxml import etree
@@ -222,22 +223,49 @@ class Graph:
 
     def partition (self):
 
-        part = 1
         G = self.graph
 
+        partitions = {}
+        partition_no = 1
+
         for node in G.node:
-            new_partition = mark_partition (G, node, str(part))
+            new_partition = mark_partition (G, node, partition_no)
             if new_partition:
-                part = part + 1
+                partitions[str(partition_no)] = pydot.Subgraph (graph_name = "cluster_" + str(partition_no), label = "partition " + str(partition_no), penwidth = 2, bgcolor = "gray80")
+                partition_no = partition_no + 1
 
-        info ("Created " + str(part) + " partitions")
-
-        for node in G.node:
-            label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + G.node[node]['partition'] + ">"
-            G.node[node]['label'] = label
+        info ("Created " + str(partition_no) + " partitions")
 
         pd = nx.drawing.nx_pydot.to_pydot(self.graph)
-        return pd
+
+        for node in G.node:
+            label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + str(G.node[node]['partition']) + ">"
+            G.node[node]['label'] = label
+
+        for node in pd.get_nodes():
+            node_partition = node.get('partition')
+            new_node = pydot.Node(node.get_name())
+            attributes = node.get_attributes()
+            for a in attributes:
+                new_node.set (a, attributes[a])
+            partitions[node_partition].add_node (new_node)
+
+        # Create graph
+        graph = pydot.Dot()
+        graph.set_type ("digraph")
+
+        # Add partition subgraphs
+        for p in partitions:
+            graph.add_subgraph (partitions[p])
+
+        for edge in pd.get_edges():
+            new_edge = pydot.Edge (src = edge.get_source(), dst = edge.get_destination())
+            attributes = edge.get_attributes()
+            for a in attributes:
+                new_edge.set (a, attributes[a])
+            graph.add_edge (new_edge)
+
+        return graph
 
     def write (self, title, out):
 
@@ -287,10 +315,12 @@ class Graph:
         pd.set_name("sdg")
         pd.set ("splines", "ortho")
         pd.set ("forcelabels", "true")
-        pd.set ("nodesep", "0.5")
+        pd.set ("nodesep", "0.3")
+        pd.set ("ranksep", "1.0")
         pd.set ("pack", "true")
         pd.set ("size", "15.6,10.7")
         pd.set ("labelloc", "t")
+        pd.set ("rankdir", "LR")
         pd.write(out + ".dot")
 
         if out.endswith(".pdf"):

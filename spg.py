@@ -6,6 +6,7 @@ import subprocess
 import os
 import re
 import pydot
+import json
 
 from io   import StringIO
 from lxml import etree
@@ -13,6 +14,7 @@ from lxml import etree
 sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
 import networkx as nx
+from networkx.readwrite import json_graph
 
 # TODO: Check for excess output parameters in fixed primitives
 
@@ -156,6 +158,9 @@ def mark_partition (G, node, partition):
             mark_partition (G, child, partition)
 
     return True
+
+def jdefault (o):
+    return None
 
 class Graph:
 
@@ -314,25 +319,26 @@ class Graph:
         pd = self.partition()
         pd.set_name("sdg")
         pd.set ("splines", "ortho")
-        pd.set ("forcelabels", "true")
-        pd.set ("nodesep", "0.3")
-        pd.set ("ranksep", "1.0")
-        pd.set ("pack", "true")
+        #pd.set ("forcelabels", "true")
+        #pd.set ("nodesep", "0.3")
+        #pd.set ("ranksep", "1.0")
+        #pd.set ("pack", "true")
         pd.set ("size", "15.6,10.7")
         pd.set ("labelloc", "t")
-        pd.set ("rankdir", "LR")
-        pd.write(out + ".dot")
+        #pd.set ("rankdir", "LR")
+
+        with open ('data.json', 'w') as outfile:
+            nld = json_graph.node_link_data (self.graph)
+            json.dump (nld, outfile, default = jdefault)
 
         if out.endswith(".pdf"):
-            dotformat = "pdf"
+            format = 'pdf'
         elif out.endswith(".svg"):
-            dotformat = "svg"
+            format = 'svg'
         else:
             raise Exception ("Unsupported graphviz output type")
 
-        subprocess.check_output (["dot", "-T", dotformat, "-o", out, out + ".dot"])
-        os.remove (out + ".dot")
-
+        pd.write (out, prog = 'fdp', format = format)
 class Args:
 
     def __init__ (self):

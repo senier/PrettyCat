@@ -139,6 +139,10 @@ class PrimitiveInvalidAttributes (Exception):
     def __init__ (self, name, kind, text):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has invalid attributes: " + text)
 
+class InconsistentRule(Exception):
+    def __init__ (self, rule, text):
+        Exception.__init__(self, "Rule '" + rule + "': " + text)
+
 def mark_partition (G, node, partition):
 
     # Partition already set
@@ -432,6 +436,8 @@ class SPG_Solver (SPG_Solver_Base):
 
     def assert_and_track (self, condition, name):
         key = "a_" + str(name)
+        if key in self.assert_db:
+            raise InconsistentRule (name, "Already present")
         self.assert_db[key] = condition
         self.solver.assert_and_track (condition, key)
 
@@ -1011,7 +1017,7 @@ class Primitive_encrypt (Primitive):
         #   0                1              0
         # Assertion:
         #   plaintext_in_i ∨ ¬ciphertext_out_i (equiv: ciphertext_out_i ⇒ plaintext_in_i)
-        self.assert_and_track (Implies (self.o.ciphertext.i, self.i.plaintext.i), "ciphertext_in_i")
+        self.assert_and_track (Implies (self.o.ciphertext.i, self.i.plaintext.i), "plaintext_in_i")
 
         # Parameter
         #   key_in
@@ -1214,7 +1220,7 @@ class Primitive_hash (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.i, "data_in_i")
+        self.assert_nothing (self.i.data.i, "data_in_c")
 
         # Parameter
         #   data_in
@@ -2356,6 +2362,6 @@ if __name__ == "__main__":
         main()
     except PrimitiveMissing as e:
         warn (e)
-    except PrimitiveInvalidAttributes as e:
+    except (PrimitiveInvalidAttributes, InconsistentRule) as e:
         err (e)
         sys.exit (1)

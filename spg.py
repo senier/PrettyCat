@@ -149,12 +149,14 @@ def mark_partition (G, node, partition):
 
     # Partition towards parents
     for (parent, child) in G.in_edges (nbunch=node):
-        if G.node[parent]['c'] == G.node[node]['c'] and G.node[parent]['i'] == G.node[node]['i']:
+        if G.node[parent]['guarantees']['c'] == G.node[node]['guarantees']['c'] and \
+           G.node[parent]['guarantees']['i'] == G.node[node]['guarantees']['i']:
             mark_partition (G, parent, partition)
 
     # Partition towards children
     for (parent, child) in G.out_edges (nbunch=node):
-        if G.node[child]['c'] == G.node[node]['c'] and G.node[child]['i'] == G.node[node]['i']:
+        if G.node[child]['guarantees']['c'] == G.node[node]['guarantees']['c'] and \
+           G.node[child]['guarantees']['i'] == G.node[node]['guarantees']['i']:
             mark_partition (G, child, partition)
 
     return True
@@ -284,6 +286,11 @@ class Graph:
 
             val_c = False
             val_i = False
+
+            if 'guarantees' in G.node[node]:
+                val_c = G.node[node]['guarantees']['c']
+                val_i = G.node[node]['guarantees']['i']
+
             for (parent, current, data) in G.in_edges (nbunch=node, data=True):
                 darg = data['darg']
                 val_c = val_c or G.node[current]['primitive'].i.guarantees()[darg].val_c()
@@ -297,8 +304,8 @@ class Graph:
             set_style (G.node[node], val_c, val_i)
 
             # Store node guarantees
-            G.node[node]['c'] = val_c
-            G.node[node]['i'] = val_i
+            G.node[node]['guarantees']['c'] = val_c
+            G.node[node]['guarantees']['i'] = val_i
 
         # add edge labels
         for (parent, child, data) in G.edges(data=True):

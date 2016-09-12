@@ -2342,6 +2342,10 @@ def main():
     if not args.test:
         G.write ("Final", args.output[0])
 
+    if args.dump_rules:
+        for a in G.solver.solver.assertions():
+            print (a)
+
     if not result:
         sys.exit (1)
 
@@ -2352,6 +2356,7 @@ if __name__ == "__main__":
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
     parser.add_argument('--optimize', action='store_true', help='Use optimizer (disables uncore generation)', dest='optimize');
     parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
+    parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
 
     action = parser.add_mutually_exclusive_group(required=True)
     action.add_argument('--test', action='store_true', help='Do not produce output', dest='test');

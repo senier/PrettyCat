@@ -619,7 +619,7 @@ class Primitive_branch (Primitive):
         super ().setup (G, name)
 
         if len(self.i.guarantees().items()) > 1:
-            raise PrimitiveInvalidAttributes ("More than one input parameters")
+            raise PrimitiveInvalidAttributes (name, "branch", "More than one input parameters")
 
         # Parameters
         #   Inputs:  data
@@ -2177,18 +2177,18 @@ def parse_graph (inpath, solver, maximize):
     try:
         schema_doc = etree.parse(schema_src)
         schema = etree.XMLSchema (schema_doc)
-    except etree.XMLSchemaParseError as err:
-        warn ("Error compiling schema: " + str(err))
+    except etree.XMLSchemaParseError as e:
+        err ("Error compiling schema: " + str(e))
         sys.exit(1)
 
     try:
         tree = etree.parse (inpath)
-    except IOError as e:
-        warn ("Error opening XML file: " + str(e))
+    except (IOError, etree.XMLSyntaxError) as e:
+        err (inpath + ": " + str(e))
         sys.exit(1)
 
     if not schema.validate (tree):
-        warn ("Invalid input file '" + inpath + "'")
+        err (inpath)
         print (schema.error_log.last_error)
         sys.exit(1)
 
@@ -2261,9 +2261,9 @@ def parse_graph (inpath, solver, maximize):
 
         if mdg.node[node]['kind'] == "xform":
             if not mdg.in_edges (nbunch=node):
-                raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, "No inputs")
+                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No inputs")
             if not mdg.out_edges (nbunch=node):
-                raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, "No outputs")
+                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No outputs")
 
         objname = "Primitive_" + mdg.node[node]['kind']
         try:
@@ -2271,7 +2271,7 @@ def parse_graph (inpath, solver, maximize):
         except KeyError:
             raise PrimitiveMissing (mdg.node[node]['kind'], node)
         except AttributeError as e:
-            raise PrimitiveInvalidAttributes (mdg.node[node]['kind'], node, str(e))
+            raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], str(e))
 
     # Establish src -> sink relation
     for (parent, child, data) in mdg.edges (data=True):
@@ -2294,12 +2294,12 @@ def parse_graph (inpath, solver, maximize):
         iargs = set(())
         for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
             if data['darg'] in iargs:
-                raise Exception ("Node '" + node + "' has duplicate input argument '" + data['darg'] + "'")
+                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "Duplicate input argument '" + data['darg'] + "'")
             iargs.add (data['darg'])
         oargs = set(())
         for (parent, child, data) in mdg.out_edges (nbunch=node, data=True):
             if data['sarg'] in oargs:
-                raise Exception ("Node '" + node + "' has duplicate output argument '" + data['sarg'] + "'")
+                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "Duplicate output argument '" + data['sarg'] + "'")
             oargs.add (data['sarg'])
 
     info (str(len(mdg.node)) + " nodes.")
@@ -2350,4 +2350,5 @@ if __name__ == "__main__":
     except PrimitiveMissing as e:
         warn (e)
     except PrimitiveInvalidAttributes as e:
-        warn (e)
+        err (e)
+        sys.exit (1)

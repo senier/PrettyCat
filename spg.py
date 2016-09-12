@@ -241,7 +241,7 @@ class Graph:
                 partitions[str(partition_no)] = pydot.Subgraph (graph_name = "cluster_" + str(partition_no), label = "partition " + str(partition_no), penwidth = 2, bgcolor = "gray80")
                 partition_no = partition_no + 1
 
-        info ("Created " + str(partition_no) + " partitions")
+        info ("Created " + str(partition_no - 1) + " partitions")
 
         pd = nx.drawing.nx_pydot.to_pydot(self.graph)
 

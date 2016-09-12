@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<spg assert_fail="true">
+
+    <env id="Input" integrity="false" confidentiality="true">
+        <description>
+            Confidential input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="plaintext"/>
+    </env>
+
+    <const id="IV">
+        <description>
+            Static IV
+        </description>
+        <flow sarg="const" sink="Encrypt" darg="ctr"/>
+    </const>
+
+    <const id="Key Length">
+        <description>
+            Length of random key
+        </description>
+        <flow sarg="const" sink="Random" darg="len"/>
+    </const>
+
+    <rng id="Random">
+        <description>
+            Generate random key
+        </description>
+        <flow sarg="data" sink="KDF" darg="random"/>
+    </rng>
+
+    <xform id="KDF">
+        <description>
+            Key derivation
+        </description>
+        <flow sarg="const#1" sink="Encrypt" darg="key"/>
+        <flow sarg="const#2" sink="Output" darg="key"/>
+        <arg name="random"/>
+    </xform>
+
+    <encrypt id="Encrypt">
+        <description>
+            Symmetric counter mode encryption
+        </description>
+        <flow sarg="ciphertext" sink="Output" darg="data"/>
+    </encrypt>
+
+    <env id="Output" integrity="false" confidentiality="false">
+        <description>
+            Send out encrypted protected message
+        </description>
+        <arg name="data"/>
+        <arg name="key"/>
+    </env>
+</spg>
+

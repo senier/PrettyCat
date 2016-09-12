@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <spg assert_fail="true">
     <env id="Input" confidentiality="true" integrity="false">
         <description>

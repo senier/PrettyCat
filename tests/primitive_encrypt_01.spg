@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg>
+
+    <env id="Plaintext_Input" integrity="false" confidentiality="true">
+        <description>
+            Trusted plaintext input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="plaintext"/>
+    </env>
+
+    <env id="Key_Input">
+        <description>
+            Trusted key input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="key"/>
+    </env>
+
+    <env id="Ctr_Input" integrity="true" confidentiality="true">
+        <description>
+            Trusted ctr input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="ctr"/>
+    </env>
+
+    <encrypt id="Encrypt">
+        <description>
+            Symmetric counter mode encryption
+        </description>
+        <flow sarg="ciphertext" sink="Ciphertext_Output" darg="data"/>
+    </encrypt>
+
+    <env id="Ciphertext_Output" integrity="false" confidentiality="false">
+        <description>
+            Ciphertext output
+        </description>
+    </env>
+
+</spg>
+

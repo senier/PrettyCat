@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<spg>
+
+    <env id="Input" integrity="false" confidentiality="true">
+        <description>
+            Confidential input
+        </description>
+        <flow sarg="data" sink="Encrypt" darg="plaintext" assert_c="true" />
+    </env>
+
+    <env id="IV">
+        <description>
+            Static IV
+        </description>
+        <flow sarg="const" sink="Encrypt" darg="ctr"/>
+    </env>
+
+    <env id="Random">
+        <description>
+            Generate random key
+        </description>
+        <flow sarg="data" sink="KDF" darg="random" assert_c="true" assert_i="true"/>
+    </env>
+
+    <xform id="KDF">
+        <description>
+            Key derivation
+        </description>
+        <flow sarg="const#1" sink="Encrypt" darg="key"/>
+        <arg name="random"/>
+    </xform>
+
+    <encrypt id="Encrypt">
+        <description>
+            Symmetric counter mode encryption
+        </description>
+        <flow sarg="ciphertext" sink="Output" darg="data"/>
+    </encrypt>
+
+    <env id="Output" integrity="false" confidentiality="false">
+        <description>
+            Send out encrypted protected message
+        </description>
+        <arg name="data"/>
+    </env>
+</spg>
+

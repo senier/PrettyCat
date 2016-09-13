@@ -195,15 +195,15 @@ class Graph:
             sarg = data['sarg']
 
             if data['assert_c'] != None:
-                val_c = self.graph.node[parent]['primitive'].o.guarantees()[darg].val_c()
+                val_c = self.graph.node[parent]['primitive'].o.guarantees()[sarg].val_c()
                 if val_c != data['assert_c']:
-                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
+                    err (parent + "/" + sarg + " => " + child + "/" + sarg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
                     success = False
 
             if data['assert_i'] != None:
-                val_i = self.graph.node[parent]['primitive'].o.guarantees()[darg].val_i()
+                val_i = self.graph.node[parent]['primitive'].o.guarantees()[sarg].val_i()
                 if val_i != data['assert_i']:
-                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
+                    err (parent + "/" + sarg + " => " + child + "/" + sarg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
                     success = False
 
         return success

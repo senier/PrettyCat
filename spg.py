@@ -806,16 +806,16 @@ class Primitive_rng (Primitive):
         # Parameter
         #   data_out
         # Confidentiality guarantee can be dropped if:
-        #   Confidentiality is not required for len_in
+        #   Never
         # Reason:
-        #   Attacker could derive len_in from the length of data_out otherwise.
-        # Truth table
-        #   data_out_c  len_in_c    valid
-        #   0           0           1
-        #   0           1           0
-        # Assertion:
-        #   data_out_c ∨ ¬len_in_c (equiv: len_in_c ⇒ data_out_c)
-        self.assert_and_track (Implies (self.i.len.c, self.o.data.c), "data_out_c")
+        #   We assume that this RNG is always used to produce keys which need to
+        #   be confidential. If required, we can introduce a nonce generator later
+        #   which does not imply confidentiality guarantees for its output. The RNG
+        #   should be safe, as the worst thing that may happen is that confidentiality
+        #   is required unnecessarily. Most likely this will result in a conflict in
+        #   nonce case, as those are typically passed to domains without
+        #   confidentiality guarantees.
+        self.assert_and_track (self.o.data.c, "data_out_c")
 
         # Parameter
         #   data_out

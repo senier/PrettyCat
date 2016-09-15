@@ -1,7 +1,7 @@
 all: otr.svg
 
 TESTS = $(wildcard tests/*.spg)
-SPG_ARGS = --dump
+#SPG_ARGS = --dump
 
 otr.svg: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output $@

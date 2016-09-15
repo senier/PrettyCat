@@ -19,14 +19,14 @@
         <description>
             Generate random key
         </description>
-        <flow sarg="data" sink="KDF" darg="random" assert_c="true" assert_i="true"/>
+        <flow sarg="data" sink="KDF" darg="random" assert_i="true"/>
     </env>
 
     <xform id="KDF">
         <description>
             Key derivation
         </description>
-        <flow sarg="const#1" sink="Encrypt" darg="key"/>
+        <flow sarg="const#1" sink="Encrypt" darg="key" assert_c="true" />
         <arg name="random"/>
     </xform>
 

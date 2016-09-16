@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg>
+    <env id="Input" integrity="false" confidentiality="false">
+        <description>
+            Ciphertext input
+        </description>
+        <flow sarg="data" sink="Decrypt" darg="ciphertext"/>
+    </env>
+
+    <env id="Key_Input" integrity="true" confidentiality="true">
+        <description>
+            Key input
+        </description>
+        <flow sarg="key" sink="Decrypt" darg="key"/>
+    </env>
+
+    <env id="IV">
+        <description>
+            Static IV
+        </description>
+        <flow sarg="const" sink="Decrypt" darg="ctr" assert_c="false" assert_i="false"/>
+    </env>
+
+    <decrypt id="Decrypt">
+        <description>
+            Symmetric counter mode decryption
+        </description>
+        <flow sarg="plaintext" sink="Output" darg="data" assert_c="true" assert_i="false"/>
+    </decrypt>
+
+    <env id="Output" integrity="false" confidentiality="true">
+        <description>
+            Send out decrypted message
+        </description>
+        <arg name="data"/>
+    </env>
+</spg>
+
+

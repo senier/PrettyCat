@@ -176,6 +176,7 @@ class Graph:
         self.model    = None
         self.maximize = maximize
         self.fail     = fail
+        self.pd       = None
 
     def graph (self):
         return self.graph
@@ -247,13 +248,11 @@ class Graph:
 
         info ("Created " + str(partition_no - 1) + " partitions")
 
-        pd = nx.drawing.nx_pydot.to_pydot(self.graph)
-
         for node in G.node:
             label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + str(G.node[node]['partition']) + ">"
             G.node[node]['label'] = label
 
-        for node in pd.get_nodes():
+        for node in self.pd.get_nodes():
             node_partition = node.get('partition')
             new_node = pydot.Node(node.get_name())
             attributes = node.get_attributes()
@@ -269,16 +268,16 @@ class Graph:
         for p in partitions:
             graph.add_subgraph (partitions[p])
 
-        for edge in pd.get_edges():
+        for edge in self.pd.get_edges():
             new_edge = pydot.Edge (src = edge.get_source(), dst = edge.get_destination())
             attributes = edge.get_attributes()
             for a in attributes:
                 new_edge.set (a, attributes[a])
             graph.add_edge (new_edge)
 
-        return graph
+        self.pd = graph
 
-    def write (self, title, out):
+    def label (self):
 
         G = self.graph
         for node in G.node:
@@ -318,7 +317,6 @@ class Graph:
             darg = data['darg']
             sarg = data['sarg']
 
-            data['xlabel']    = ""
             data['taillabel'] = data['sarg'] if data['sarg'] != None else ""
             data['headlabel'] = data['darg']
             data['tooltip'] = parent + ":" + data['sarg'] + " ==> " + child + ":" + data['darg']
@@ -327,16 +325,22 @@ class Graph:
             cg = G.node[child]['primitive'].i.guarantees()[darg]
             set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
-        pd = self.partition()
+        self.pd = nx.drawing.nx_pydot.to_pydot(self.graph)
+
+    def write (self, out):
+
+        pd = self.pd
         pd.set_name("sdg")
+
+        # Choose fixed rng start value to get deterministic layout
+        pd.set ("start", "1")
+
+        pd.set ("sep", "+50,20")
+        pd.set ("esep", "+10,4")
+        #pd.set ("pack", "30")
         pd.set ("splines", "ortho")
-        #pd.set ("forcelabels", "true")
-        #pd.set ("nodesep", "0.3")
-        #pd.set ("ranksep", "1.0")
-        #pd.set ("pack", "true")
         pd.set ("size", "15.6,10.7")
         pd.set ("labelloc", "t")
-        #pd.set ("rankdir", "LR")
 
         with open ('data.json', 'w') as outfile:
             nld = json_graph.node_link_data (self.graph)
@@ -350,6 +354,7 @@ class Graph:
             raise Exception ("Unsupported graphviz output type")
 
         pd.write (out, prog = 'fdp', format = format)
+
 class Args:
 
     def __init__ (self):
@@ -2336,16 +2341,20 @@ def main():
     s = SPG_Optimizer() if args.optimize else SPG_Solver()
 
     G = parse_graph (args.input[0], s, args.maximize)
-    result = G.analyze()
+    solved = G.analyze()
+    G.label()
+
+    if solved:
+        G.partition()
 
     if not args.test:
-        G.write ("Final", args.output[0])
+        G.write (args.output[0])
 
     if args.dump_rules:
         for a in G.solver.solver.assertions():
             print (a)
 
-    if not result:
+    if not solved:
         sys.exit (1)
 
     sys.exit (0)

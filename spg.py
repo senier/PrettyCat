@@ -100,6 +100,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="verify_commit"   type="forwardElement"/>
             <xs:element name="layout"          type="forwardElement"/>
             <xs:element name="counter"         type="forwardElement"/>
+            <xs:element name="latch"           type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
     <xs:attribute name="assert_fail" type="xs:boolean" />
@@ -2171,6 +2172,95 @@ class Primitive_verify_commit (Primitive):
         # Assertion:
         #   None
         self.assert_nothing (self.o.data.i, "data_out_i")
+
+class Primitive_latch (Primitive):
+
+    """
+    Latch primitive
+
+    This primitive receives a value (potentially without any guarantees) and outputs
+    it unmodified. It guarantees that after receiving a value once it cannot be changed anymore.
+    Additionally it has a trigger output signaling that data was received.
+
+    Rationale: This is used for commitment schemes where we open a commitment only after
+    we received a peers (immutable) value.
+    """
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Input:  data
+        #   Output: data, trigger
+
+        # Parameter
+        #   data_in
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   The confidentiality of an input parameter is not influenced by an
+        #   output parameters or other input parameters as the data flow is
+        #   directed. Hence, the demand for confidentiality guarantees is
+        #   solely determined by the source of an input interface
+        # Assertion:
+        #   None
+        self.assert_nothing (self.i.data.c, "data_in_c")
+
+        # Parameter
+        #   data_in
+        # Integrity guarantee can be dropped if:
+        #   data_out has no integrity guaranteed
+        # Reason:
+        #   Otherwise, an attacker could change the content of data_out
+        #   by changing data_in
+        # Assertion:
+        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
+        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+
+        # Parameter
+        #   data_out
+        # Confidentiality guarantee can be dropped if:
+        #   data_in demands no confidentiality
+        # Reason:
+        #   Confidential data from data_in is passed on to data_out. Hence,
+        #   confidentiality can only be dropped if data_in guarantees no
+        #   confidentiality
+        # Assertion:
+        #   data_in_c -> data_out_c
+        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+
+        # Parameter
+        #   data_out
+        # Integrity guarantee can be dropped if:
+        #   Anytime.
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.data.i, "data_out_i")
+
+        # Parameter
+        #   trigger_out
+        # Confidentiality guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   No confidential information is passed on to trigger.
+        # Assertion:
+        #   None
+        self.assert_nothing (self.o.trigger.c, "trigger_out_c")
+
+        # Parameter
+        #   trigger_out
+        # Integrity guarantee can be dropped if:
+        #   Never.
+        # Reason:
+        #   The purpose of the latch primitive is to open a commitment. If it triggers
+        #   too early, this may happen before the peer has committed to a value. Hence,
+        #   the trigger value requires integrity guarantees.
+        # Assertion:
+        #   trigger_out_i
+        self.assert_and_track (self.o.trigger.i, "trigger_out_i")
 
 ####################################################################################################
 

@@ -438,8 +438,23 @@
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Encrypt g^x (S)" darg="key"/>
-        <flow sarg="data#2" sink="Reveal Signature (S)" darg="revealed_key"/>
+        <flow sarg="data#2" sink="Guard Random r (S)" darg="data"/>
     </branch>
+
+    <guard id="Guard Random r (S)">
+        <description>
+            Branch output arguments
+        </description>
+        <flow sarg="data" sink="Release Random r (S)" darg="data"/>
+    </guard>
+
+    <release id="Release Random r (S)">
+        <description>
+            The peers g^y was received. Release the formerly confidential
+            value r to open the commitment.
+        </description>
+        <flow sarg="data" sink="Reveal Signature (S)" darg="revealed_key"/>
+    </release>
 
     <hash id="Hash g^x (S)">
         <description>
@@ -563,12 +578,29 @@
         <description>
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
+        <flow sarg="g^y" sink="Latch g^y (R)" darg="data"/>
+        <arg name="dhkm"/>
+    </xform>
+
+    <latch id="Latch g^y (R)">
+        <description>
+            Make sure we receive g^y exactly one and stick to it. The trigger
+            guards our Reveal Signature response, i.e. it is sent only when
+            g^y was received in a D-H Key message.
+        </description>
+        <flow sarg="data" sink="Branch g^y (R)" darg="data"/>
+        <flow sarg="trigger" sink="Guard Random r (S)" darg="cond"/>
+    </latch>
+
+    <branch id="Branch g^y (R)">
+        <description>
+            Branch g^y
+        </description>
         <flow sarg="g^y#1" sink="Shared secret (R)" darg="pub"/>
         <flow sarg="g^y#2" sink="Layout M_B (S)" darg="uncontrolled"/>
         <flow sarg="g^y#3" sink="Layout M_A (R)" darg="uncontrolled"/>
         <flow sarg="g^y#4" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
-        <arg name="dhkm"/>
-    </xform>
+    </branch>
 
     <dhsec id="Shared secret (R)">
         <description>

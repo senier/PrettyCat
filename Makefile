@@ -6,13 +6,13 @@ TESTS = $(wildcard tests/*.spg)
 otr.svg: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests:: $(TESTS:.spg=.test)
+tests:: $(TESTS:.spg=.svg)
 	@echo "$(words $^) TESTS DONE."
 
 tests/%.svg: tests/%.spg
 	@echo "=== Graph $@"
 	@./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests/%.test: tests/%.spg
+tests/%.svg: tests/%.spg
 	@echo "=== Running $@"
-	@./spg.py $(SPG_ARGS) --input $< --test
+	@./spg.py $(SPG_ARGS) --input $< --output $@ --test

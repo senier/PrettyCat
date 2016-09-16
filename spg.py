@@ -253,7 +253,7 @@ class Graph:
             label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + str(G.node[node]['partition']) + ">"
             G.node[node]['label'] = label
 
-        for node in self.pd.get_nodes():
+        for node in nx.drawing.nx_pydot.to_pydot(G).get_nodes():
             node_partition = node.get('partition')
             new_node = pydot.Node(node.get_name())
             attributes = node.get_attributes()

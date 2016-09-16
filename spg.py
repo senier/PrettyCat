@@ -1071,8 +1071,7 @@ class Primitive_encrypt (Primitive):
         #   does no harm.
         # Assertion:
         #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.assert_and_track (self.i.ctr.i, "ctr_in_i")
-        #self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_c")
+        self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_i")
 
         # Parameter
         #   ciphertext_out
@@ -1087,7 +1086,7 @@ class Primitive_encrypt (Primitive):
         #   thus no confidentiality needs to be guaranteed by the environment.
         # Assertion:
         #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ¬ctr_in_i)
-        self.assert_and_track (Or (self.o.ciphertext.c, And (self.i.key.c, self.i.key.i), self.i.ctr.i), "ciphertext_out_c")
+        self.assert_and_track (Or (self.o.ciphertext.c, And (self.i.key.c, self.i.key.i, self.i.ctr.i)), "ciphertext_out_c")
 
         # Parameter
         #   ciphertext_out

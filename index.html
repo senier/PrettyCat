@@ -41,6 +41,17 @@
         xobj.send(null);  
     }
 
+    function clusterPartition(network, assignment, colors, partno) {
+        var partid = 'partition_' + partno;
+        var clusterOptionsByData = {
+            joinCondition: function (childOptions) {
+                return assignment[childOptions.id] == partno;
+            },
+            clusterNodeProperties: {id: partid, label: "Partition " + partno, shape: 'box', size: 40, color: colors[partno]} 
+        }
+        network.cluster (clusterOptionsByData)
+    }
+
     var networkOptions = {
     }
 
@@ -67,21 +78,27 @@
             partitions.add (json.nodes[i].partition);
         }
 
-        var options = {};
-        for (var i = 0; i < json.nodes.length; i++){
-            options[json.nodes[i].id] = json.nodes[i].partition;
+        var assignment = {};
+        var colors = {};
+        for (var i = 0; i < json.nodes.length; i++) {
+            assignment[json.nodes[i].id] = json.nodes[i].partition;
+            colors[json.nodes[i].partition] = json.nodes[i].color;
         }
 
         for (let p of partitions) {
-            var partid = 'partition_' + p;
-            var clusterOptionsByData = {
-                joinCondition: function (childOptions) {
-                    return options[childOptions.id] == p;
-                },
-                clusterNodeProperties: {id: partid, shape: 'box', size: 40} 
-            }
-            network.cluster (clusterOptionsByData)
+            clusterPartition(network, assignment, colors, p)
         }
+
+        network.on("selectNode", function(params) {
+            if (params.nodes.length == 1) {
+                if (network.isCluster(params.nodes[0]) == true) {
+                    network.openCluster(params.nodes[0]);
+                } else {
+                    var p = assignment[params.nodes[0]];
+                    clusterPartition(network, assignment, colors, p);
+                }
+            }
+        });
     });
 
 </script>

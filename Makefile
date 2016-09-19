@@ -9,6 +9,12 @@ TESTS = $(wildcard tests/*.spg)
 otr.svg: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output $@
 
+otr.json: models/OTRrev3.spg spg.py
+	./spg.py $(SPG_ARGS) --input $< --output $@
+
+otr.dot: models/OTRrev3.spg spg.py
+	./spg.py $(SPG_ARGS) --input $< --output $@
+
 tests:: $(TESTS:.spg=.svg)
 	@echo "$(words $^) TESTS DONE."
 

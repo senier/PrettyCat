@@ -1,80 +1,90 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <title>Force-Directed Layout</title>
-    <script src="https://d3js.org/d3.v3.min.js"></script>
-    <style>
-        circle.node {
-          stroke: #fff;
-          stroke-width: 1.5px;
+<head>
+  <title>Network | Basic usage</title>
+  <meta charset="UTF-8"> 
+  <script type="text/javascript" src="include/vis.min.js"></script>
+  <link href="../../../dist/vis.css" rel="stylesheet" type="text/css" />
+
+  <style type="text/css">
+	#spgnetwork {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border: 1px solid lightgray;
+    }
+  </style>
+</head>
+<body>
+
+<p>
+  Create a simple network with some nodes and edges.
+</p>
+
+<div id="spgnetwork"></div>
+
+<script type="text/javascript">
+
+    function loadFile(file, callback) {   
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', file, true);
+        xobj.onreadystatechange = function () {
+            if (xobj.readyState == 4 && xobj.status == "200") {
+                callback (xobj.responseText);
+            }
+        };
+        xobj.send(null);  
+    }
+
+    var networkOptions = {
+    }
+
+    var parserOptions = {
+        edges: {
+            inheritColors: false
+        },
+        nodes: {
+            parseColor: false
+        }
+    }
+
+    loadFile('./otr.json', function (input) {
+        json = JSON.parse (input);
+
+        var data = vis.network.convertGephi (json, parserOptions);
+
+        // create a network
+        var container = document.getElementById('spgnetwork');
+        var network = new vis.Network(container, data, networkOptions);
+
+        var partitions = new Set();
+        for (var i = 0; i < json.nodes.length; i++){
+            partitions.add (json.nodes[i].partition);
         }
 
-        line.link {
-          stroke: #999;
-          stroke-opacity: .6;
+        var options = {};
+        for (var i = 0; i < json.nodes.length; i++){
+            options[json.nodes[i].id] = json.nodes[i].partition;
         }
-    </style>
-  </head>
-  <body>
-    <div id="chart"></div>
-    <script type="text/javascript">
 
-        var w = 1300,
-            h = 750,
-            fill = d3.scale.category20();
+        for (let p of partitions) {
+            var partid = 'partition_' + p;
+            var clusterOptionsByData = {
+                joinCondition: function (childOptions) {
+                    return options[childOptions.id] == p;
+                },
+                clusterNodeProperties: {id: partid, shape: 'box', size: 40} 
+            }
+            network.cluster (clusterOptionsByData)
+        }
+    });
 
-        var vis = d3.select("#chart")
-          .append("svg:svg")
-            .attr("width", w)
-            .attr("height", h);
+</script>
 
-        d3.json("data.json", function(json) {
-          var force = d3.layout.force()
-              .charge(-120)
-              .linkDistance( function(d) { if (d.source.partition === d.target.partition) { return 10; } else { return 100; } })
-              .nodes(json.nodes)
-              .links(json.links)
-              .size([w, h])
-              .start();
-
-          var link = vis.selectAll("line.link")
-              .data(json.links)
-            .enter().append("svg:line")
-              .attr("class", "link")
-              .style("stroke-width", function(d) { return Math.sqrt(d.value); })
-              .attr("x1", function(d) { return d.source.x; })
-              .attr("y1", function(d) { return d.source.y; })
-              .attr("x2", function(d) { return d.target.x; })
-              .attr("y2", function(d) { return d.target.y; });
-
-          var node = vis.selectAll("circle.node")
-              .data(json.nodes)
-            .enter().append("svg:circle")
-              .attr("class", "node")
-              .attr("cx", function(d) { return d.x; })
-              .attr("cy", function(d) { return d.y; })
-              .attr("r", 5)
-              .style("fill", function(d) { return fill(d.partition); })
-              .call(force.drag);
-
-          node.append("svg:title")
-              .text(function(d) { return d.name; });
-
-          vis.style("opacity", 1e-6)
-            .transition()
-              .duration(1000)
-              .style("opacity", 1);
-
-          force.on("tick", function() {
-            link.attr("x1", function(d) { return d.source.x; })
-                .attr("y1", function(d) { return d.source.y; })
-                .attr("x2", function(d) { return d.target.x; })
-                .attr("y2", function(d) { return d.target.y; });
-
-            node.attr("cx", function(d) { return d.x; })
-                .attr("cy", function(d) { return d.y; });
-          });
-        });
-    </script>
-  </body>
+</body>
 </html>

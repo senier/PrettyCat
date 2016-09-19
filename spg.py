@@ -338,23 +338,51 @@ class Graph:
 
         pd.set ("sep", "+50,20")
         pd.set ("esep", "+10,4")
-        #pd.set ("pack", "30")
         pd.set ("splines", "ortho")
         pd.set ("size", "15.6,10.7")
         pd.set ("labelloc", "t")
 
-        with open ('data.json', 'w') as outfile:
-            nld = json_graph.node_link_data (self.graph)
-            json.dump (nld, outfile, default = jdefault)
-
         if out.endswith(".pdf"):
-            format = 'pdf'
+            pd.write (out, prog = 'fdp', format = 'pdf')
         elif out.endswith(".svg"):
-            format = 'svg'
+            pd.write (out, prog = 'fdp', format = 'svg')
+        elif out.endswith(".dot"):
+            pd.write (out, prog = 'dot', format = 'dot')
+        elif out.endswith(".json"):
+            with open (out, 'w') as outfile:
+                nld = json_graph.node_link_data (self.graph)
+
+                # Cleanup unneeded elements
+                del nld['graph']
+                del nld['directed']
+                del nld['multigraph']
+
+                for l in nld['links']:
+                    del l['tooltip']
+                    del l['headlabel']
+                    del l['taillabel']
+                    del l['labelfontname']
+                    del l['penwidth']
+                    l['type'] = 'Directed'
+                    l['source'] = nld['nodes'][l['source']]['id']
+                    l['target'] = nld['nodes'][l['target']]['id']
+
+                for n in nld['nodes']:
+                    del n['tooltip']
+                    del n['width']
+                    del n['height']
+                    del n['penwidth']
+
+                    n['label'] = n['id']
+                    n['shape'] = 'box'
+
+                # Rename edges to links
+                nld['edges'] = nld.pop('links')
+
+                json.dump (nld, outfile, default = jdefault)
         else:
             raise Exception ("Unsupported graphviz output type")
 
-        pd.write (out, prog = 'fdp', format = format)
 
 class Args:
 
@@ -2455,7 +2483,7 @@ if __name__ == "__main__":
     parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
     parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
-    parser.add_argument('--output', action='store', nargs=1, help='Output file', dest='output');
+    parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
 
     try:
         args = parser.parse_args ()

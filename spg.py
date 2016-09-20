@@ -2378,7 +2378,7 @@ def parse_graph (inpath):
         darg = data['darg']
         if mdg.node[child]['kind'] == "xform":
             if not darg in mdg.node[child]['arguments']:
-                warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
+                raise PrimitiveInvalidAttributes (child, mdg.node[child]['kind'], "Non-existing interface '" + darg + "' referenced by '" + parent + "'")
 
     info (str(len(mdg.node)) + " nodes.")
     return G

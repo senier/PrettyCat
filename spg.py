@@ -132,6 +132,10 @@ def info (message):
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
+class PrimitiveInvalidRules (Exception):
+    def __init__ (self, kind, name):
+        Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has contradicting rules")
+
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") not implemented")
@@ -562,6 +566,12 @@ class Primitive:
         for g in og:
             solver.assert_and_track (og[g].conf, "RULE_" + self.name + "_" + g + "_output_conf")
             solver.assert_and_track (og[g].intg, "RULE_" + self.name + "_" + g + "_output_intg")
+
+    def prove (self, solver):
+        self.populate (solver)
+        if solver.check() != sat:
+            raise PrimitiveInvalidRules (self.__class__.__name__, self.name)
+        del solver
 
 class Primitive_env (Primitive):
     """
@@ -2339,6 +2349,7 @@ def parse_graph (inpath):
         objname = "Primitive_" + mdg.node[node]['kind']
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node)
+            mdg.node[node]['primitive'].prove(SPG_Solver())
         except KeyError:
             raise PrimitiveMissing (mdg.node[node]['kind'], node)
         except AttributeError as e:

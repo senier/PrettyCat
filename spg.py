@@ -208,15 +208,7 @@ class Graph:
 
         # Put node rules into solver
         for n in self.graph.nodes():
-            primitive = self.graph.node[n]['primitive']
-            ig = primitive.input.guarantees()
-            for g in ig:
-                solver.assert_and_track (ig[g].conf, "RULE_" + n + "_" + g + "_input_conf")
-                solver.assert_and_track (ig[g].intg, "RULE_" + n + "_" + g + "_input_intg")
-            og = primitive.output.guarantees()
-            for g in og:
-                solver.assert_and_track (og[g].conf, "RULE_" + n + "_" + g + "_output_conf")
-                solver.assert_and_track (og[g].intg, "RULE_" + n + "_" + g + "_output_intg")
+            self.graph.node[n]['primitive'].populate (solver)
 
         # Put edge (channel) rules into solver
         for (parent, child, data) in self.graph.edges(data=True):
@@ -560,6 +552,16 @@ class Primitive:
 
         for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
             self.output.add_guarantee (data['sarg'])
+
+    def populate (self, solver):
+        ig = self.input.guarantees()
+        for g in ig:
+            solver.assert_and_track (ig[g].conf, "RULE_" + self.name + "_" + g + "_input_conf")
+            solver.assert_and_track (ig[g].intg, "RULE_" + self.name + "_" + g + "_input_intg")
+        og = self.output.guarantees()
+        for g in og:
+            solver.assert_and_track (og[g].conf, "RULE_" + self.name + "_" + g + "_output_conf")
+            solver.assert_and_track (og[g].intg, "RULE_" + self.name + "_" + g + "_output_intg")
 
 class Primitive_env (Primitive):
     """

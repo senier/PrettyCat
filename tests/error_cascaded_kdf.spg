@@ -1,0 +1,57 @@
+<?xml version="1.0"?>
+<spg>
+
+    <const id="Prefix">
+        <description>
+            Key perfix
+        </description>
+        <flow sarg="const" sink="Concat" darg="prefix"/>
+    </const>
+
+    <const id="Keylen">
+        <description>
+            Key length
+        </description>
+        <flow sarg="const" sink="Random" darg="len" assert_i="true"/>
+    </const>
+
+    <rng id="Random">
+        <description>
+            Generate random key
+        </description>
+        <flow sarg="data" sink="Concat" darg="secbytes"/>
+    </rng>
+
+    <xform id="Concat">
+        <description>
+            Concatenate key with prefix for hash
+        </description>
+        <flow sarg="result" sink="Hash" darg="data" assert_c="true"/>
+        <arg name="secbytes"/>
+        <arg name="prefix"/>
+    </xform>
+
+    <hash id="Hash">
+        <description>
+            Key derivation
+        </description>
+        <flow sarg="hash" sink="Split" darg="c" assert_c="true"/>
+    </hash>
+
+    <xform id="Split">
+        <description>
+            Split hash result into 2 keys
+        </description>
+        <flow sarg="c1" sink="Key_Output" darg="c1"/>
+        <flow sarg="c2" sink="Key_Output" darg="c2"/>
+        <arg name="c"/>
+    </xform>
+
+    <env id="Key_Output" integrity="false" confidentiality="true">
+        <description>
+            Send to key store
+        </description>
+        <arg name="c1"/>
+        <arg name="c2"/>
+    </env>
+</spg>

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<spg>
+
+    <const id="Len">
+        <description>
+            Number of random bytes to be retrieved from RNG.
+            This must have integrity guaranteed, as otherwise
+            an attacker could chose too short keys.
+        </description>
+        <flow sarg="const" sink="Random" darg="len" assert_i="true"/>
+    </const>
+
+    <rng id="Random">
+        <description>
+            RNG
+        </description>
+        <flow sarg="data" sink="Output" darg="random" assert_c="true"/>
+    </rng>
+
+    <env id="Output" confidentiality="true">
+        <description>
+            Environment with confidentiality guarantees, e.g. key store
+        </description>
+        <arg name="random"/>
+    </env>
+
+</spg>

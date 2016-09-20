@@ -171,22 +171,13 @@ def jdefault (o):
 
 class Graph:
 
-    def __init__ (self, graph, solver, maximize, fail):
+    def __init__ (self, graph, fail):
         self.graph    = graph
-        self.solver   = solver
-        self.model    = None
-        self.maximize = maximize
         self.fail     = fail
         self.pd       = None
 
     def graph (self):
         return self.graph
-
-    def solver (self):
-        return self.solver
-
-    def model (self):
-        return self.solver.model()
 
     def check_assertions (self):
 
@@ -197,35 +188,74 @@ class Graph:
             sarg = data['sarg']
 
             if data['assert_c'] != None:
-                val_c = self.graph.node[parent]['primitive'].o.guarantees()[sarg].val_c()
+                val_c = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_c()
                 if val_c != data['assert_c']:
                     err (parent + "/" + sarg + " => " + child + "/" + darg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
                     success = False
 
             if data['assert_i'] != None:
-                val_i = self.graph.node[parent]['primitive'].o.guarantees()[sarg].val_i()
+                val_i = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_i()
                 if val_i != data['assert_i']:
                     err (parent + "/" + sarg + " => " + child + "/" + darg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
                     success = False
 
         return success
 
-    def analyze (self):
-        if self.solver.check() == sat:
+    def analyze (self, dump_rules):
+
+        solver = SPG_Solver()
+        assertno = 0
+
+        # Put node rules into solver
+        for n in self.graph.nodes():
+            primitive = self.graph.node[n]['primitive']
+            ig = primitive.input.guarantees()
+            for g in ig:
+                solver.assert_and_track (ig[g].conf, "RULE_" + n + "_" + g + "_input_conf")
+                solver.assert_and_track (ig[g].intg, "RULE_" + n + "_" + g + "_input_intg")
+            og = primitive.output.guarantees()
+            for g in og:
+                solver.assert_and_track (og[g].conf, "RULE_" + n + "_" + g + "_output_conf")
+                solver.assert_and_track (og[g].intg, "RULE_" + n + "_" + g + "_output_intg")
+
+        # Put edge (channel) rules into solver
+        for (parent, child, data) in self.graph.edges(data=True):
+            pog = self.graph.node[parent]['primitive'].output.guarantees()
+            cig = self.graph.node[child]['primitive'].input.guarantees()
+            darg = data['darg']
+            sarg = data['sarg']
+            channel = "CHNL_" + parent + "/" + sarg + " -> " + child + "/" + darg
+            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + "_conf")
+            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + "_intg")
+
+        # Dump all rules if requested
+        if dump_rules:
+            for a in solver.solver.assertions():
+                print (a)
+
+        if solver.check() == sat:
+
+            # Update all guarantee values
+            for n in self.graph.nodes():
+                primitive = self.graph.node[n]['primitive']
+                ig = primitive.input.guarantees()
+                for g in ig:
+                    ig[g].update (solver.model())
+                og = primitive.output.guarantees()
+                for g in og:
+                    og[g].update (solver.model())
 
             if self.fail:
                 err ("Failure expected, but solution found");
                 return False
 
             info ("Solution found")
-            self.solver.optimize (self.graph, self.maximize)
-            self.model = self.solver.model
 
             # Check assertions
             return self.check_assertions()
 
         else:
-            self.solver.mark_unsat_core(self.graph)
+            solver.mark_unsat_core(self.graph)
 
             # We expect a failure - exit without error
             if self.fail:
@@ -297,13 +327,13 @@ class Graph:
 
             for (parent, current, data) in G.in_edges (nbunch=node, data=True):
                 darg = data['darg']
-                val_c = val_c or G.node[current]['primitive'].i.guarantees()[darg].val_c()
-                val_i = val_i or G.node[current]['primitive'].i.guarantees()[darg].val_i()
+                val_c = val_c or G.node[current]['primitive'].input.guarantees()[darg].val_c()
+                val_i = val_i or G.node[current]['primitive'].input.guarantees()[darg].val_i()
 
             for (current, child, data) in G.out_edges (nbunch=node, data=True):
                 sarg = data['sarg']
-                val_c = val_c or G.node[current]['primitive'].o.guarantees()[sarg].val_c()
-                val_i = val_i or G.node[current]['primitive'].o.guarantees()[sarg].val_i()
+                val_c = val_c or G.node[current]['primitive'].output.guarantees()[sarg].val_c()
+                val_i = val_i or G.node[current]['primitive'].output.guarantees()[sarg].val_i()
 
             set_style (G.node[node], val_c, val_i)
 
@@ -322,8 +352,8 @@ class Graph:
             data['headlabel'] = data['darg']
             data['tooltip'] = parent + ":" + data['sarg'] + " ==> " + child + ":" + data['darg']
 
-            pg = G.node[parent]['primitive'].o.guarantees()[sarg]
-            cg = G.node[child]['primitive'].i.guarantees()[darg]
+            pg = G.node[parent]['primitive'].output.guarantees()[sarg]
+            cg = G.node[child]['primitive'].input.guarantees()[darg]
             set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
         self.pd = nx.drawing.nx_pydot.to_pydot(self.graph)
@@ -386,27 +416,28 @@ class Graph:
 
 class Args:
 
-    def __init__ (self):
-        raise Exception ("Abstract class")
+    def __init__ (self, graph, name):
+        raise Exception ("Abstract")
 
-    def setup (self, graph, name, mode):
+    def setup (self, graph, name):
         self._graph  = graph
         self._name   = name
-        self._mode   = mode
 
     def add_guarantee (self, name):
-        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name, self._mode)})
+        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
 
-class Args_In (Args):
-    def __init__ (self, graph, name):
-        Args.setup (self, graph, name, "in")
+class Input_Args (Args):
 
-class Args_Out (Args):
     def __init__ (self, graph, name):
-        Args.setup (self, graph, name, "out")
+        super().setup (graph, name + "_input")
+
+class Output_Args (Args):
+
+    def __init__ (self, graph, name):
+        super().setup (graph, name + "_output")
 
 class SPG_Solver_Base:
 
@@ -416,49 +447,8 @@ class SPG_Solver_Base:
     def check (self):
         return self.solver.check()
 
-    def optimize (self, graph, maximize):
-        info ("Running with plain solver, performing no optimization.");
-
     def model (self):
         return self.solver.model()
-
-class SPG_Optimizer (SPG_Solver_Base):
-
-    def __init__ (self):
-        self.solver = Optimize()
-        self.cost   = Int('cost');
-
-    def assert_and_track (self, condition, name):
-        self.solver.add (condition)
-
-    def optimize (self, graph, maximize):
-
-        info ("Optimizing result")
-
-        edge_sum = Int(0)
-        for (parent, child, data) in graph.edges (data=True):
-            parent_primitive = graph.node[parent]['primitive']
-            child_primitive = graph.node[child]['primitive']
-            sarg = data['sarg']
-            darg = data['darg']
-
-            edge_sum = edge_sum + \
-                If(parent_primitive.o.guarantees()[sarg].c, Int(1), Int(0)) + \
-                If(parent_primitive.o.guarantees()[sarg].i, Int(1), Int(0)) + \
-                If(child_primitive.i.guarantees()[darg].c, Int(1), Int(0)) + \
-                If(child_primitive.i.guarantees()[darg].i, Int(1), Int(0))
-
-
-        self.solver.add (self.cost == edge_sum)
-        if maximize:
-            info ("Maximizing cost")
-            h = self.solver.maximize (self.cost)
-        else:
-            info ("Minimizing cost")
-            h = self.solver.minimize (self.cost)
-
-        self.solver.check()
-        self.solver.lower(h)
 
 class SPG_Solver (SPG_Solver_Base):
 
@@ -469,7 +459,11 @@ class SPG_Solver (SPG_Solver_Base):
         self.constraints = {}
 
     def assert_and_track (self, condition, name):
-        key = "a_" + str(name)
+
+        if (condition == None):
+            return
+
+        key = "ASSERT_" + str(name)
         if key in self.assert_db:
             raise InconsistentRule (name, "Already present")
         self.assert_db[key] = condition
@@ -499,45 +493,50 @@ class SPG_Solver (SPG_Solver_Base):
 
 class Guarantees:
 
-    def __init__ (self, graph, node, mode):
-        self.graph  = graph
-        self.node   = node
+    def __init__ (self, graph, name):
+        self.graph = graph
+        self.name  = name
 
-        self.base = self.node + "_" + mode
-        self.c = Bool(self.base + "_c")
-        self.i = Bool(self.base + "_i")
+        # Rules defining integrity and confidentiality
+        # This is assigned by the primitive init function
+        self.conf  = None
+        self.intg  = None
 
-    def base (self):
-        return base
+        # Z3 variables representing confidentiality and
+        # integrity within the solver. These values are
+        # used in the rules.
+        self.__c   = Bool(name + "_conf")
+        self.__i   = Bool(name + "_intg")
 
-    def assert_condition (self, condition, desc):
-        self.graph.solver.assert_and_track (condition, self.base + "_" + desc)
+        # The actual boolean value. This is filled in from
+        # a valid model found by the solver
+        self.__val_c = None
+        self.__val_i = None
 
-    def c (self):
-        return c
+    def name (self):
+        return name
 
-    def i (self):
-        return i
+    def get_i (self):
+        return self.__i
 
-    def assert_x (self, var, value, tag):
-        if value != None:
-            self.graph.solver.assert_and_track (var == value, self.base + "_" + tag)
-
-    def assert_c (self, value):
-        self.assert_x (self.c, value, "c")
-
-    def assert_i (self, value):
-        self.assert_x (self.i, value, "i")
+    def get_c (self):
+        return self.__c
 
     def val_c (self):
-        if self.graph.model == None:
-            return None if self.base + "_c" in self.graph.solver.constraints else False
-        return is_true(self.graph.model()[self.c])
+        return self.__val_c
 
     def val_i (self):
-        if self.graph.model == None:
-            return None if self.base + "_i" in self.graph.solver.constraints else False
-        return is_true(self.graph.model()[self.i])
+        return self.__val_i
+
+    def update (self, model):
+        self.__val_c = is_true(model[self.__c])
+        self.__val_i = is_true(model[self.__i])
+    
+def Intg (guarantee):
+    return guarantee.get_i()
+
+def Conf (guarantee):
+    return guarantee.get_c()
 
 ####################################################################################################
 
@@ -550,24 +549,17 @@ class Primitive:
         raise Exception ("Abstract")
 
     def setup (self, G, name):
-        self.i      = Args_In (G, name)
-        self.o      = Args_Out (G, name)
+        self.input  = Input_Args (G, name)
+        self.output = Output_Args (G, name)
         self.name   = name
         self.node   = G.graph.node[name]
         self.graph  = G
 
         for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
-            self.i.add_guarantee (data['darg'])
+            self.input.add_guarantee (data['darg'])
 
         for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.o.add_guarantee (data['sarg'])
-
-    def assert_and_track (self, cond, desc):
-        """Track an condition tagging it with the primitive name and a description"""
-        self.graph.solver.assert_and_track (cond, self.name + "_" + desc)
-
-    def assert_nothing (self, cond, desc):
-        self.assert_and_track (Or (cond, Not(cond)), desc)
+            self.output.add_guarantee (data['sarg'])
 
 class Primitive_env (Primitive):
     """
@@ -583,12 +575,17 @@ class Primitive_env (Primitive):
         # Guarantees explicitly set in the XML
         g = self.node['guarantees']
 
-        for (name, guarantee) in self.i.guarantees().items():
-           guarantee.assert_c (g['c'])
-           guarantee.assert_i (g['i'])
-        for (name, guarantee) in self.o.guarantees().items():
-           guarantee.assert_c (g['c'])
-           guarantee.assert_i (g['i'])
+        for (name, ig) in self.input.guarantees().items():
+            if g['c'] != None:
+                ig.conf = (Conf (ig) == g['c'])
+            if g['i'] != None:
+                ig.intg = (Intg (ig) == g['i'])
+
+        for (name, og) in self.output.guarantees().items():
+            if g['c'] != None:
+                og.conf = (Conf (og) == g['c'])
+            if g['i'] != None:
+                og.intg = (Intg (og) == g['i'])
 
 class Primitive_xform (Primitive):
     """
@@ -623,9 +620,9 @@ class Primitive_xform (Primitive):
         #   guarantees cannot be maintained for any output interface.
         # Assertion:
         #   ∃out_i ⇒ ∀in_j
-        for (out_name, out_g) in self.o.guarantees().items():
-            for (in_name, in_g) in self.i.guarantees().items():
-                    self.assert_and_track (Implies (out_g.i, in_g.i), in_name + "_" + out_name + "_i")
+        for (out_name, out_g) in self.output.guarantees().items():
+            for (in_name, in_g) in self.input.guarantees().items():
+                in_g.intg = Implies (Intg(out_g), Intg(in_g))
 
         # Parameter
         #   All output interfaces
@@ -637,9 +634,9 @@ class Primitive_xform (Primitive):
         #   confidentiality must be guaranteed by all output interfaces.
         # Assertion:
         #   in_c -> out_c
-        for (in_name, in_g) in self.i.guarantees().items():
-            for (out_name, out_g) in self.o.guarantees().items():
-                self.assert_and_track (Implies (in_g.c, out_g.c), in_name + "_" + out_name + "_c")
+        for (in_name, in_g) in self.input.guarantees().items():
+            for (out_name, out_g) in self.output.guarantees().items():
+                out_g.conf = Implies (Conf(in_g), Conf(out_g))
 
         # Parameter
         #   All output interfaces
@@ -651,8 +648,8 @@ class Primitive_xform (Primitive):
         # Assertion:
         #   in_i -> out_i
         # Assertion:
-        #for (in_name, in_g) in self.i.guarantees().items():
-        #    for (out_name, out_g) in self.o.guarantees().items():
+        #for (in_name, in_g) in self.input.guarantees().items():
+        #    for (out_name, out_g) in self.output.guarantees().items():
         #        self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
 
 class Primitive_branch (Primitive):
@@ -665,16 +662,16 @@ class Primitive_branch (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        if len(self.i.guarantees().items()) > 1:
+        if len(self.input.guarantees().items()) > 1:
             raise PrimitiveInvalidAttributes (name, "branch", "More than one input parameters")
 
         # Parameters
         #   Inputs:  data
         #   Outputs: data_1..data_n
 
-        for (out_name, out_g) in self.o.guarantees().items():
-            self.assert_and_track (out_g.c == self.i.data.c, out_name + "_data_c")
-            self.assert_and_track (Implies (out_g.i, self.i.data.i), out_name + "_data_i")
+        for (out_name, out_g) in self.output.guarantees().items():
+            out_g.conf = (Conf(out_g) == Conf(self.input.data))
+            out_g.intg = (Implies (Intg(out_g), Intg(self.input.data)))
 
 class Primitive_layout (Primitive):
     """
@@ -712,7 +709,6 @@ class Primitive_layout (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.uncontrolled.c, "uncontrolled_in_c")
 
         # Parameter
         #   uncontrolled
@@ -723,7 +719,6 @@ class Primitive_layout (Primitive):
         #   securely is one purpose of this component.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.uncontrolled.i, "uncontrolled_in_i")
 
         # Parameter
         #   controlled
@@ -734,7 +729,7 @@ class Primitive_layout (Primitive):
         #   by changing the controlled input data.
         # Assertion:
         #   controlled_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ controlled_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.controlled.i), "controlled_in_i")
+        self.input.controlled.intg =  Implies (Intg(self.output.data), Intg(self.input.controlled))
 
         # Parameter
         #   controlled
@@ -747,7 +742,6 @@ class Primitive_layout (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.controlled.c, "controlled_in_c")
 
         # Parameter
         #   data
@@ -758,7 +752,6 @@ class Primitive_layout (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
         # Parameter
         #   data
@@ -770,7 +763,7 @@ class Primitive_layout (Primitive):
         #   only be dropped if no input interface guarantees confidentiality
         # Assertion:
         #   controlled_c ∨ uncontrolled_c -> data_c
-        self.assert_and_track (Implies (Or (self.i.controlled.c, self.i.uncontrolled.c), self.o.data.c), "data_out_c")
+        self.output.data.intg = Implies (Or (Conf(self.input.controlled), Conf(self.input.uncontrolled)), Conf(self.output.data))
 
 class Primitive_const (Primitive):
     """
@@ -788,10 +781,6 @@ class Primitive_const (Primitive):
         # receiving primitives do not require them.  This is handled in the
         # channel assertions (output guarantees of parent are equivalent to
         # respective input guarantees of child)
-
-        # Just check that const output parameter exists
-        self.assert_nothing (self.o.const.c, "const_out_c")
-        self.assert_nothing (self.o.const.i, "const_out_i")
 
 class Primitive_rng (Primitive):
     """
@@ -820,7 +809,6 @@ class Primitive_rng (Primitive):
         #   FIXME: This does not hold if we consider meta-confidentiality (e.g. the length out output data)
         # Assertion:
         #   None
-        self.assert_nothing (self.i.len.c, "len_in_c")
 
         # Parameter
         #   len_in
@@ -835,7 +823,7 @@ class Primitive_rng (Primitive):
         #   0           1           0
         # Assertion:
         #   len_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ len_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.len.i), "len_in_i")
+        self.input.len.intg = Implies (Intg(self.output.data), Intg(self.input.len))
 
         # Parameter
         #   data_out
@@ -849,7 +837,7 @@ class Primitive_rng (Primitive):
         #   is required unnecessarily. Most likely this will result in a conflict in
         #   nonce case, as those are typically passed to domains without
         #   confidentiality guarantees.
-        self.assert_and_track (self.o.data.c, "data_out_c")
+        self.output.data.conf = Conf (self.output.data)
 
         # Parameter
         #   data_out
@@ -859,7 +847,6 @@ class Primitive_rng (Primitive):
         #   FIXME
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_dhpub (Primitive):
 
@@ -884,7 +871,7 @@ class Primitive_dhpub (Primitive):
         #   feel a stabbing pain in my head without that already. We should
         #   think about that later and demand confidentiality for psec_in
         #   unconditionally for now.
-        self.assert_and_track (self.i.psec.c, "psec_in_c")
+        self.input.psec.conf = Bool (True)
 
         # Parameter
         #   psec_in
@@ -895,7 +882,7 @@ class Primitive_dhpub (Primitive):
         #   she can calculate the shared secret g^yx
         # Assertion:
         #   See above.
-        self.assert_and_track (self.i.psec.i, "psec_in_i")
+        self.input.psec.intg = Bool (True)
 
         # Parameter
         #   pub_out
@@ -913,7 +900,7 @@ class Primitive_dhpub (Primitive):
         #   0         1         1         1
         # Assertion:
         #   pub_out_c or (psec_in_c and psec_in_i)
-        self.assert_and_track (Or (self.o.pub.c, And (self.i.psec.c, self.i.psec.i)), "pub_out_c")
+        self.output.pub.conf = Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec)))
 
         # Parameter
         #   pub_out
@@ -923,7 +910,6 @@ class Primitive_dhpub (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_nothing (self.o.pub.i, "pub_out_i")
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name):
@@ -943,7 +929,7 @@ class Primitive_dhsec (Primitive):
         #   calculate ssec (the shared secret g^yx ≡ g^xy)
         # Assertion:
         #   psec_in_c ∨ ssec_out_c ∨ ¬pub_in_c
-        self.assert_and_track (Or (self.i.psec.c, self.o.ssec.c, Not (self.i.pub.c)), "psec_in_c")
+        self.input.psec.conf = Or (Conf(self.input.psec), Conf(self.output.ssec), Not (Conf(self.input.pub)))
 
         # Parameter
         #   psec_in
@@ -952,7 +938,7 @@ class Primitive_dhsec (Primitive):
         # Reason:
         # Assertion:
         #   ssec_out_c => psec_in_i
-        self.assert_and_track (Implies (self.o.ssec.c, self.i.psec.i), "psec_in_i")
+        self.input.psec.intg = Implies (Conf(self.output.ssec), Intg(self.input.psec))
 
         # Parameter
         #   pub_in
@@ -972,7 +958,7 @@ class Primitive_dhsec (Primitive):
         #   0          1          1         1
         # Assertion:
         #   pub_in_c ∨ ¬ssec_out_c ∨ psec_in_c
-        self.assert_and_track (Or (self.i.pub.c, Not (self.o.ssec.c), self.i.psec.c), "pub_in_c")
+        self.input.pub.conf = Or (Conf(self.input.pub), Not (Conf(self.output.ssec)), Conf(self.input.psec))
 
         # Parameter
         #   pub_in
@@ -982,7 +968,6 @@ class Primitive_dhsec (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_nothing (self.i.pub.i, "pub_in_i")
 
         # Parameter
         #   ssec_out
@@ -1003,7 +988,7 @@ class Primitive_dhsec (Primitive):
         #   0          1         1        0
         # Assertion:
         #   ssec_out_c ∨ ¬(psec_in_c ∨ pub_in_c)
-        self.assert_and_track (Or (self.o.ssec.c, Not (Or (self.i.psec.c, self.i.pub.c))), "ssec_out_c")
+        self.output.ssec.conf = Or (Conf(self.output.ssec), Not (Or (Conf(self.input.psec), Conf(self.input.pub))))
 
         # Parameter
         #   ssec_out
@@ -1013,7 +998,6 @@ class Primitive_dhsec (Primitive):
         #   DH does not achieve nor assume integrity
         # Assertion:
         #   None
-        self.assert_nothing (self.o.ssec.i, "ssec_out_i")
 
 class Primitive_encrypt (Primitive):
     def __init__ (self, G, name):
@@ -1034,7 +1018,6 @@ class Primitive_encrypt (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.plaintext.c, "plaintext_in_c")
 
         # Parameter
         #   plaintext_in
@@ -1051,7 +1034,7 @@ class Primitive_encrypt (Primitive):
         #   0                1              0
         # Assertion:
         #   plaintext_in_i ∨ ¬ciphertext_out_i (equiv: ciphertext_out_i ⇒ plaintext_in_i)
-        self.assert_and_track (Implies (self.o.ciphertext.i, self.i.plaintext.i), "plaintext_in_i")
+        self.input.plaintext.intg = Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext))
 
         # Parameter
         #   key_in
@@ -1071,7 +1054,7 @@ class Primitive_encrypt (Primitive):
         #   0              1               1                1
         # Assertion:
         #   key_in_c ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.assert_and_track (Or (self.i.key.c, Not (self.i.plaintext.c), self.o.ciphertext.c), "key_in_c")
+        self.input.key.conf = Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext))
 
         # Parameter
         #   key_in
@@ -1079,7 +1062,7 @@ class Primitive_encrypt (Primitive):
         #   Never
         # Reason:
         # Assertion:
-        self.assert_and_track (self.i.key.i, "key_in_i")
+        self.input.key.intg = Intg (self.input.key)
 
         # Parameter
         #   ctr_in
@@ -1090,7 +1073,6 @@ class Primitive_encrypt (Primitive):
         #   definition
         # Assertion:
         #   None
-        self.assert_nothing (self.i.ctr.c, "ctr_in_c")
 
         # Parameter
         #   ctr_in
@@ -1105,7 +1087,7 @@ class Primitive_encrypt (Primitive):
         #   does no harm.
         # Assertion:
         #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.assert_and_track (Or (self.i.ctr.i, Not (self.i.plaintext.c), self.o.ciphertext.c), "ctr_in_i")
+        self.input.ctr.intg = Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext))
 
         # Parameter
         #   ciphertext_out
@@ -1120,7 +1102,7 @@ class Primitive_encrypt (Primitive):
         #   thus no confidentiality needs to be guaranteed by the environment.
         # Assertion:
         #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ¬ctr_in_i)
-        self.assert_and_track (Or (self.o.ciphertext.c, And (self.i.key.c, self.i.key.i, self.i.ctr.i)), "ciphertext_out_c")
+        self.output.ciphertext.conf = Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr)))
 
         # Parameter
         #   ciphertext_out
@@ -1130,7 +1112,7 @@ class Primitive_encrypt (Primitive):
         #   Counter mode encryption neither assumes nor achieves integrity.
         # Assertion:
         #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
-        self.assert_and_track (Implies (self.i.plaintext.i, self.o.ciphertext.i), "ciphertext_out_i")
+        self.output.ciphertext.intg = Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):
@@ -1151,7 +1133,6 @@ class Primitive_decrypt (Primitive):
         #   This is the purpose of (symmetric) encryption.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.ciphertext.c, "ciphertext_in_c")
 
         # Parameter
         #   ciphertext_in
@@ -1162,7 +1143,6 @@ class Primitive_decrypt (Primitive):
         #   influenced by an output parameter or other input parameters.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.ciphertext.i, "ciphertext_in_i")
 
         # Parameter
         #   key_in
@@ -1173,7 +1153,7 @@ class Primitive_decrypt (Primitive):
         #   result, keeping the cipher key secret is superfluous.
         # Assertion:
         #   key_in_c ∨ ¬plaintext_out_c (equiv: plaintext_out_c ⇒ key_in_c)
-        self.assert_and_track (Implies (self.o.plaintext.c, self.i.key.c), "key_in_c")
+        self.input.key.conf = Implies (Conf(self.output.plaintext), Conf(self.input.key))
 
         # Parameter
         #   key_in
@@ -1188,7 +1168,6 @@ class Primitive_decrypt (Primitive):
         #   counter mode encryption anyway.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.key.i, "key_in_i")
 
         # Parameter
         #   ctr_in
@@ -1198,7 +1177,6 @@ class Primitive_decrypt (Primitive):
         #   The counter is public as per counter mode definition.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.ctr.c, "ctr_in_c")
 
         # Parameter
         #   ctr_in
@@ -1210,7 +1188,6 @@ class Primitive_decrypt (Primitive):
         #   key/ctr combination in this case) is superfluous.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.ctr.i, "ctr_in_i")
 
         # Parameter
         #   plaintext_out
@@ -1222,7 +1199,6 @@ class Primitive_decrypt (Primitive):
         #   confidentiality requirements is perfectly fine)
         # Assertion:
         #   None
-        self.assert_nothing (self.o.plaintext.c, "plaintext_out_c")
 
         # Parameter
         #   plaintext_out
@@ -1233,7 +1209,6 @@ class Primitive_decrypt (Primitive):
         #   primitive using the decryption result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.plaintext.i, "plaintext_out_i")
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name):
@@ -1253,7 +1228,6 @@ class Primitive_hash (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.i, "data_in_c")
 
         # Parameter
         #   data_in
@@ -1270,7 +1244,7 @@ class Primitive_hash (Primitive):
         #   0         1          0
         # Assertion:
         #   data_in_i ∨ ¬hash_out_i (equiv: hash_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.hash.i, self.i.data.i), "data_in_i")
+        self.input.data.intg = Implies (Intg(self.output.hash), Intg(self.input.data))
 
         # Parameter
         #   hash_out
@@ -1290,7 +1264,7 @@ class Primitive_hash (Primitive):
         #   0          1         0
         # Assertion:
         #   hash_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ hash_out_c)
-        self.assert_and_track (Implies (self.i.data.c, self.o.hash.c), "hash_out_c")
+        self.output.hash.conf = Implies (Conf(self.input.data), Conf(self.output.hash))
 
         # Parameter
         #   hash_out
@@ -1298,7 +1272,6 @@ class Primitive_hash (Primitive):
         #   Anytime
         # Reason:
         #   FIXME
-        self.assert_nothing (self.o.hash.i, "hash_out_i")
 
 class Primitive_hmac (Primitive):
 
@@ -1319,7 +1292,7 @@ class Primitive_hmac (Primitive):
         #   to an attacker.
         # Assertion:
         #   key_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_c)
-        self.assert_and_track (Implies (self.i.msg.i, self.i.key.c), "key_in_c")
+        self.input.key.conf = Implies (Intg(self.input.msg), Conf(self.input.key))
 
         # Parameter
         #   key_in
@@ -1331,7 +1304,7 @@ class Primitive_hmac (Primitive):
         #   harm if the key is chosen by an attacker.
         # Assertion:
         #   key_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_i)
-        self.assert_and_track (Implies (self.i.msg.i, self.i.key.i), "key_in_i")
+        self.input.key.intg = Implies (Intg(self.input.msg), Intg(self.input.key))
 
         # Parameter
         #   msg_in
@@ -1341,7 +1314,6 @@ class Primitive_hmac (Primitive):
         #   HMAC does not achieve nor assume confidentiality
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -1354,7 +1326,7 @@ class Primitive_hmac (Primitive):
         #   has not integrity requirements?
         # Assertion:
         #   msg_in_i
-        self.assert_and_track (self.i.msg.i, "msg_in_i")
+        self.input.msg.intg = Intg (self.input.msg)
 
         # Parameter
         #   auth_out
@@ -1366,7 +1338,6 @@ class Primitive_hmac (Primitive):
         #   nor for the auth value the environment has to maintain confidentiality.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.auth.c, "auth_out_c")
 
         # Parameter
         #   auth_out
@@ -1378,7 +1349,6 @@ class Primitive_hmac (Primitive):
         #   nor for the auth value the environment has to maintain integrity.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.auth.i, "auth_out_i")
 
 class Primitive_hmac_out (Primitive_hmac):
 
@@ -1397,7 +1367,7 @@ class Primitive_hmac_out (Primitive_hmac):
         #   The HMAC does not achieve confidentiality.
         # Assertion:
         #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.assert_and_track (Implies (self.i.msg.c, self.o.msg.c), "msg_out_c")
+        self.output.msg.conf = Implies (Conf(self.input.msg), Conf(self.output.msg))
 
         # Parameter
         #   msg_out
@@ -1407,7 +1377,6 @@ class Primitive_hmac_out (Primitive_hmac):
         #   This is the purpose of HMAC.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.msg.i, "msg_out_i")
 
 class Primitive_sign (Primitive):
 
@@ -1434,17 +1403,16 @@ class Primitive_sign (Primitive):
         #   message.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
         # Integrity guarantee can be dropped if:
-        #   Always
+        #   Never
         # Reason:
         #   Signing arbitrary data makes no sense.
         # Assertion:
         #   msg_in_i
-        self.assert_and_track (self.i.msg.i, "msg_in_i")
+        self.input.msg.intg = Intg (self.input.msg)
 
         # Parameter
         #   skey_in
@@ -1453,7 +1421,7 @@ class Primitive_sign (Primitive):
         # Reason:
         # Assertion:
         #   skey_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_c)
-        self.assert_and_track (self.i.skey.c, "skey_in_c")
+        self.input.skey.conf = Conf (self.input.skey)
 
         # Parameter
         #   skey_in
@@ -1462,7 +1430,7 @@ class Primitive_sign (Primitive):
         # Reason:
         # Assertion:
         #   skey_in_i
-        self.assert_and_track (self.i.skey.i, "skey_in_i")
+        self.input.skey.intg = Intg (self.input.skey)
 
         # Parameter
         #   auth_out
@@ -1475,7 +1443,7 @@ class Primitive_sign (Primitive):
         #   to get probabilistic here, we just assume this is always possible.
         # Assertion:
         #   auth_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ auth_out_c)
-        self.assert_and_track (Implies (self.i.msg.c, self.o.auth.c), "auth_out_c")
+        self.output.auth.conf = Implies (Conf(self.input.msg), Conf(self.output.auth))
 
         # Parameter
         #   auth_out
@@ -1486,7 +1454,6 @@ class Primitive_sign (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.auth.i, "auth_out_i")
 
 class Primitive_verify_sig (Primitive):
 
@@ -1512,7 +1479,6 @@ class Primitive_verify_sig (Primitive):
         #   message.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -1523,7 +1489,6 @@ class Primitive_verify_sig (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   auth_in
@@ -1533,7 +1498,6 @@ class Primitive_verify_sig (Primitive):
         #   Signature verification does not assume confidentiality for signature.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.auth.c, "auth_in_c")
 
         # Parameter
         #   auth_in
@@ -1544,7 +1508,6 @@ class Primitive_verify_sig (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.auth.i, "auth_in_i")
 
         # Parameter
         #   pkey_in
@@ -1554,7 +1517,6 @@ class Primitive_verify_sig (Primitive):
         #   Public key is, by definition, public.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.pkey.c, "pkey_in_c")
 
         # Parameter
         #   pkey_in
@@ -1566,7 +1528,7 @@ class Primitive_verify_sig (Primitive):
         #   (and thus can create a valid signature yielding a positive result)
         # Assertion:
         #   pkey_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_i)
-        self.assert_and_track (Implies (self.o.result.i, self.i.pkey.i), "pkey_in_i")
+        self.input.pkey.intg = Implies (Intg(self.output.result), Intg(self.input.pkey))
 
         # Parameter
         #   result_out
@@ -1576,7 +1538,7 @@ class Primitive_verify_sig (Primitive):
         #   FIXME: Does the value of result really allow for gaining knowledge about msg?
         # Assertion:
         #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
-        self.assert_and_track (Implies (self.i.msg.c, self.o.result.c), "result_out_c")
+        self.output.result.conf = Implies (Conf(self.input.msg), Conf(self.output.result))
 
         # Parameter
         #   result_out
@@ -1587,7 +1549,6 @@ class Primitive_verify_sig (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.result.i, "result_out_i")
 
 class Primitive_verify_hmac (Primitive):
 
@@ -1613,7 +1574,6 @@ class Primitive_verify_hmac (Primitive):
         #   message.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.c, "msg_in_c")
 
         # Parameter
         #   msg_in
@@ -1624,7 +1584,6 @@ class Primitive_verify_hmac (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.msg.i, "msg_in_i")
 
         # Parameter
         #   auth_in
@@ -1634,7 +1593,6 @@ class Primitive_verify_hmac (Primitive):
         #   Signature verification does not assume confidentiality for signature.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.auth.c, "auth_in_c")
 
         # Parameter
         #   auth_in
@@ -1645,7 +1603,6 @@ class Primitive_verify_hmac (Primitive):
         #   is the purpose of a signature operation.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.auth.i, "auth_in_i")
 
         # Parameter
         #   key_in
@@ -1657,7 +1614,7 @@ class Primitive_verify_hmac (Primitive):
         #   a positive result
         # Assertion:
         #   pkey_in_c ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_c)
-        self.assert_and_track (Implies (self.o.result.i, self.i.key.c), "key_in_c")
+        self.input.key.conf = Implies (Intg(self.output.result), Conf(self.input.key))
 
         # Parameter
         #   key_in
@@ -1669,7 +1626,7 @@ class Primitive_verify_hmac (Primitive):
         #   (and thus can create a valid signature yielding a positive result)
         # Assertion:
         #   key_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ key_in_i)
-        self.assert_and_track (Implies (self.o.result.i, self.i.key.i), "key_in_i")
+        self.input.key.intg = Implies (Intg(self.output.result), Intg(self.input.key))
 
         # Parameter
         #   result_out
@@ -1679,7 +1636,7 @@ class Primitive_verify_hmac (Primitive):
         #   FIXME: Does the value of result really allow for gaining knowledge about msg?
         # Assertion:
         #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
-        self.assert_and_track (Implies (self.i.msg.c, self.o.result.c), "result_out_c")
+        self.output.result.conf = Implies (Conf(self.input.msg), Conf(self.output.result))
 
         # Parameter
         #   result_out
@@ -1690,7 +1647,6 @@ class Primitive_verify_hmac (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.result.i, "result_out_i")
 
 class Primitive_verify_hmac_out (Primitive_verify_hmac):
 
@@ -1709,7 +1665,7 @@ class Primitive_verify_hmac_out (Primitive_verify_hmac):
         #   The HMAC does not achieve confidentiality.
         # Assertion:
         #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.assert_and_track (Implies (self.i.msg.c, self.o.msg.c), "msg_out_c")
+        self.output.msg.conf = Implies (Conf(self.input.msg), Conf(self.output.msg))
 
         # Parameter
         #   msg_out
@@ -1720,7 +1676,6 @@ class Primitive_verify_hmac_out (Primitive_verify_hmac):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.msg.i, "msg_out_i")
 
 class Primitive_counter (Primitive):
 
@@ -1750,7 +1705,7 @@ class Primitive_counter (Primitive):
         #   confidentiality.
         # Assertion:
         #   init_in_c ∨ trigger_in_c ∨ ¬ctr_out_c
-        self.assert_and_track (Or (self.i.init.c, self.i.trigger.c, Not (self.o.ctr.c)), "init_in_c")
+        self.input.init.conf = Or (Conf(self.input.init), Conf(self.input.trigger), Not (Conf(self.output.ctr)))
 
         # Parameter
         #   init_in
@@ -1762,7 +1717,7 @@ class Primitive_counter (Primitive):
         # Assertion:
         #   init_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ init_in_i)
         #
-        self.assert_and_track (Implies (self.o.ctr.i, self.i.init.i), "init_in_i")
+        self.input.init.intg = Implies (Intg(self.output.ctr), Intg(self.input.init))
 
         # Parameter
         #   trigger_in
@@ -1775,7 +1730,7 @@ class Primitive_counter (Primitive):
         #   init_in
         # Assertion:
         #   trigger_in_c ∨ ¬ctr_out_c (equiv: ctr_out_c ⇒ trigger_in_c)
-        self.assert_and_track (Implies (self.o.ctr.c, self.i.trigger.c), "trigger_in_c")
+        self.input.trigger.conf = Implies (Conf(self.output.ctr), Conf(self.input.trigger))
 
         # Parameter
         #   trigger_in
@@ -1792,7 +1747,7 @@ class Primitive_counter (Primitive):
         # Assertion:
         #   trigger_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ trigger_in_i)
         #
-        self.assert_and_track (Implies (self.o.ctr.i, self.i.trigger.i), "trigger_in_i")
+        self.input.trigger.intg = Implies (Intg(self.output.ctr), Intg(self.input.trigger))
 
         # Parameter
         #   ctr_out
@@ -1804,7 +1759,7 @@ class Primitive_counter (Primitive):
         #   for ctr_out is superfluous.
         # Assertion:
         #   ctr_out_c ∨ ¬init_in_c ∨ ¬trigger_in_c
-        self.assert_and_track (Or (self.o.ctr.c, Not (self.i.trigger.c), Not (self.i.init.c)), "ctr_out_c")
+        self.output.ctr.conf = Or (Conf(self.output.ctr), Not (Conf(self.input.trigger)), Not (Conf(self.input.init)))
 
         # Parameter
         #   ctr_out
@@ -1815,7 +1770,6 @@ class Primitive_counter (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.ctr.i, "ctr_out_i")
 
 class Primitive_guard (Primitive):
 
@@ -1844,7 +1798,6 @@ class Primitive_guard (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "data_in_c")
 
         # Parameter
         #   data_in
@@ -1855,7 +1808,7 @@ class Primitive_guard (Primitive):
         #   by an attacker.
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
 
         # Parameter
         #   cond_in
@@ -1867,7 +1820,6 @@ class Primitive_guard (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "cond_in_c")
 
         # Parameter
         #   cond_in
@@ -1882,7 +1834,7 @@ class Primitive_guard (Primitive):
         #   make this configurable then?
         # Assertion:
         #   cond_in_i
-        self.assert_and_track (self.i.cond.i, "cond_in_i")
+        self.input.cond.intg = Intg (self.input.cond)
 
         # Parameter
         #   data_out
@@ -1893,7 +1845,7 @@ class Primitive_guard (Primitive):
         #   makes no sense to keep data_out confidential.
         # Assertion:
         #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
 
         # Parameter
         #   data_out
@@ -1904,7 +1856,6 @@ class Primitive_guard (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_release (Primitive):
 
@@ -1931,7 +1882,6 @@ class Primitive_release (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "data_in_c")
 
         # Parameter
         #   data_in
@@ -1941,7 +1891,6 @@ class Primitive_release (Primitive):
         #   This is the purpose of the component
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.i, "data_in_i")
 
         # Parameter
         #   data_out
@@ -1951,7 +1900,6 @@ class Primitive_release (Primitive):
         #   This is the purpose of the component
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.c, "data_out_c")
 
         # Parameter
         #   data_in
@@ -1962,7 +1910,6 @@ class Primitive_release (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_comp (Primitive):
 
@@ -1990,7 +1937,6 @@ class Primitive_comp (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data1.c, "data1_in_c")
 
         # Parameter
         #   data1_in
@@ -2002,7 +1948,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data1_in)
         # Assertion:
         #   data1_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data1_in_i)
-        self.assert_and_track (Implies (self.o.result.i, self.i.data1.i), "data1_in_i")
+        self.input.data1.intg = Implies (Intg(self.output.result), self.input.data1)
 
         # Parameter
         #   data2_in
@@ -2014,7 +1960,6 @@ class Primitive_comp (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data2.c, "data2_in_c")
 
         # Parameter
         #   data2_in
@@ -2026,7 +1971,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data2_in)
         # Assertion:
         #   data2_in_i ∨ ¬result_out_c (equiv: result_out_c ⇒ data2_in_i)
-        self.assert_and_track (Implies (self.o.result.i, self.i.data2.i), "data2_in_i")
+        self.input.data2.intg = Implies (Intg(self.output.result), self.input.data2)
 
         # Parameter
         #   result_out
@@ -2037,7 +1982,7 @@ class Primitive_comp (Primitive):
         #   by comparing both values
         # Assertion:
         #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
-        self.assert_and_track (Or (self.o.result.c, Not (And (self.i.data1.c, self.i.data2.c))), "result_out_c")
+        self.output.result.conf = Or (Conf(self.output.result), Not (And (self.input.data1, self.input.data2)))
 
         # Parameter
         #   result_out
@@ -2048,8 +1993,6 @@ class Primitive_comp (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.result.i, "result_out_i")
-
 
 class Primitive_scomp (Primitive):
 
@@ -2078,7 +2021,6 @@ class Primitive_scomp (Primitive):
         #   interface.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "data_in_c")
 
         # Parameter
         #   data_in
@@ -2089,7 +2031,7 @@ class Primitive_scomp (Primitive):
         #   of result_out
         # Assertion:
         #   data_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.result.i, self.i.data.i), "data_in_i")
+        self.input.data.intg = Implies (Intg(self.output.result), Intg(self.input.data))
 
         # Parameter
         #   result_out
@@ -2099,7 +2041,7 @@ class Primitive_scomp (Primitive):
         #   If an attacker knows data result by comparing with previous values
         # Assertion:
         #   result_out_c ∨ ¬data_in_c (equiv: result_out_c ⇒ data_in_c)
-        self.assert_and_track (Implies (self.o.result.c, self.i.data.c), "result_out_c")
+        self.output.result.conf = Implies (Conf(self.output.result), Conf(self.input.data))
 
         # Parameter
         #   result_out
@@ -2110,7 +2052,6 @@ class Primitive_scomp (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.result.i, "result_out_i")
 
 class Primitive_verify_commit (Primitive):
     """
@@ -2139,7 +2080,6 @@ class Primitive_verify_commit (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "data_in_c")
 
         # Parameter
         #   data_in
@@ -2153,7 +2093,7 @@ class Primitive_verify_commit (Primitive):
         #   0         1          0
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
 
         # Parameter
         #   hash
@@ -2166,7 +2106,6 @@ class Primitive_verify_commit (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.hash.c, "hash_in_c")
 
         # Parameter
         #   hash
@@ -2177,7 +2116,6 @@ class Primitive_verify_commit (Primitive):
         #   Output data is not influenced by hash input parameter.
         # Assertion:
         #   None
-        self.assert_nothing (self.i.hash.i, "hash_in_i")
 
         # Parameter
         #   data_out
@@ -2188,7 +2126,7 @@ class Primitive_verify_commit (Primitive):
         #   makes no sense to keep data_out confidential.
         # Assertion:
         #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
 
         # Parameter
         #   data_out
@@ -2199,7 +2137,6 @@ class Primitive_verify_commit (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
 class Primitive_latch (Primitive):
 
@@ -2232,7 +2169,6 @@ class Primitive_latch (Primitive):
         #   solely determined by the source of an input interface
         # Assertion:
         #   None
-        self.assert_nothing (self.i.data.c, "data_in_c")
 
         # Parameter
         #   data_in
@@ -2243,7 +2179,7 @@ class Primitive_latch (Primitive):
         #   by changing data_in
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.assert_and_track (Implies (self.o.data.i, self.i.data.i), "data_in_i")
+        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
 
         # Parameter
         #   data_out
@@ -2255,7 +2191,7 @@ class Primitive_latch (Primitive):
         #   confidentiality
         # Assertion:
         #   data_in_c -> data_out_c
-        self.assert_and_track (Implies (self.i.data.c, self.o.data.c), "data_out_c")
+        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
 
         # Parameter
         #   data_out
@@ -2266,7 +2202,6 @@ class Primitive_latch (Primitive):
         #   the result.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.data.i, "data_out_i")
 
         # Parameter
         #   trigger_out
@@ -2276,7 +2211,6 @@ class Primitive_latch (Primitive):
         #   No confidential information is passed on to trigger.
         # Assertion:
         #   None
-        self.assert_nothing (self.o.trigger.c, "trigger_out_c")
 
         # Parameter
         #   trigger_out
@@ -2288,7 +2222,7 @@ class Primitive_latch (Primitive):
         #   the trigger value requires integrity guarantees.
         # Assertion:
         #   trigger_out_i
-        self.assert_and_track (self.o.trigger.i, "trigger_out_i")
+        self.output.trigger.intg = Intg (self.output.trigger)
 
 ####################################################################################################
 
@@ -2307,7 +2241,7 @@ def parse_guarantees (attribs):
         'i': parse_bool (attribs, 'integrity'),
     }
 
-def parse_graph (inpath, solver, maximize):
+def parse_graph (inpath):
 
     try:
         schema_doc = etree.parse(schema_src)
@@ -2333,7 +2267,7 @@ def parse_graph (inpath, solver, maximize):
         assert_fail = True
 
     mdg = nx.MultiDiGraph()
-    G   = Graph (mdg, solver, maximize, assert_fail)
+    G   = Graph (mdg, assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
@@ -2408,22 +2342,6 @@ def parse_graph (inpath, solver, maximize):
         except AttributeError as e:
             raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], str(e))
 
-    # Establish src -> sink relation
-    for (parent, child, data) in mdg.edges (data=True):
-        parent_primitive = mdg.node[parent]['primitive']
-        child_primitive = mdg.node[child]['primitive']
-        sarg = data['sarg']
-        darg = data['darg']
-
-        if mdg.node[child]['kind'] == "xform":
-            if not darg in mdg.node[child]['arguments']:
-                warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
-
-        name = parent + "_" + sarg + "__" + child + "_" + darg + "_channel_"
-        G.solver.assert_and_track (parent_primitive.o.guarantees()[sarg].c == child_primitive.i.guarantees()[darg].c, name + "c")
-        G.solver.assert_and_track (child_primitive.i.guarantees()[darg].i == parent_primitive.o.guarantees()[sarg].i, name + "i")
-
-
     # Check arguments
     for node in mdg.node:
         iargs = set(())
@@ -2437,8 +2355,13 @@ def parse_graph (inpath, solver, maximize):
                 raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "Duplicate output argument '" + data['sarg'] + "'")
             oargs.add (data['sarg'])
 
-    info (str(len(mdg.node)) + " nodes.")
+    for (parent, child, data) in mdg.edges (data=True):
+        darg = data['darg']
+        if mdg.node[child]['kind'] == "xform":
+            if not darg in mdg.node[child]['arguments']:
+                warn ("'" + child + "' has edge from '" + parent + "' for non-existing argument '" + darg + "'")
 
+    info (str(len(mdg.node)) + " nodes.")
     return G
 
 def set_style (o, c, i):
@@ -2456,31 +2379,19 @@ def set_style (o, c, i):
         o['color'] = "blue"
 
 def main():
-    s = SPG_Optimizer() if args.optimize else SPG_Solver()
 
-    G = parse_graph (args.input[0], s, args.maximize)
-    solved = G.analyze()
+    G = parse_graph (args.input[0])
+    solved = G.analyze(args.dump_rules)
     G.label()
 
-    if solved:
-        G.partition()
+    if solved: G.partition()
 
     G.write (args.output[0])
-
-    if args.dump_rules:
-        for a in G.solver.solver.assertions():
-            print (a)
-
-    if not solved:
-        sys.exit (1)
-
-    sys.exit (0)
+    sys.exit (0 if solved else 1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
-    parser.add_argument('--optimize', action='store_true', help='Use optimizer (disables uncore generation)', dest='optimize');
-    parser.add_argument('--maximize', action='store_true', help='Perform maximization (for testing)', dest='maximize');
     parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
@@ -2492,4 +2403,5 @@ if __name__ == "__main__":
         warn (e)
     except (PrimitiveInvalidAttributes, InconsistentRule) as e:
         err (e)
+        raise
         sys.exit (1)

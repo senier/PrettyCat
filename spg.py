@@ -2391,15 +2391,32 @@ def set_style (o, c, i):
     elif i or i == None:
         o['color'] = "blue"
 
+def dump_primitive_rules():
+    for primitive_class in Primitive.__subclasses__():
+
+        name = primitive_class.__name__[10:]
+
+        # FIXME: This does not work as long as the primitive
+        # structure is constructed from the config file.
+        mdg = nx.MultiDiGraph()
+        mdg.add_node (name, guarantees = None, kind = name)
+
+        G = Graph (mdg, False)
+        P = primitive_class (G, name)
+
 def main():
 
+    # Read in graph
     G = parse_graph (args.input[0])
     solved = G.analyze(args.dump_rules)
     G.label()
 
-    if solved: G.partition()
+    #if args.dump_rules:
+    #    dump_primitive_rules()
 
+    if solved: G.partition()
     G.write (args.output[0])
+
     sys.exit (0 if solved else 1)
 
 if __name__ == "__main__":

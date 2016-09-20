@@ -248,7 +248,13 @@ class Graph:
             info ("Solution found")
 
             # Check assertions
-            return self.check_assertions()
+            result = self.check_assertions()
+            if result:
+                info ("Assertions checked")
+            else:
+                warn ("Assertions failed")
+
+            return result
 
         else:
             solver.mark_unsat_core(self.graph)

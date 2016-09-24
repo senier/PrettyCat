@@ -132,6 +132,14 @@ def info (message):
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
+class PrimitiveDuplicateConfRule (Exception):
+    def __init__ (self, name):
+        Exception.__init__(self, "Duplicate confidentiality rule for '" + name + "'")
+
+class PrimitiveDuplicateIntgRule (Exception):
+    def __init__ (self, name):
+        Exception.__init__(self, "Duplicate integrity rule for '" + name + "'")
+
 class PrimitiveInvalidRules (Exception):
     def __init__ (self, kind, name):
         Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has contradicting rules")
@@ -501,8 +509,8 @@ class Guarantees:
 
         # Rules defining integrity and confidentiality
         # This is assigned by the primitive init function
-        self.conf  = None
-        self.intg  = None
+        self.__conf  = None
+        self.__intg  = None
 
         # Z3 variables representing confidentiality and
         # integrity within the solver. These values are
@@ -514,6 +522,22 @@ class Guarantees:
         # a valid model found by the solver
         self.__val_c = None
         self.__val_i = None
+
+    def conf (self, value):
+        if self.__conf != None:
+            raise PrimitiveDuplicateConfRule (self.name)
+        self.__conf = value
+
+    def intg (self, value):
+        if self.__intg != None:
+            raise PrimitiveDuplicateIntgRule (self.name)
+        self.__intg = value
+
+    def get_conf (self):
+        return self.__conf
+
+    def get_intg (self):
+        return self.__intg
 
     def name (self):
         return name
@@ -566,12 +590,12 @@ class Primitive:
     def populate (self, solver):
         ig = self.input.guarantees()
         for g in ig:
-            solver.assert_and_track (ig[g].conf, "RULE_" + self.name + "_" + g + "_input_conf")
-            solver.assert_and_track (ig[g].intg, "RULE_" + self.name + "_" + g + "_input_intg")
+            solver.assert_and_track (ig[g].get_conf(), "RULE_" + self.name + "_" + g + "_input_conf")
+            solver.assert_and_track (ig[g].get_intg(), "RULE_" + self.name + "_" + g + "_input_intg")
         og = self.output.guarantees()
         for g in og:
-            solver.assert_and_track (og[g].conf, "RULE_" + self.name + "_" + g + "_output_conf")
-            solver.assert_and_track (og[g].intg, "RULE_" + self.name + "_" + g + "_output_intg")
+            solver.assert_and_track (og[g].get_conf(), "RULE_" + self.name + "_" + g + "_output_conf")
+            solver.assert_and_track (og[g].get_intg(), "RULE_" + self.name + "_" + g + "_output_intg")
 
     def prove (self, solver):
         self.populate (solver)
@@ -595,15 +619,15 @@ class Primitive_env (Primitive):
 
         for (name, ig) in self.input.guarantees().items():
             if g['c'] != None:
-                ig.conf = (Conf (ig) == g['c'])
+                ig.conf (Conf (ig) == g['c'])
             if g['i'] != None:
-                ig.intg = (Intg (ig) == g['i'])
+                ig.intg (Intg (ig) == g['i'])
 
         for (name, og) in self.output.guarantees().items():
             if g['c'] != None:
-                og.conf = (Conf (og) == g['c'])
+                og.conf (Conf (og) == g['c'])
             if g['i'] != None:
-                og.intg = (Intg (og) == g['i'])
+                og.intg (Intg (og) == g['i'])
 
 class Primitive_xform (Primitive):
     """
@@ -629,6 +653,16 @@ class Primitive_xform (Primitive):
         #   None
 
         # Parameter
+        #   Any output interfaces
+        # Integrity guarantee can be dropped if:
+        #   Anytime
+        # Reason:
+        #   Whether integrity needs to be guaranteed only depends on the primitive using
+        #   the result.
+        # Assertion:
+        #   None
+
+        # Parameter
         #   All input interfaces
         # Integrity guarantee can be dropped if:
         #   No output interface demands integrity
@@ -637,13 +671,16 @@ class Primitive_xform (Primitive):
         #   any output of an xform in undetermined ways. Hence, integrity
         #   guarantees cannot be maintained for any output interface.
         # Assertion:
-        #   ∃out_i ⇒ ∀in_j
-        for (out_name, out_g) in self.output.guarantees().items():
-            for (in_name, in_g) in self.input.guarantees().items():
-                in_g.intg = Implies (Intg(out_g), Intg(in_g))
+        #   Intg(output_if) ⇒ Intg(input_if)
+
+        for (in_name, input_if) in self.input.guarantees().items():
+            input_if_rules = []
+            for (out_name, output_if) in self.output.guarantees().items():
+                input_if_rules.append (Implies (Intg(output_if), Intg(input_if)))
+            input_if.intg (And (input_if_rules))
 
         # Parameter
-        #   All output interfaces
+        #   Any output interfaces
         # Confidentiality guarantee can be dropped if:
         #   No input interface demands confidentiality
         # Reason:
@@ -651,24 +688,12 @@ class Primitive_xform (Primitive):
         #   influence any output of an xform in undetermined ways. Hence,
         #   confidentiality must be guaranteed by all output interfaces.
         # Assertion:
-        #   in_c -> out_c
-        for (in_name, in_g) in self.input.guarantees().items():
-            for (out_name, out_g) in self.output.guarantees().items():
-                out_g.conf = Implies (Conf(in_g), Conf(out_g))
-
-        # Parameter
-        #   All output interfaces
-        # Integrity guarantee can be dropped if:
-        #   No input interface demands integrity
-        # Reason:
-        #   FIXME: If any input interfaces guarantees integrity, we also need to guarantee
-        #   for outgoing data.
-        # Assertion:
-        #   in_i -> out_i
-        # Assertion:
-        #for (in_name, in_g) in self.input.guarantees().items():
-        #    for (out_name, out_g) in self.output.guarantees().items():
-        #        self.assert_and_track (Implies (in_g.i, out_g.i), in_name + "_" + out_name + "_i")
+        #   Conf(input_if) -> Conf(output_if)
+        for (out_name, output_if) in self.output.guarantees().items():
+            output_if_rules = []
+            for (in_name, input_if) in self.input.guarantees().items():
+                output_if_rules.append (Implies (Conf(input_if), Conf(output_if)))
+            output_if.conf (And (output_if_rules))
 
 class Primitive_branch (Primitive):
     """
@@ -688,8 +713,8 @@ class Primitive_branch (Primitive):
         #   Outputs: data_1..data_n
 
         for (out_name, out_g) in self.output.guarantees().items():
-            out_g.conf = (Conf(out_g) == Conf(self.input.data))
-            out_g.intg = (Implies (Intg(out_g), Intg(self.input.data)))
+            out_g.conf ((Conf(out_g) == Conf(self.input.data)))
+            out_g.intg (Implies (Intg(out_g), Intg(self.input.data)))
 
 class Primitive_layout (Primitive):
     """
@@ -747,7 +772,7 @@ class Primitive_layout (Primitive):
         #   by changing the controlled input data.
         # Assertion:
         #   controlled_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ controlled_in_i)
-        self.input.controlled.intg =  Implies (Intg(self.output.data), Intg(self.input.controlled))
+        self.input.controlled.intg (Implies (Intg(self.output.data), Intg(self.input.controlled)))
 
         # Parameter
         #   controlled
@@ -781,7 +806,7 @@ class Primitive_layout (Primitive):
         #   only be dropped if no input interface guarantees confidentiality
         # Assertion:
         #   controlled_c ∨ uncontrolled_c -> data_c
-        self.output.data.intg = Implies (Or (Conf(self.input.controlled), Conf(self.input.uncontrolled)), Conf(self.output.data))
+        self.output.data.intg (Implies (Or (Conf(self.input.controlled), Conf(self.input.uncontrolled)), Conf(self.output.data)))
 
 class Primitive_const (Primitive):
     """
@@ -831,17 +856,13 @@ class Primitive_rng (Primitive):
         # Parameter
         #   len_in
         # Integrity guarantees can be dropped if:
-        #   No integrity guarantee is demanded by data_out
+        #   Always
         # Reason:
-        #   Otherwise, an attacker could change or reorder len_in creating
+        #   An attacker could change or reorder len_in creating
         #   data_out messages of chosen, invalid length.
-        # Truth table
-        #   len_in_i    data_out_i  valid
-        #   0           0           1
-        #   0           1           0
         # Assertion:
-        #   len_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ len_in_i)
-        self.input.len.intg = Implies (Intg(self.output.data), Intg(self.input.len))
+        #   len_in_i
+        self.input.len.intg (Intg(self.input.len))
 
         # Parameter
         #   data_out
@@ -855,7 +876,7 @@ class Primitive_rng (Primitive):
         #   is required unnecessarily. Most likely this will result in a conflict in
         #   nonce case, as those are typically passed to domains without
         #   confidentiality guarantees.
-        self.output.data.conf = Conf (self.output.data)
+        self.output.data.conf (Conf (self.output.data))
 
         # Parameter
         #   data_out
@@ -889,7 +910,7 @@ class Primitive_dhpub (Primitive):
         #   feel a stabbing pain in my head without that already. We should
         #   think about that later and demand confidentiality for psec_in
         #   unconditionally for now.
-        self.input.psec.conf = Bool (True)
+        self.input.psec.conf (Conf(self.input.psec))
 
         # Parameter
         #   psec_in
@@ -900,7 +921,7 @@ class Primitive_dhpub (Primitive):
         #   she can calculate the shared secret g^yx
         # Assertion:
         #   See above.
-        self.input.psec.intg = Bool (True)
+        self.input.psec.intg (Intg(self.input.psec))
 
         # Parameter
         #   pub_out
@@ -918,7 +939,7 @@ class Primitive_dhpub (Primitive):
         #   0         1         1         1
         # Assertion:
         #   pub_out_c or (psec_in_c and psec_in_i)
-        self.output.pub.conf = Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec)))
+        self.output.pub.conf (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
 
         # Parameter
         #   pub_out
@@ -947,7 +968,7 @@ class Primitive_dhsec (Primitive):
         #   calculate ssec (the shared secret g^yx ≡ g^xy)
         # Assertion:
         #   psec_in_c ∨ ssec_out_c ∨ ¬pub_in_c
-        self.input.psec.conf = Or (Conf(self.input.psec), Conf(self.output.ssec), Not (Conf(self.input.pub)))
+        self.input.psec.conf (Or (Conf(self.input.psec), Conf(self.output.ssec), Not (Conf(self.input.pub))))
 
         # Parameter
         #   psec_in
@@ -956,7 +977,7 @@ class Primitive_dhsec (Primitive):
         # Reason:
         # Assertion:
         #   ssec_out_c => psec_in_i
-        self.input.psec.intg = Implies (Conf(self.output.ssec), Intg(self.input.psec))
+        self.input.psec.intg (Implies (Conf(self.output.ssec), Intg(self.input.psec)))
 
         # Parameter
         #   pub_in
@@ -976,7 +997,7 @@ class Primitive_dhsec (Primitive):
         #   0          1          1         1
         # Assertion:
         #   pub_in_c ∨ ¬ssec_out_c ∨ psec_in_c
-        self.input.pub.conf = Or (Conf(self.input.pub), Not (Conf(self.output.ssec)), Conf(self.input.psec))
+        self.input.pub.conf (Or (Conf(self.input.pub), Not (Conf(self.output.ssec)), Conf(self.input.psec)))
 
         # Parameter
         #   pub_in
@@ -1006,7 +1027,7 @@ class Primitive_dhsec (Primitive):
         #   0          1         1        0
         # Assertion:
         #   ssec_out_c ∨ ¬(psec_in_c ∨ pub_in_c)
-        self.output.ssec.conf = Or (Conf(self.output.ssec), Not (Or (Conf(self.input.psec), Conf(self.input.pub))))
+        self.output.ssec.conf (Or (Conf(self.output.ssec), Not (Or (Conf(self.input.psec), Conf(self.input.pub)))))
 
         # Parameter
         #   ssec_out
@@ -1052,7 +1073,7 @@ class Primitive_encrypt (Primitive):
         #   0                1              0
         # Assertion:
         #   plaintext_in_i ∨ ¬ciphertext_out_i (equiv: ciphertext_out_i ⇒ plaintext_in_i)
-        self.input.plaintext.intg = Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext))
+        self.input.plaintext.intg (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
 
         # Parameter
         #   key_in
@@ -1072,7 +1093,7 @@ class Primitive_encrypt (Primitive):
         #   0              1               1                1
         # Assertion:
         #   key_in_c ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.input.key.conf = Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext))
+        self.input.key.conf (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
         # Parameter
         #   key_in
@@ -1080,7 +1101,7 @@ class Primitive_encrypt (Primitive):
         #   Never
         # Reason:
         # Assertion:
-        self.input.key.intg = Intg (self.input.key)
+        self.input.key.intg (Intg (self.input.key))
 
         # Parameter
         #   ctr_in
@@ -1105,7 +1126,7 @@ class Primitive_encrypt (Primitive):
         #   does no harm.
         # Assertion:
         #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
-        self.input.ctr.intg = Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext))
+        self.input.ctr.intg (Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
         # Parameter
         #   ciphertext_out
@@ -1120,7 +1141,7 @@ class Primitive_encrypt (Primitive):
         #   thus no confidentiality needs to be guaranteed by the environment.
         # Assertion:
         #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ¬ctr_in_i)
-        self.output.ciphertext.conf = Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr)))
+        self.output.ciphertext.conf (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
 
         # Parameter
         #   ciphertext_out
@@ -1130,7 +1151,7 @@ class Primitive_encrypt (Primitive):
         #   Counter mode encryption neither assumes nor achieves integrity.
         # Assertion:
         #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
-        self.output.ciphertext.intg = Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext))
+        self.output.ciphertext.intg (Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext)))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):
@@ -1171,7 +1192,7 @@ class Primitive_decrypt (Primitive):
         #   result, keeping the cipher key secret is superfluous.
         # Assertion:
         #   key_in_c ∨ ¬plaintext_out_c (equiv: plaintext_out_c ⇒ key_in_c)
-        self.input.key.conf = Implies (Conf(self.output.plaintext), Conf(self.input.key))
+        self.input.key.conf (Implies (Conf(self.output.plaintext), Conf(self.input.key)))
 
         # Parameter
         #   key_in
@@ -1262,7 +1283,7 @@ class Primitive_hash (Primitive):
         #   0         1          0
         # Assertion:
         #   data_in_i ∨ ¬hash_out_i (equiv: hash_out_i ⇒ data_in_i)
-        self.input.data.intg = Implies (Intg(self.output.hash), Intg(self.input.data))
+        self.input.data.intg (Implies (Intg(self.output.hash), Intg(self.input.data)))
 
         # Parameter
         #   hash_out
@@ -1282,7 +1303,7 @@ class Primitive_hash (Primitive):
         #   0          1         0
         # Assertion:
         #   hash_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ hash_out_c)
-        self.output.hash.conf = Implies (Conf(self.input.data), Conf(self.output.hash))
+        self.output.hash.conf (Implies (Conf(self.input.data), Conf(self.output.hash)))
 
         # Parameter
         #   hash_out
@@ -1310,7 +1331,7 @@ class Primitive_hmac (Primitive):
         #   to an attacker.
         # Assertion:
         #   key_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_c)
-        self.input.key.conf = Implies (Intg(self.input.msg), Conf(self.input.key))
+        self.input.key.conf (Implies (Intg(self.input.msg), Conf(self.input.key)))
 
         # Parameter
         #   key_in
@@ -1322,7 +1343,7 @@ class Primitive_hmac (Primitive):
         #   harm if the key is chosen by an attacker.
         # Assertion:
         #   key_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_i)
-        self.input.key.intg = Implies (Intg(self.input.msg), Intg(self.input.key))
+        self.input.key.intg (Implies (Intg(self.input.msg), Intg(self.input.key)))
 
         # Parameter
         #   msg_in
@@ -1344,7 +1365,7 @@ class Primitive_hmac (Primitive):
         #   has not integrity requirements?
         # Assertion:
         #   msg_in_i
-        self.input.msg.intg = Intg (self.input.msg)
+        self.input.msg.intg (Intg (self.input.msg))
 
         # Parameter
         #   auth_out
@@ -1385,7 +1406,7 @@ class Primitive_hmac_out (Primitive_hmac):
         #   The HMAC does not achieve confidentiality.
         # Assertion:
         #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.output.msg.conf = Implies (Conf(self.input.msg), Conf(self.output.msg))
+        self.output.msg.conf (Implies (Conf(self.input.msg), Conf(self.output.msg)))
 
         # Parameter
         #   msg_out
@@ -1430,7 +1451,7 @@ class Primitive_sign (Primitive):
         #   Signing arbitrary data makes no sense.
         # Assertion:
         #   msg_in_i
-        self.input.msg.intg = Intg (self.input.msg)
+        self.input.msg.intg (Intg (self.input.msg))
 
         # Parameter
         #   skey_in
@@ -1439,7 +1460,7 @@ class Primitive_sign (Primitive):
         # Reason:
         # Assertion:
         #   skey_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_c)
-        self.input.skey.conf = Conf (self.input.skey)
+        self.input.skey.conf (Conf (self.input.skey))
 
         # Parameter
         #   skey_in
@@ -1448,7 +1469,7 @@ class Primitive_sign (Primitive):
         # Reason:
         # Assertion:
         #   skey_in_i
-        self.input.skey.intg = Intg (self.input.skey)
+        self.input.skey.intg (Intg (self.input.skey))
 
         # Parameter
         #   auth_out
@@ -1461,7 +1482,7 @@ class Primitive_sign (Primitive):
         #   to get probabilistic here, we just assume this is always possible.
         # Assertion:
         #   auth_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ auth_out_c)
-        self.output.auth.conf = Implies (Conf(self.input.msg), Conf(self.output.auth))
+        self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
 
         # Parameter
         #   auth_out
@@ -1546,7 +1567,7 @@ class Primitive_verify_sig (Primitive):
         #   (and thus can create a valid signature yielding a positive result)
         # Assertion:
         #   pkey_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_i)
-        self.input.pkey.intg = Implies (Intg(self.output.result), Intg(self.input.pkey))
+        self.input.pkey.intg (Implies (Intg(self.output.result), Intg(self.input.pkey)))
 
         # Parameter
         #   result_out
@@ -1556,7 +1577,7 @@ class Primitive_verify_sig (Primitive):
         #   FIXME: Does the value of result really allow for gaining knowledge about msg?
         # Assertion:
         #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
-        self.output.result.conf = Implies (Conf(self.input.msg), Conf(self.output.result))
+        self.output.result.conf (Implies (Conf(self.input.msg), Conf(self.output.result)))
 
         # Parameter
         #   result_out
@@ -1632,7 +1653,7 @@ class Primitive_verify_hmac (Primitive):
         #   a positive result
         # Assertion:
         #   pkey_in_c ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_c)
-        self.input.key.conf = Implies (Intg(self.output.result), Conf(self.input.key))
+        self.input.key.conf (Implies (Intg(self.output.result), Conf(self.input.key)))
 
         # Parameter
         #   key_in
@@ -1644,7 +1665,7 @@ class Primitive_verify_hmac (Primitive):
         #   (and thus can create a valid signature yielding a positive result)
         # Assertion:
         #   key_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ key_in_i)
-        self.input.key.intg = Implies (Intg(self.output.result), Intg(self.input.key))
+        self.input.key.intg (Implies (Intg(self.output.result), Intg(self.input.key)))
 
         # Parameter
         #   result_out
@@ -1654,7 +1675,7 @@ class Primitive_verify_hmac (Primitive):
         #   FIXME: Does the value of result really allow for gaining knowledge about msg?
         # Assertion:
         #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
-        self.output.result.conf = Implies (Conf(self.input.msg), Conf(self.output.result))
+        self.output.result.conf (Implies (Conf(self.input.msg), Conf(self.output.result)))
 
         # Parameter
         #   result_out
@@ -1683,7 +1704,7 @@ class Primitive_verify_hmac_out (Primitive_verify_hmac):
         #   The HMAC does not achieve confidentiality.
         # Assertion:
         #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.output.msg.conf = Implies (Conf(self.input.msg), Conf(self.output.msg))
+        self.output.msg.conf (Implies (Conf(self.input.msg), Conf(self.output.msg)))
 
         # Parameter
         #   msg_out
@@ -1723,7 +1744,7 @@ class Primitive_counter (Primitive):
         #   confidentiality.
         # Assertion:
         #   init_in_c ∨ trigger_in_c ∨ ¬ctr_out_c
-        self.input.init.conf = Or (Conf(self.input.init), Conf(self.input.trigger), Not (Conf(self.output.ctr)))
+        self.input.init.conf (Or (Conf(self.input.init), Conf(self.input.trigger), Not (Conf(self.output.ctr))))
 
         # Parameter
         #   init_in
@@ -1735,7 +1756,7 @@ class Primitive_counter (Primitive):
         # Assertion:
         #   init_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ init_in_i)
         #
-        self.input.init.intg = Implies (Intg(self.output.ctr), Intg(self.input.init))
+        self.input.init.intg (Implies (Intg(self.output.ctr), Intg(self.input.init)))
 
         # Parameter
         #   trigger_in
@@ -1748,7 +1769,7 @@ class Primitive_counter (Primitive):
         #   init_in
         # Assertion:
         #   trigger_in_c ∨ ¬ctr_out_c (equiv: ctr_out_c ⇒ trigger_in_c)
-        self.input.trigger.conf = Implies (Conf(self.output.ctr), Conf(self.input.trigger))
+        self.input.trigger.conf (Implies (Conf(self.output.ctr), Conf(self.input.trigger)))
 
         # Parameter
         #   trigger_in
@@ -1765,7 +1786,7 @@ class Primitive_counter (Primitive):
         # Assertion:
         #   trigger_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ trigger_in_i)
         #
-        self.input.trigger.intg = Implies (Intg(self.output.ctr), Intg(self.input.trigger))
+        self.input.trigger.intg (Implies (Intg(self.output.ctr), Intg(self.input.trigger)))
 
         # Parameter
         #   ctr_out
@@ -1777,7 +1798,7 @@ class Primitive_counter (Primitive):
         #   for ctr_out is superfluous.
         # Assertion:
         #   ctr_out_c ∨ ¬init_in_c ∨ ¬trigger_in_c
-        self.output.ctr.conf = Or (Conf(self.output.ctr), Not (Conf(self.input.trigger)), Not (Conf(self.input.init)))
+        self.output.ctr.conf (Or (Conf(self.output.ctr), Not (Conf(self.input.trigger)), Not (Conf(self.input.init))))
 
         # Parameter
         #   ctr_out
@@ -1826,7 +1847,7 @@ class Primitive_guard (Primitive):
         #   by an attacker.
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
+        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
 
         # Parameter
         #   cond_in
@@ -1852,7 +1873,7 @@ class Primitive_guard (Primitive):
         #   make this configurable then?
         # Assertion:
         #   cond_in_i
-        self.input.cond.intg = Intg (self.input.cond)
+        self.input.cond.intg (Intg (self.input.cond))
 
         # Parameter
         #   data_out
@@ -1863,7 +1884,7 @@ class Primitive_guard (Primitive):
         #   makes no sense to keep data_out confidential.
         # Assertion:
         #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
+        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
 
         # Parameter
         #   data_out
@@ -1966,7 +1987,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data1_in)
         # Assertion:
         #   data1_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data1_in_i)
-        self.input.data1.intg = Implies (Intg(self.output.result), self.input.data1)
+        self.input.data1.intg (Implies (Intg(self.output.result), self.input.data1))
 
         # Parameter
         #   data2_in
@@ -1989,7 +2010,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data2_in)
         # Assertion:
         #   data2_in_i ∨ ¬result_out_c (equiv: result_out_c ⇒ data2_in_i)
-        self.input.data2.intg = Implies (Intg(self.output.result), self.input.data2)
+        self.input.data2.intg (Implies (Intg(self.output.result), self.input.data2))
 
         # Parameter
         #   result_out
@@ -2000,7 +2021,7 @@ class Primitive_comp (Primitive):
         #   by comparing both values
         # Assertion:
         #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
-        self.output.result.conf = Or (Conf(self.output.result), Not (And (self.input.data1, self.input.data2)))
+        self.output.result.conf (Or (Conf(self.output.result), Not (And (self.input.data1, self.input.data2))))
 
         # Parameter
         #   result_out
@@ -2049,7 +2070,7 @@ class Primitive_scomp (Primitive):
         #   of result_out
         # Assertion:
         #   data_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data_in_i)
-        self.input.data.intg = Implies (Intg(self.output.result), Intg(self.input.data))
+        self.input.data.intg (Implies (Intg(self.output.result), Intg(self.input.data)))
 
         # Parameter
         #   result_out
@@ -2059,7 +2080,7 @@ class Primitive_scomp (Primitive):
         #   If an attacker knows data result by comparing with previous values
         # Assertion:
         #   result_out_c ∨ ¬data_in_c (equiv: result_out_c ⇒ data_in_c)
-        self.output.result.conf = Implies (Conf(self.output.result), Conf(self.input.data))
+        self.output.result.conf (Implies (Conf(self.output.result), Conf(self.input.data)))
 
         # Parameter
         #   result_out
@@ -2111,7 +2132,7 @@ class Primitive_verify_commit (Primitive):
         #   0         1          0
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
+        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
 
         # Parameter
         #   hash
@@ -2144,7 +2165,7 @@ class Primitive_verify_commit (Primitive):
         #   makes no sense to keep data_out confidential.
         # Assertion:
         #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
+        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
 
         # Parameter
         #   data_out
@@ -2197,7 +2218,7 @@ class Primitive_latch (Primitive):
         #   by changing data_in
         # Assertion:
         #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg = Implies (Intg(self.output.data), Intg(self.input.data))
+        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
 
         # Parameter
         #   data_out
@@ -2209,7 +2230,7 @@ class Primitive_latch (Primitive):
         #   confidentiality
         # Assertion:
         #   data_in_c -> data_out_c
-        self.output.data.conf = Implies (Conf(self.input.data), Conf(self.output.data))
+        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
 
         # Parameter
         #   data_out
@@ -2240,7 +2261,7 @@ class Primitive_latch (Primitive):
         #   the trigger value requires integrity guarantees.
         # Assertion:
         #   trigger_out_i
-        self.output.trigger.intg = Intg (self.output.trigger)
+        self.output.trigger.intg (Intg (self.output.trigger))
 
 ####################################################################################################
 

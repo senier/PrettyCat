@@ -98,12 +98,42 @@
         <description>
             Serialize the value of shared secret s as a minimum-length MPI secbytes.
         </description>
-        <flow sarg="secbyte#1" sink="Concat ssid" darg="secbytes" assert_c="true" assert_i="true"/>
-        <flow sarg="secbyte#2" sink="Concat c" darg="secbytes" assert_c="true" assert_i="true"/>
-        <flow sarg="secbyte#3" sink="Concat m1" darg="secbytes" assert_c="true" assert_i="true"/>
-        <flow sarg="secbyte#4" sink="Concat m2" darg="secbytes" assert_c="true" assert_i="true"/>
-        <flow sarg="secbyte#5" sink="Concat m1'" darg="secbytes" assert_c="true" assert_i="true"/>
-        <flow sarg="secbyte#6" sink="Concat m2'" darg="secbytes" assert_c="true" assert_i="true"/>
+        <flow sarg="secbyte#1" sink="Concat ssid" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
+        <flow sarg="secbyte#2" sink="Concat c" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
+        <flow sarg="secbyte#3" sink="Concat m1" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
+        <flow sarg="secbyte#4" sink="Concat m2" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
+        <flow sarg="secbyte#5" sink="Concat m1'" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
+        <flow sarg="secbyte#6" sink="Concat m2'" darg="secbytes">
+            <assert confidentiality="true" integrity="true">
+                All keys can be derived from secbytes.
+            </assert>
+        </flow>
+
         <arg name="Responder ssec"/>
         <arg name="Initiator ssec"/>
     </xform>
@@ -129,7 +159,10 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Trim ssid" darg="ssid" assert_i="true"/>
+        <flow sarg="hash" sink="Trim ssid" darg="ssid">
+            <assert integrity="true">
+            </assert>
+        </flow>
     </hash>
 
     <xform id="Trim ssid">
@@ -151,7 +184,13 @@
         <description>
             Byte b followed by secbytes.
         </description>
-        <flow sarg="result" sink="Hash c" darg="data" assert_c="true"/>
+
+        <flow sarg="result" sink="Hash c" darg="data">
+            <assert confidentiality="true" integrity="true">
+                Encryption key must not be chosen or known by attacker.
+            </assert>
+        </flow>
+
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -161,7 +200,11 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Split c" darg="c" assert_c="true" assert_i="true"/>
+        <flow sarg="hash" sink="Split c" darg="c">
+            <assert confidentiality="true" integrity="true">
+                Encryption key must not be chosen or known by an attacker. 
+            </assert>
+        </flow>
     </hash>
 
     <xform id="Split c">
@@ -379,7 +422,11 @@
             Random value x used to calcutate Diffie-Hellman public value
             g^x for the initiator.
         </description>
-        <flow sarg="data" sink="Branch Random x (S) data" darg="data" assert_c="true" assert_i="true"/>
+        <flow sarg="data" sink="Branch Random x (S) data" darg="data">
+            <assert confidentiality="true" integrity="true">
+                If x is chosen or leared by an attacker, she can derive the shared secret. 
+            </assert>
+        </flow>
     </rng>
 
     <branch id="Branch Random x (S) data">
@@ -395,7 +442,11 @@
         <description>
             Calcutate Diffie-Hellman public value g^x for the initiator.
         </description>
-        <flow sarg="pub" sink="Branch Calculate g^x (S) pub" darg="data" assert_c="false"/>
+        <flow sarg="pub" sink="Branch Calculate g^x (S) pub" darg="data">
+            <assert confidentiality="false">
+                No confidentiality, as this is the public D-H value sent over the Internet.
+            </assert>
+        </flow>
     </dhpub>
 
     <branch id="Branch Calculate g^x (S) pub">
@@ -430,7 +481,11 @@
         <description>
             Random value r used for the commitment scheme.
         </description>
-        <flow sarg="data" sink="Branch Random r (S) data" darg="data" assert_c="true"/>
+        <flow sarg="data" sink="Branch Random r (S) data" darg="data">
+            <assert confidentiality="true" integrity="true">
+                If an attacker learns or choses r, she can break the commitment scheme.
+            </assert>
+        </flow>
     </rng>
 
     <branch id="Branch Random r (S) data">
@@ -532,7 +587,11 @@
             Random value y used to calcutate Diffie-Hellman public value
             g^y for the responder.
         </description>
-        <flow sarg="data" sink="Branch Random y (S) data" darg="data" assert_c="true" assert_i="true"/>
+        <flow sarg="data" sink="Branch Random y (S) data" darg="data">
+            <assert confidentiality="true" integrity="true">
+                If y is chosen or leared by an attacker, she can derive the shared secret. 
+            </assert>
+        </flow>
     </rng>
 
     <branch id="Branch Random y (S) data">
@@ -548,7 +607,11 @@
         <description>
             Calcutate Diffie-Hellman public value g^y for the responder.
         </description>
-        <flow sarg="pub" sink="Branch Calculate g^y (S) pub" darg="data" assert_c="false"/>
+        <flow sarg="pub" sink="Branch Calculate g^y (S) pub" darg="data">
+            <assert confidentiality="false">
+                Public value sent over the Internet must not be confidential.
+            </assert>
+        </flow>
     </dhpub>
 
     <branch id="Branch Calculate g^y (S) pub">
@@ -607,7 +670,11 @@
             Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
             compute the Diffie-Hellman shared secret s in the intitiator case.
         </description>
-        <flow sarg="ssec" sink="Derive keys" darg="Initiator ssec" assert_c="true"/>
+        <flow sarg="ssec" sink="Derive keys" darg="Initiator ssec">
+            <assert confidentiality="true">
+                Shared secret.
+            </assert>
+        </flow>
     </dhsec>
 
     <!--
@@ -1195,7 +1262,7 @@
         <description>
             Diffie-Hellman public value g^y for the next data message.
         </description>
-        <flow sarg="pub" sink="Branch Calculate next D-H key (M) pub" darg="data" assert_c="false"/>
+        <flow sarg="pub" sink="Branch Calculate next D-H key (M) pub" darg="data"/>
     </dhpub>
 
     <branch id="Branch Calculate next D-H key (M) pub">

@@ -5,7 +5,11 @@
         <description>
             Confidential input
         </description>
-        <flow sarg="data" sink="Encrypt" darg="plaintext" assert_c="true" />
+        <flow sarg="data" sink="Encrypt" darg="plaintext">
+            <assert confidentiality="true">
+                Plaintext is confidential.
+            </assert>
+        </flow>
     </env>
 
     <env id="IV">
@@ -15,18 +19,26 @@
         <flow sarg="const" sink="Encrypt" darg="ctr"/>
     </env>
 
-    <env id="Random">
+    <env id="Random" integrity="true" confidentiality="true">
         <description>
             Generate random key
         </description>
-        <flow sarg="data" sink="KDF" darg="random" assert_i="true"/>
+        <flow sarg="data" sink="KDF" darg="random">
+            <assert confidentiality="true">
+                Secret key.
+            </assert>
+        </flow>
     </env>
 
     <xform id="KDF">
         <description>
             Key derivation
         </description>
-        <flow sarg="const#1" sink="Encrypt" darg="key" assert_c="true" />
+        <flow sarg="const#1" sink="Encrypt" darg="key">
+            <assert confidentiality="true">
+                Secret key.
+            </assert>
+        </flow>
         <arg name="random"/>
     </xform>
 

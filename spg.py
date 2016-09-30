@@ -21,12 +21,22 @@ from networkx.readwrite import json_graph
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
+<xs:complexType name="assertionElement">
+    <xs:simpleContent>
+        <xs:extension base="xs:string">
+            <xs:attribute name="confidentiality" type="xs:boolean" />
+            <xs:attribute name="integrity" type="xs:boolean" />
+        </xs:extension>
+    </xs:simpleContent>
+</xs:complexType>
+
 <xs:complexType name="flowElement">
+    <xs:sequence>
+        <xs:element name="assert" type="assertionElement" minOccurs="0" maxOccurs="1"/>
+    </xs:sequence>
     <xs:attribute name="sarg" use="required" />
     <xs:attribute name="sink" use="required" />
     <xs:attribute name="darg" use="required" />
-    <xs:attribute name="assert_c" type="xs:boolean" />
-    <xs:attribute name="assert_i" type="xs:boolean" />
 </xs:complexType>
 
 <xs:complexType name="argElement">
@@ -35,7 +45,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 
 <xs:complexType name="baseElement">
     <xs:sequence>
-        <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="unbounded"/>
+        <xs:element name="assert" type="assertionElement" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="id" use="required" />
 </xs:complexType>
@@ -2340,8 +2351,12 @@ def parse_graph (inpath):
             sarg = element.attrib['sarg']
             darg = element.attrib['darg']
 
-            assert_c = parse_bool (element.attrib, 'assert_c') if 'assert_c' in element.attrib else None
-            assert_i = parse_bool (element.attrib, 'assert_i') if 'assert_i' in element.attrib else None
+            assert_c = None
+            assert_i = None
+
+            for assertion in element.findall('assert'):
+                assert_c = parse_bool (assertion.attrib, 'confidentiality')
+                assert_i = parse_bool (assertion.attrib, 'integrity')
 
             mdg.add_edge (name, element.attrib['sink'], \
                 sarg = sarg, \

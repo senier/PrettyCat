@@ -7,14 +7,22 @@
             This must have integrity guaranteed, as otherwise
             an attacker could chose too short keys.
         </description>
-        <flow sarg="const" sink="Random" darg="len" assert_i="true"/>
+        <flow sarg="const" sink="Random" darg="len">
+            <assert integrity="true">
+                Attacker must not choose too short key.
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random">
         <description>
             RNG
         </description>
-        <flow sarg="data" sink="Output" darg="random" assert_c="true"/>
+        <flow sarg="data" sink="Output" darg="random">
+            <assert confidentiality="true">
+                Secret key.
+            </assert>
+        </flow>
     </rng>
 
     <env id="Output" confidentiality="true">

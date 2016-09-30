@@ -12,7 +12,11 @@
         <description>
             Key length
         </description>
-        <flow sarg="const" sink="Random" darg="len" assert_i="true"/>
+        <flow sarg="const" sink="Random" darg="len">
+            <assert integrity="true">
+                Attacker must not choose too small key length
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random">
@@ -26,7 +30,11 @@
         <description>
             Concatenate key with prefix for hash
         </description>
-        <flow sarg="result" sink="Hash" darg="data" assert_c="true"/>
+        <flow sarg="result" sink="Hash" darg="data">
+            <assert confidentiality="true">
+                Secret key.
+            </assert>
+        </flow>
         <arg name="secbytes"/>
         <arg name="prefix"/>
     </xform>
@@ -35,7 +43,11 @@
         <description>
             Key derivation
         </description>
-        <flow sarg="hash" sink="Split" darg="c" assert_c="true"/>
+        <flow sarg="hash" sink="Split" darg="c">
+            <assert confidentiality="true">
+                Secret key.
+            </assert>
+        </flow>
     </hash>
 
     <xform id="Split">

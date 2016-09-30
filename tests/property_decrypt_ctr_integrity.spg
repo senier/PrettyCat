@@ -18,14 +18,22 @@
         <description>
             Static IV
         </description>
-        <flow sarg="const" sink="Decrypt" darg="ctr" assert_c="false" assert_i="false"/>
+        <flow sarg="const" sink="Decrypt" darg="ctr">
+            <assert confidentiality="false" integrity="false">
+                The IV for decryption is public and does not cause harm when chosen by attacker.
+            </assert>
+        </flow>
     </env>
 
     <decrypt id="Decrypt">
         <description>
             Symmetric counter mode decryption
         </description>
-        <flow sarg="plaintext" sink="Output" darg="data" assert_c="true" assert_i="false"/>
+        <flow sarg="plaintext" sink="Output" darg="data">
+            <assert confidentiality="true" integrity="false">
+                Plaintext is confidentialy, integrity protection is not done here.
+            </assert>
+        </flow>
     </decrypt>
 
     <env id="Output" integrity="false" confidentiality="true">

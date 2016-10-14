@@ -6,7 +6,7 @@
       -->
     <env id="Network" confidentiality="false" integrity="false">
         <description>
-            Network environement without confidentiality or integrity guarantees.
+            Network environment without confidentiality or integrity guarantees.
         </description>
         <flow sarg="dhcm" sink="D-H Commit (R)" darg="dhcm"/>
         <flow sarg="dhkm" sink="D-H Key (R)" darg="dhkm"/>
@@ -20,12 +20,26 @@
         <arg name="data"/>
     </env>
 
-    <env id="User" confidentiality="true" integrity="true">
+    <env id="User_Data" confidentiality="true" integrity="true">
         <description>
-            User environment guaranteeing confidentiality and integrity.
+            User data environment guaranteeing confidentiality and integrity.
         </description>
         <flow sarg="data" sink="Encrypt (M)" darg="plaintext"/>
         <arg name="data"/>
+    </env>
+
+    <!-- FIXME: User_Interface should not require confidentiality (after all,
+         displaying SSID is not confidential). However, if we require no
+         confidentiality here, there is a conflict as hash operations as used
+         to create SSID do not remove confidentialty from the output. This is
+         right for key derivation, but wrong in this case. How do we distinguish
+         these cases? -->
+    <env id="User_Interface" confidentiality="true" integrity="true">
+        <description>
+            User interface environment guaranteeing integrity for displayed
+            content.
+        </description>
+        <arg name="ssid"/>
     </env>
 
     <!--
@@ -37,7 +51,13 @@
         <description>
             Public key
         </description>
-        <flow sarg="const" sink="Branch pub const" darg="data"/>
+        <flow sarg="const" sink="Branch pub const" darg="data">
+            <assert integrity="true" confidentiality="false">
+                Public key by its nature is not confidential, but
+                an attacker must not make us use the wrong pulic
+                key.
+            </assert>
+        </flow>
     </const>
 
     <branch id="Branch pub const">
@@ -54,15 +74,28 @@
         <description>
             Private key
         </description>
-        <flow sarg="const" sink="Branch priv const" darg="data"/>
+        <flow sarg="const" sink="Branch priv const" darg="data">
+            <assert confidentiality="true" integrity="true">
+                Private key must be confidential and must not be chosen
+                by attacker.
+            </assert>
+        </flow>
     </const>
 
     <branch id="Branch priv const">
         <description>
             Branch output arguments
         </description>
-        <flow sarg="const#1" sink="Sign M_A" darg="skey"/>
-        <flow sarg="const#2" sink="Sign M_B" darg="skey"/>
+        <flow sarg="const#1" sink="Sign M_A" darg="skey">
+            <assert confidentiality="true" integrity="true">
+                Signature key must be confidential and not be chosen by attacker.
+            </assert>
+        </flow>
+        <flow sarg="const#2" sink="Sign M_B" darg="skey">
+            <assert confidentiality="true" integrity="true">
+                Signature key must be confidential and not be chosen by attacker.
+            </assert>
+        </flow>
     </branch>
 
     <!-- AKE -->
@@ -70,7 +103,13 @@
         <description>
             Constant signaling successful key exchange.
         </description>
-        <flow sarg="const" sink="Branch State encrypted const" darg="data"/>
+        <flow sarg="const" sink="Branch State encrypted const" darg="data">
+            <assert integrity="true">
+                This indicate successful key exchange which the user will
+                rely on. An attacker must not forge this as the user could
+                then believe that encryption is in place while it isn't.
+            </assert>
+        </flow>
     </const>
 
     <branch id="Branch State encrypted const">
@@ -142,14 +181,22 @@
         <description>
             Prefix b to calculate ssid, value 0x00
         </description>
-        <flow sarg="const" sink="Concat ssid" darg="b"/>
+        <flow sarg="const" sink="Concat ssid" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat ssid">
         <description>
             Byte b followed by secbytes.
         </description>
-        <flow sarg="result" sink="Hash ssid" darg="data"/>
+        <flow sarg="result" sink="Hash ssid" darg="data">
+            <assert integrity="true" confidentiality="true">
+                The 'result' value contains 
+            </assert>
+        </flow>
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -161,6 +208,8 @@
         </description>
         <flow sarg="hash" sink="Trim ssid" darg="ssid">
             <assert integrity="true">
+                Attacker must not choose ssid, as she could impersonate a connection
+                towards user otherwise.
             </assert>
         </flow>
     </hash>
@@ -169,7 +218,14 @@
         <description>
             Let ssid be the first 64 bits of h2(0x00).
         </description>
-        <flow sarg="ssid" sink="User" darg="ssid"/>
+        <flow sarg="ssid" sink="User_Interface" darg="ssid">
+            <assert integrity="true" >
+                Attacker must not choose ssid, as she could impersonate a connection
+                towards user otherwise. SSID must not be confidential as it is
+                displayed to the user openly. FIXME: This is not possible right now,
+                see comment at User_Interface component.
+            </assert>
+        </flow>
         <arg name="ssid"/>
     </xform>
 
@@ -177,7 +233,11 @@
         <description>
             Prefix b to calculate c and c', value 0x01
         </description>
-        <flow sarg="const" sink="Concat c" darg="b"/>
+        <flow sarg="const" sink="Concat c" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat c">
@@ -212,10 +272,28 @@
             Let c be the first 128 bits of h2(0x01),
             and let c' be the second 128 bits of h2(0x01).
         </description>
-        <flow sarg="c#1"  sink="Encrypt X_B" darg="key"/>
-        <flow sarg="c#2"  sink="Decrypt X_B" darg="key"/>
-        <flow sarg="c'#1" sink="Encrypt X_A" darg="key"/>
-        <flow sarg="c'#2" sink="Decrypt X_A" darg="key"/>
+        <flow sarg="c#1"  sink="Encrypt X_B" darg="key">
+            <assert confidentiality="true" integrity="true">
+                Encryption key must not be chosen or known by an attacker. 
+            </assert>
+        </flow>
+        <flow sarg="c#2"  sink="Decrypt X_B" darg="key">
+            <assert confidentiality="true">
+                Encryption key must not be known by an attacker, chosing a key
+                does not harm confidentiality.
+            </assert>
+        </flow>
+        <flow sarg="c'#1" sink="Encrypt X_A" darg="key">
+            <assert confidentiality="true" integrity="true">
+                Encryption key must not be chosen or known by an attacker. 
+            </assert>
+        </flow>
+        <flow sarg="c'#2" sink="Decrypt X_A" darg="key">
+            <assert confidentiality="true">
+                Encryption key must not be known by an attacker, chosing a key
+                does not harm confidentiality.
+            </assert>
+        </flow>
         <arg name="c"/>
     </xform>
 
@@ -223,14 +301,22 @@
         <description>
             Prefix b to calculate m1, value 0x02
         </description>
-        <flow sarg="const" sink="Concat m1" darg="b"/>
+        <flow sarg="const" sink="Concat m1" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat m1">
         <description>
             Byte b followed by secbytes.
         </description>
-        <flow sarg="result" sink="Hash m1" darg="data"/>
+        <flow sarg="result" sink="Hash m1" darg="data">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose secbytes.
+            </assert>
+        </flow>
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -240,29 +326,49 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m1" darg="data"/>
+        <flow sarg="hash" sink="Branch Hash m1" darg="data">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
     </hash>
 
     <branch id="Branch Hash m1">
         <description>
             Branch output arguments
         </description>
-        <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key"/>
-        <flow sarg="hash#2" sink="HMAC M_B (R)" darg="key"/>
+        <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
+        <flow sarg="hash#2" sink="HMAC M_B (R)" darg="key">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
     </branch>
 
     <const id="Prefix m2">
         <description>
             Prefix b to calculate m2, value 0x03
         </description>
-        <flow sarg="const" sink="Concat m2" darg="b"/>
+        <flow sarg="const" sink="Concat m2" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat m2">
         <description>
             Byte b followed by secbytes.
         </description>
-        <flow sarg="result" sink="Hash m2" darg="data"/>
+        <flow sarg="result" sink="Hash m2" darg="data">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose secbytes.
+            </assert>
+        </flow>
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -272,22 +378,38 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
-        <flow sarg="hash" sink="Branch Hash m2 hash" darg="data"/>
+        <flow sarg="hash" sink="Branch Hash m2 hash" darg="data">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
     </hash>
 
     <branch id="Branch Hash m2 hash">
         <description>
             Branch output arguments
         </description>
-        <flow sarg="hash#1" sink="MAC Encrypted X_B" darg="key"/>
-        <flow sarg="hash#2" sink="Verify Encrypted X_B" darg="key"/>
+        <flow sarg="hash#1" sink="MAC Encrypted X_B" darg="key">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
+        <flow sarg="hash#2" sink="Verify Encrypted X_B" darg="key">
+            <assert integrity="true" confidentiality="true">
+                Attacker must not learn nor choose key.
+            </assert>
+        </flow>
     </branch>
 
     <const id="Prefix m1'">
         <description>
             Prefix b to calculate m1', value 0x04
         </description>
-        <flow sarg="const" sink="Concat m1'" darg="b"/>
+        <flow sarg="const" sink="Concat m1'" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat m1'">
@@ -319,7 +441,11 @@
         <description>
             Prefix b to calculate m2', value 0x05
         </description>
-        <flow sarg="const" sink="Concat m2'" darg="b"/>
+        <flow sarg="const" sink="Concat m2'" darg="b">
+            <assert integrity="true">
+                Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
+            </assert>
+        </flow>
     </const>
 
     <xform id="Concat m2'">
@@ -414,7 +540,11 @@
             Length of the Diffie-Hellman exponent x.
             At least 320 bits for OTR v3.
         </description>
-        <flow sarg="const" sink="Random x (S)" darg="len"/>
+        <flow sarg="const" sink="Random x (S)" darg="len">
+            <assert integrity="true">
+                Secret may be too short if length of key is chosen by attacker
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random x (S)">
@@ -424,7 +554,7 @@
         </description>
         <flow sarg="data" sink="Branch Random x (S) data" darg="data">
             <assert confidentiality="true" integrity="true">
-                If x is chosen or leared by an attacker, she can derive the shared secret. 
+                If x is chosen or learned by an attacker, she can derive the shared secret. 
             </assert>
         </flow>
     </rng>
@@ -474,7 +604,11 @@
         <description>
             Length of the commitment key r. For OTR v3 this is 128 bit.
         </description>
-        <flow sarg="const" sink="Random r (S)" darg="len"/>
+        <flow sarg="const" sink="Random r (S)" darg="len">
+            <assert integrity="true">
+                Secret may be too short if length of key is chosen by attacker
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random r (S)">
@@ -483,7 +617,7 @@
         </description>
         <flow sarg="data" sink="Branch Random r (S) data" darg="data">
             <assert confidentiality="true" integrity="true">
-                If an attacker learns or choses r, she can break the commitment scheme.
+                If an attacker learns or chooses r, she can break the commitment scheme.
             </assert>
         </flow>
     </rng>
@@ -579,7 +713,11 @@
             Length of the Diffie-Hellman exponent y.
             At least 320 bits for OTR v3.
         </description>
-        <flow sarg="const" sink="Random y (S)" darg="len"/>
+        <flow sarg="const" sink="Random y (S)" darg="len">
+            <assert integrity="true">
+                Secret may be too short if length of key is chosen by attacker
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random y (S)">
@@ -589,7 +727,7 @@
         </description>
         <flow sarg="data" sink="Branch Random y (S) data" darg="data">
             <assert confidentiality="true" integrity="true">
-                If y is chosen or leared by an attacker, she can derive the shared secret. 
+                If y is chosen or learned by an attacker, she can derive the shared secret. 
             </assert>
         </flow>
     </rng>
@@ -1239,7 +1377,11 @@
             Lenght of the Diffie-Hellmen exponent y.
             At least 320 bits for OTR v3.
         </description>
-        <flow sarg="const" sink="Random y (M)" darg="len"/>
+        <flow sarg="const" sink="Random y (M)" darg="len">
+            <assert integrity="true">
+                Secret may be too short if length of key is chosen by attacker
+            </assert>
+        </flow>
     </const>
 
     <rng id="Random y (M)">
@@ -1247,7 +1389,12 @@
             Random value y used to calcutate Diffie-Hellman public value
             g^y for the next data message.
         </description>
-        <flow sarg="data" sink="Branch Random y (M) data" darg="data"/>
+        <flow sarg="data" sink="Branch Random y (M) data" darg="data">
+            <assert confidentiality="true" integrity="true">
+                Private key must be confidential and must not be chosen
+                by attacker.
+            </assert>
+        </flow>
     </rng>
 
     <branch id="Branch Random y (M) data">
@@ -1723,7 +1870,7 @@
         <description>
             Decrypt the message using the receiving encryption key.
         </description>
-        <flow sarg="plaintext" sink="User" darg="data"/>
+        <flow sarg="plaintext" sink="User_Data" darg="data"/>
     </decrypt>
 
 </spg>

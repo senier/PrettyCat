@@ -285,7 +285,7 @@ class Graph:
             err ("No solution")
             return False
 
-    def partition (self):
+    def partition (self, cluster):
 
         G = self.graph
 
@@ -295,7 +295,8 @@ class Graph:
         for node in G.node:
             new_partition = mark_partition (G, node, partition_no)
             if new_partition:
-                partitions[str(partition_no)] = pydot.Subgraph (graph_name = "cluster_" + str(partition_no), label = "partition " + str(partition_no), penwidth = 2, bgcolor = "gray80")
+                prefix = "cluster_" if cluster else "partition_"
+                partitions[str(partition_no)] = pydot.Subgraph (graph_name = prefix + str(partition_no), label = "partition " + str(partition_no), penwidth = 2, bgcolor = "gray80")
                 partition_no = partition_no + 1
 
         info ("Created " + str(partition_no - 1) + " partitions")
@@ -2421,17 +2422,19 @@ def parse_graph (inpath):
 
 def set_style (o, c, i):
 
-    if c == None or i == None:
-        o['style'] = "dashed"
+    #if c == None or i == None:
+    #    o['style'] = "dashed"
 
-    if (c and i) or (c == None and i == None):
+    if (c and i):
         o['color'] = "purple"
-    elif not c and not i and c != None and i != None:
+    elif not c and not i:
         o['color'] = "black"
-    elif c or c == None:
+    elif c:
         o['color'] = "red"
-    elif i or i == None:
+    elif i:
         o['color'] = "blue"
+    else:
+        o['color'] = "orange"
 
 def dump_primitive_rules():
     for primitive_class in Primitive.__subclasses__():
@@ -2450,13 +2453,18 @@ def main():
 
     # Read in graph
     G = parse_graph (args.input[0])
+
+    if args.initial:
+        G.label()
+        G.write ("initial_" + args.output[0])
+      
     solved = G.analyze(args.dump_rules)
     G.label()
 
     #if args.dump_rules:
     #    dump_primitive_rules()
 
-    if solved: G.partition()
+    if solved: G.partition(args.cluster)
     G.write (args.output[0])
 
     sys.exit (0 if solved else 1)
@@ -2466,6 +2474,8 @@ if __name__ == "__main__":
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
     parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
+    parser.add_argument('--cluster', action='store_true', help='Cluster graph output', dest='cluster');
+    parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
 
     try:

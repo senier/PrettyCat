@@ -1283,19 +1283,12 @@ class Primitive_hash (Primitive):
         # Parameter
         #   data_in
         # Integrity guarantee can be dropped if:
-        #   No integrity is guaranteed for hash_out
+        #   Never
         # Reason:
-        #   If an attacker can chose data, she may change the output hash.
-        #   FIXME: But not chose hash arbitrarily if a cryptographically
-        #   secure hash function is used. What does that mean for the
-        #   integrity of data_out?
-        # Truth table:
-        #   data_in_i hash_out_i result
-        #   0         0          1
-        #   0         1          0
+        #   Using a cryptographically secure hash makes no sense with non-integer data.
         # Assertion:
-        #   data_in_i ∨ ¬hash_out_i (equiv: hash_out_i ⇒ data_in_i)
-        self.input.data.intg (Implies (Intg(self.output.hash), Intg(self.input.data)))
+        #   data_in_i
+        self.input.data.intg (Intg(self.input.data))
 
         # Parameter
         #   hash_out

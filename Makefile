@@ -1,7 +1,7 @@
 all: otr.svg
 
 clean:
-	rm -f otr.svg tests/*.svg
+	rm -f otr.svg tests/*.svg *.graph
 
 TESTS = $(wildcard tests/*.spg)
 #SPG_ARGS = --dump

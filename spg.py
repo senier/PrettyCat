@@ -447,6 +447,30 @@ class Graph:
         else:
             raise Exception ("Unsupported graphviz output type")
 
+    def statistics (self):
+
+        out_i = 0
+        out_c = 0
+        in_i = 0
+        in_c = 0
+
+        for (parent, child, data) in self.graph.edges (data=True):
+
+            sarg = data['sarg']
+            if self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_c():
+                out_c = out_c + 1
+
+            if self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_i():
+                out_i = out_i + 1
+
+            darg = data['darg']
+            if self.graph.node[child]['primitive'].input.guarantees()[darg].val_c():
+                in_c = in_c + 1
+
+            if self.graph.node[child]['primitive'].input.guarantees()[darg].val_i():
+                in_i = in_i + 1
+
+        info ("in_c: " + str(in_c) + " in_i: " + str(in_i) + " out_c: " + str(out_c) + " out_i: " + str(out_i))
 
 class Args:
 
@@ -2472,6 +2496,8 @@ def main():
 
     if solved: G.partition(args.cluster)
     G.write (args.output[0])
+
+    G.statistics()
 
     sys.exit (0 if solved else 1)
 

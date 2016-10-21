@@ -15,6 +15,9 @@ otr.json: models/OTRrev3.spg spg.py
 otr.dot: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output $@
 
+otr.graph: models/OTRrev3.spg spg.py
+	./spg.py $(SPG_ARGS) --input $< --output $@
+
 tests:: $(TESTS:.spg=.svg)
 	@echo "$(words $^) TESTS DONE."
 

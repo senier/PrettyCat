@@ -400,6 +400,18 @@ class Graph:
             pd.write (out, prog = 'fdp', format = 'svg')
         elif out.endswith(".dot"):
             pd.write (out, prog = 'dot', format = 'dot')
+        elif out.endswith(".graph"):
+            with open (out, 'w') as outfile:
+                for (node, data) in sorted (self.graph.nodes (data=True)):
+                    for outarg in sorted (self.graph.node[node]['primitive'].output.guarantees()):
+                        c = self.graph.node[node]['primitive'].output.guarantees()[outarg].val_c()
+                        i = self.graph.node[node]['primitive'].output.guarantees()[outarg].val_i()
+                        outfile.write (node + ": OUTPUT " + outarg + " i=" + str(i) + " c=" + str(c) + "\n")
+                    for inarg in sorted (self.graph.node[node]['primitive'].input.guarantees()):
+                        c = self.graph.node[node]['primitive'].input.guarantees()[inarg].val_c()
+                        i = self.graph.node[node]['primitive'].input.guarantees()[inarg].val_i()
+                        outfile.write (node + ": INPUT " + outarg + " i=" + str(i) + " c=" + str(c) + "\n")
+
         elif out.endswith(".json"):
             with open (out, 'w') as outfile:
                 nld = json_graph.node_link_data (self.graph)

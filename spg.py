@@ -1382,6 +1382,7 @@ class Primitive_hmac (Primitive):
         #   nor for the auth value the environment has to maintain confidentiality.
         # Assertion:
         #   None
+        self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
 
         # Parameter
         #   auth_out

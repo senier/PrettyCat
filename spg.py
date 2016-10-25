@@ -1188,7 +1188,7 @@ class Primitive_encrypt (Primitive):
         #   combination twice), an attacker cannot decrypt the ciphertext and
         #   thus no confidentiality needs to be guaranteed by the environment.
         # Assertion:
-        #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ¬ctr_in_i)
+        #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ctr_in_i)
         self.output.ciphertext.conf (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
 
         # Parameter

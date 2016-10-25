@@ -1199,7 +1199,7 @@ class Primitive_encrypt (Primitive):
         #   Counter mode encryption neither assumes nor achieves integrity.
         # Assertion:
         #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
-        self.output.ciphertext.intg (Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext)))
+        #self.output.ciphertext.intg (Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext)))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):

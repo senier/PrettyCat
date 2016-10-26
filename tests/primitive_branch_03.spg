@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg>
+
+    <!--
+      ** This test must succeed, confidential data from Input is
+      ** protected in Output_Conf1 and Output_Conf2
+      ** -->
+
+    <env id="Input" integrity="false" confidentiality="true">
+        <description>
+            Confidential input
+        </description>
+        <flow sarg="data" sink="Branch" darg="data"/>
+    </env>
+
+    <branch id="Branch">
+        <description>
+            Branch data value
+        </description>
+        <flow sarg="data#1" sink="Output_Conf1" darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+        <flow sarg="data#2" sink="Output_Conf2" darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+    </branch>
+
+    <env id="Output_Conf1" integrity="false" confidentiality="true">
+        <description>
+            Conf output1
+        </description>
+    </env>
+
+    <env id="Output_Conf2" integrity="false" confidentiality="true">
+        <description>
+            Conf output2
+        </description>
+    </env>
+</spg>

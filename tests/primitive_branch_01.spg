@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<spg assert_fail="true">
+
+    <!-- This test must fail, as Input has confidentiality, but
+      ** Output_Nonconf hasn't
+      ** -->
+
+    <env id="Input" integrity="false" confidentiality="true">
+        <description>
+            Confidential input
+        </description>
+        <flow sarg="data" sink="Branch" darg="data"/>
+    </env>
+
+    <branch id="Branch">
+        <description>
+            Branch data value
+        </description>
+        <flow sarg="data#1" sink="Output_Nonconf" darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+        <flow sarg="data#2" sink="Output_Conf"    darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+    </branch>
+
+    <env id="Output_Nonconf" integrity="false" confidentiality="false">
+        <description>
+            Non-confidential output
+        </description>
+    </env>
+
+    <env id="Output_Conf" integrity="false" confidentiality="true">
+        <description>
+            Confidential output
+        </description>
+    </env>
+</spg>

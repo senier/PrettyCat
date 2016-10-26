@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg assert_fail="true">
+
+    <!--
+      ** This test must fail, as Output_Int has integrity guarantees,
+      ** but Input hasn't
+      ** -->
+
+    <env id="Input" integrity="false" confidentiality="false">
+        <description>
+            Confidential input
+        </description>
+        <flow sarg="data" sink="Branch" darg="data"/>
+    </env>
+
+    <branch id="Branch">
+        <description>
+            Branch data value
+        </description>
+        <flow sarg="data#1" sink="Output_Intg" darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+        <flow sarg="data#2" sink="Output_Nonintg"    darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+    </branch>
+
+    <env id="Output_Intg" integrity="true" confidentiality="false">
+        <description>
+            Integrity output
+        </description>
+    </env>
+
+    <env id="Output_Nonintg" integrity="false" confidentiality="false">
+        <description>
+            Non-integrity output
+        </description>
+    </env>
+</spg>

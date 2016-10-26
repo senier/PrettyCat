@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<spg>
+    <env id="Msg" confidentiality="false" integrity="true">
+        <description>
+            Message
+        </description>
+        <flow sarg="data" sink="Sign" darg="msg"/>
+    </env>
+
+    <const id="Key" confidentiality="true">
+        <description>
+            Secret key
+        </description>
+        <flow sarg="const" sink="Branch Key" darg="data">
+            <assert confidentiality="true"/>
+        </flow>
+    </const>
+
+    <branch id="Branch Key">
+        <description>
+            Branch secret key
+        </description>
+        <flow sarg="data#1" sink="Sign" darg="skey">
+            <assert confidentiality="true"/>
+        </flow>
+    </branch>
+
+    <sign id="Sign">
+        <description>
+            Sign input
+        </description>
+        <flow sarg="auth" sink="Output" darg="auth"/>
+    </sign>
+
+    <env id="Output" confidentiality="false" integrity="false">
+        <description>
+            Output guaranteeing integrity
+        </description>
+        <arg name="auth"/>
+    </env>
+</spg>
+

@@ -260,18 +260,18 @@ class Graph:
                 for g in og:
                     og[g].update (solver.model())
 
-            if self.fail:
-                err ("Failure expected, but solution found");
-                return False
-
-            info ("Solution found")
-
             # Check assertions
             result = self.check_assertions()
             if result:
                 info ("Assertions checked")
             else:
                 warn ("Assertions failed")
+
+            if self.fail:
+                err ("Failure expected, but solution found");
+                return False
+
+            info ("Solution found")
 
             return result
 

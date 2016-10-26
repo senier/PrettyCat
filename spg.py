@@ -1060,26 +1060,8 @@ class Primitive_dhsec (Primitive):
         # Assertion:
         #   None
 
-        # Parameter
-        #   ssec_out
-        # Confidentiality guarantee can be dropped if:
-        #   Neither psec_in nor pub_in demand confidentiality guarantees
-        # Reason:
-        #   With the knowledge of psec_in (y in DH terms) and pub (g^x in DH
-        #   terms) an attacker can calculate the shared secret g^yx.
-        #   FIXME: We do not require psec_in to be integrity protected, as an
-        #   attacker would not be able to derive ssec with a chosen psec in
-        #   *this* step. The situation is different if an attacker can chose
-        #   the psec used for dhpub (but this is covered in an own rule)
-        # Truth table:
-        #   ssec_out_c psec_in_c pub_in_c result
-        #   0          0         0        1
-        #   0          0         1        0
-        #   0          1         0        0
-        #   0          1         1        0
-        # Assertion:
-        #   ssec_out_c ∨ ¬(psec_in_c ∨ pub_in_c)
-        self.output.ssec.conf (Or (Conf(self.output.ssec), Not (Or (Conf(self.input.psec), Conf(self.input.pub)))))
+        # Confidentiality must be guaranteed for shared secret
+        self.output.ssec.conf (Conf(self.output.ssec))
 
         # Parameter
         #   ssec_out

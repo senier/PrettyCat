@@ -18,14 +18,14 @@ otr.dot: models/OTRrev3.spg spg.py
 otr.graph: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests:: $(TESTS:.spg=.svg)
+tests:: $(sort $(TESTS:.spg=.svg))
 	@echo "$(words $^) TESTS DONE."
 
 tests/%.svg: tests/%.spg spg.py
 	@echo "=== Graph $@"
 	@./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests/%.svg: tests/%.spg
-	@echo "=== Running $*" spg.py
+tests/%.svg: tests/%.spg spg.py
+	@echo "=== Running $<"
 	@./spg.py $(SPG_ARGS) --input $< --output tests/$*.FAILED.svg --test
 	@mv tests/$*.FAILED.svg $@

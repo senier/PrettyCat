@@ -688,37 +688,10 @@ class Primitive_xform (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        # Parameter
-        #   All input interfaces
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   Any output interfaces
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   All input interfaces
-        # Integrity guarantee can be dropped if:
-        #   No output interface demands integrity
-        # Reason:
         #   Input from a source lacking integrity guarantees can influence
         #   any output of an xform in undetermined ways. Hence, integrity
         #   guarantees cannot be maintained for any output interface.
-        # Assertion:
+        #
         #   Intg(output_if) ⇒ Intg(input_if)
 
         for (in_name, input_if) in self.input.guarantees().items():
@@ -727,15 +700,10 @@ class Primitive_xform (Primitive):
                 input_if_rules.append (Implies (Intg(output_if), Intg(input_if)))
             input_if.intg (And (input_if_rules))
 
-        # Parameter
-        #   Any output interfaces
-        # Confidentiality guarantee can be dropped if:
-        #   No input interface demands confidentiality
-        # Reason:
         #   Input from a source demanding confidentiality guarantees can
         #   influence any output of an xform in undetermined ways. Hence,
         #   confidentiality must be guaranteed by all output interfaces.
-        # Assertion:
+        #
         #   Conf(input_if) -> Conf(output_if)
         for (out_name, output_if) in self.output.guarantees().items():
             output_if_rules = []

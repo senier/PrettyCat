@@ -756,13 +756,17 @@ class Primitive_branch (Primitive):
         if len(self.input.guarantees().items()) > 1:
             raise PrimitiveInvalidAttributes (name, "branch", "More than one input parameters")
 
-        # Parameters
-        #   Inputs:  data
-        #   Outputs: data_1..data_n
-
+        # If integrity is guaranteed for some output, then integrity
+        # must be guaranteed for the input, too.
         for (out_name, out_g) in self.output.guarantees().items():
-            out_g.conf ((Conf(out_g) == Conf(self.input.data)))
             out_g.intg (Implies (Intg(out_g), Intg(self.input.data)))
+
+        # If confidentiality is guaranteed for the input, then integrity
+        # must be guaranteed for all outputs, too.
+        output_conf_rules = []
+        for (out_name, out_g) in self.output.guarantees().items():
+            output_conf_rules.append (Implies (Conf(self.input.data), Conf(out_g)))
+        out_g.conf (And (output_conf_rules))
 
 class Primitive_layout (Primitive):
     """

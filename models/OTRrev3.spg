@@ -47,12 +47,12 @@
       -->
 
     <!-- Long term keys -->
-    <const id="pub">
+    <const id="pub" confidentiality="false">
         <description>
             Public key
         </description>
         <flow sarg="const" sink="Branch pub const" darg="data">
-            <assert integrity="true" confidentiality="false">
+            <assert integrity="true">
                 Public key by its nature is not confidential, but
                 an attacker must not make us use the wrong pulic
                 key.
@@ -70,7 +70,7 @@
         <flow sarg="const#4" sink="Concat X_B" darg="pub"/>
     </branch>
 
-    <const id="priv">
+    <const id="priv" confidentiality="true">
         <description>
             Private key
         </description>
@@ -490,28 +490,28 @@
         <arg name="hashed_g^x"/>
     </xform>
 
-    <const id="DHCM Protocol Version (S)">
+    <const id="DHCM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
         <flow sarg="const" sink="D-H Commit (S)" darg="protocol_version"/>
     </const>
 
-    <const id="DHCM Message Type (S)">
+    <const id="DHCM Message Type (S)" confidentiality="false">
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
         <flow sarg="const" sink="D-H Commit (S)" darg="message_type"/>
     </const>
 
-    <const id="DHCM Sender Instance Tag (S)">
+    <const id="DHCM Sender Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the person sending this message.
         </description>
         <flow sarg="const" sink="D-H Commit (S)" darg="sender_instance_tag"/>
     </const>
 
-    <const id="DHCM Receiver Instance Tag (S)">
+    <const id="DHCM Receiver Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
@@ -679,28 +679,28 @@
         <arg name="g^y"/>
     </xform>
 
-    <const id="DHKM Protocol Version (S)">
+    <const id="DHKM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
         <flow sarg="const" sink="D-H Key (S)" darg="protocol_version"/>
     </const>
 
-    <const id="DHKM Message Type (S)">
+    <const id="DHKM Message Type (S)" confidentiality="false">
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
         <flow sarg="const" sink="D-H Key (S)" darg="message_type"/>
     </const>
 
-    <const id="DHKM Sender Instance Tag (S)">
+    <const id="DHKM Sender Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the person sending this message.
         </description>
         <flow sarg="const" sink="D-H Key (S)" darg="sender_instance_tag"/>
     </const>
 
-    <const id="DHKM Receiver Instance Tag (S)">
+    <const id="DHKM Receiver Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
@@ -840,28 +840,28 @@
         <flow sarg="data" sink="Network" darg="sigm"/>
     </guard>
 
-    <const id="SIGM Protocol Version (S)">
+    <const id="SIGM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
         <flow sarg="const" sink="Signature (S)" darg="protocol_version"/>
     </const>
 
-    <const id="SIGM Message Type (S)">
+    <const id="SIGM Message Type (S)" confidentiality="false">
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
         <flow sarg="const" sink="Signature (S)" darg="message_type"/>
     </const>
 
-    <const id="SIGM Sender Instance Tag (S)">
+    <const id="SIGM Sender Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the person sending this message.
         </description>
         <flow sarg="const" sink="Signature (S)" darg="sender_instance_tag"/>
     </const>
 
-    <const id="SIGM Receiver Instance Tag (S)">
+    <const id="SIGM Receiver Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
@@ -1078,28 +1078,28 @@
         <arg name="macd_signature"/>
     </xform>
 
-    <const id="RVSM Protocol Version (S)">
+    <const id="RVSM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
         <flow sarg="const" sink="Reveal Signature (S)" darg="protocol_version"/>
     </const>
 
-    <const id="RVSM Message Type (S)">
+    <const id="RVSM Message Type (S)" confidentiality="false">
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
         <flow sarg="const" sink="Reveal Signature (S)" darg="message_type"/>
     </const>
 
-    <const id="RVSM Sender Instance Tag (S)">
+    <const id="RVSM Sender Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the person sending this message.
         </description>
         <flow sarg="const" sink="Reveal Signature (S)" darg="sender_instance_tag"/>
     </const>
 
-    <const id="RVSM Receiver Instance Tag (S)">
+    <const id="RVSM Receiver Instance Tag (S)" confidentiality="false">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
@@ -1657,7 +1657,7 @@
         <flow sarg="auth" sink="Data (S)" darg="authenticator"/>
     </hmac>
 
-    <const id="Data Protocol Version (M)">
+    <const id="Data Protocol Version (M)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
@@ -1672,7 +1672,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="protocol_version"/>
     </branch>
 
-    <const id="Data Message Type (M)">
+    <const id="Data Message Type (M)" confidentiality="false">
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
@@ -1687,7 +1687,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="message_type"/>
     </branch>
 
-    <const id="Data Sender Instance Tag (M)">
+    <const id="Data Sender Instance Tag (M)" confidentiality="false">
         <description>
             The instance tag of the person sending this message.
         </description>
@@ -1702,7 +1702,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="sender_instance_tag"/>
     </branch>
 
-    <const id="Data Receiver Instance Tag (M)">
+    <const id="Data Receiver Instance Tag (M)" confidentiality="false">
         <description>
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
@@ -1718,7 +1718,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="receiver_instance_tag"/>
     </branch>
 
-    <const id="Data Flags (M)">
+    <const id="Data Flags (M)" confidentiality="false">
         <description>
             The bitwise-OR of the flags for this message.
         </description>

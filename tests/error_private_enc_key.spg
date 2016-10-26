@@ -7,7 +7,7 @@
         <flow sarg="data" sink="Sign" darg="msg"/>
     </env>
 
-    <const id="Key" confidentiality="true">
+    <const id="Key">
         <description>
             Secret key
         </description>

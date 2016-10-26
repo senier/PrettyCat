@@ -51,6 +51,19 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:attribute name="id" use="required" />
 </xs:complexType>
 
+<xs:complexType name="constElement">
+    <xs:complexContent>
+        <xs:extension base="baseElement">
+            <xs:sequence minOccurs="0" maxOccurs="unbounded">
+                <xs:choice>
+                    <xs:element name="flow" type="flowElement"/>
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="confidentiality" type="xs:boolean"/>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
 <xs:complexType name="xformElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
@@ -91,7 +104,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="env"             type="envElement"/>
             <xs:element name="xform"           type="xformElement"/>
             <xs:element name="branch"          type="forwardElement"/>
-            <xs:element name="const"           type="forwardElement"/>
+            <xs:element name="const"           type="constElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
             <xs:element name="dhsec"           type="forwardElement"/>
             <xs:element name="rng"             type="forwardElement"/>
@@ -830,20 +843,20 @@ class Primitive_layout (Primitive):
 
 class Primitive_const (Primitive):
     """
-    The const primivive
+    The const primitive
     """
 
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        # Parameters
-        #   Inputs:  ø
-        #   Outputs: const
+        # Guarantees explicitly set in the XML
+        g = self.node['guarantees']
 
-        # Const can only drop integrity or confidentiality guarantees if the
-        # receiving primitives do not require them.  This is handled in the
-        # channel assertions (output guarantees of parent are equivalent to
-        # respective input guarantees of child)
+        og = self.output.guarantees()['const']
+        if g['c'] != None:
+            og.conf (Conf (og) == g['c'])
+        else:
+            self.output.const.conf (Conf(self.output.const))
 
 class Primitive_rng (Primitive):
     """

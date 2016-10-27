@@ -1,22 +1,26 @@
 all: otr.svg
 
 clean:
-	rm -f otr.svg tests/*.svg *.graph
+	rm -f otr.svg tests/*.svg *.graph TEMP_*
 
 TESTS = $(wildcard tests/*.spg)
 #SPG_ARGS = --dump
 
 otr.svg: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output $@
+	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+	mv TEMP_$@ $@
 
 otr.json: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output $@
+	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+	mv TEMP_$@ $@
 
 otr.dot: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output $@
+	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+	mv TEMP_$@ $@
 
 otr.graph: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output $@
+	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+	mv TEMP_$@ $@
 
 tests:: $(sort $(TESTS:.spg=.svg))
 	@echo "$(words $^) TESTS DONE."

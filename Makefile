@@ -27,5 +27,5 @@ tests/%.svg: tests/%.spg spg.py
 
 tests/%.svg: tests/%.spg spg.py
 	@echo "=== Running $<"
-	@./spg.py $(SPG_ARGS) --input $< --output tests/$*.FAILED.svg --test
-	@mv tests/$*.FAILED.svg $@
+	-@./spg.py $(SPG_ARGS) --input $< --output tests/$*.FAILED.svg --test
+	-@mv tests/$*.FAILED.svg $@

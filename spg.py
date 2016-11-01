@@ -485,6 +485,9 @@ class Graph:
 
         info ("in_c: " + str(in_c) + " in_i: " + str(in_i) + " out_c: " + str(out_c) + " out_i: " + str(out_i))
 
+    def run (self):
+        raise Exception ("Run not implemented")
+
 class Args:
 
     def __init__ (self, graph, name):
@@ -2461,7 +2464,10 @@ def main():
     #if args.dump_rules:
     #    dump_primitive_rules()
 
-    if solved: G.partition(args.cluster)
+    if solved:
+        G.partition(args.cluster)
+        if args.run:
+            G.run()
     G.write (args.output[0])
 
     G.statistics()
@@ -2476,6 +2482,7 @@ if __name__ == "__main__":
     parser.add_argument('--cluster', action='store_true', help='Cluster graph output', dest='cluster');
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+    parser.add_argument('--run', action='store_true', required=False, help='Run model', dest='run');
 
     try:
         args = parser.parse_args ()

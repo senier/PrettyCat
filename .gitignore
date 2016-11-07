@@ -16,3 +16,4 @@ test.pdf
 *.json
 *.graph
 *.bak
+__pycache__

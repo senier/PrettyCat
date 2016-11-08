@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
-<spg>
+<spg id="OTRv3">
 
     <!--
       ** Environment
       -->
-    <env id="Network" confidentiality="false" integrity="false">
+    <env id="Network" confidentiality="false" integrity="false" code="network">
         <description>
             Network environment without confidentiality or integrity guarantees.
         </description>
@@ -20,7 +20,7 @@
         <arg name="data"/>
     </env>
 
-    <env id="User_Data" confidentiality="true" integrity="true">
+    <env id="User_Data" confidentiality="true" integrity="true" code="user_data">
         <description>
             User data environment guaranteeing confidentiality and integrity.
         </description>
@@ -34,7 +34,7 @@
          to create SSID do not remove confidentialty from the output. This is
          right for key derivation, but wrong in this case. How do we distinguish
          these cases? -->
-    <env id="User_Interface" confidentiality="true" integrity="true">
+    <env id="User_Interface" confidentiality="true" integrity="true" code="user_interface">
         <description>
             User interface environment guaranteeing integrity for displayed
             content.
@@ -120,7 +120,7 @@
         <flow sarg="const#2" sink="Guard Encrypted X_B" darg="data"/>
     </branch>
 
-    <xform id="AKE State">
+    <xform id="AKE State" code="ake_state">
         <description>
             Current state of the AKE
         </description>
@@ -133,7 +133,7 @@
       ** Key derivation
       -->
 
-    <xform id="Derive keys">
+    <xform id="Derive keys" code="derive_keys">
         <description>
             Serialize the value of shared secret s as a minimum-length MPI secbytes.
         </description>
@@ -188,7 +188,7 @@
         </flow>
     </const>
 
-    <xform id="Concat ssid">
+    <xform id="Concat ssid" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -214,10 +214,13 @@
         </flow>
     </hash>
 
-    <xform id="Trim ssid">
+    <xform id="Trim ssid" code="prefix">
         <description>
             Let ssid be the first 64 bits of h2(0x00).
         </description>
+        <config>
+            <length value="64"/>
+        </config>
         <flow sarg="ssid" sink="User_Interface" darg="ssid">
             <assert integrity="true" >
                 Attacker must not choose ssid, as she could impersonate a connection
@@ -240,7 +243,7 @@
         </flow>
     </const>
 
-    <xform id="Concat c">
+    <xform id="Concat c" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -267,11 +270,15 @@
         </flow>
     </hash>
 
-    <xform id="Split c">
+    <xform id="Split c" code="split">
         <description>
             Let c be the first 128 bits of h2(0x01),
             and let c' be the second 128 bits of h2(0x01).
         </description>
+        <config>
+            <first value="128"/>
+            <second value="128"/>
+        </config>
         <flow sarg="c#1"  sink="Encrypt X_B" darg="key">
             <assert confidentiality="true" integrity="true">
                 Encryption key must not be chosen or known by an attacker. 
@@ -308,7 +315,7 @@
         </flow>
     </const>
 
-    <xform id="Concat m1">
+    <xform id="Concat m1" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -360,7 +367,7 @@
         </flow>
     </const>
 
-    <xform id="Concat m2">
+    <xform id="Concat m2" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -412,7 +419,7 @@
         </flow>
     </const>
 
-    <xform id="Concat m1'">
+    <xform id="Concat m1'" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -448,7 +455,7 @@
         </flow>
     </const>
 
-    <xform id="Concat m2'">
+    <xform id="Concat m2'" code="concat">
         <description>
             Byte b followed by secbytes.
         </description>
@@ -476,7 +483,7 @@
     <!--
       ** Send D-H Commit message
       -->
-    <xform id="D-H Commit (S)">
+    <xform id="D-H Commit (S)" code="dh_commit_s">
         <description>
             Primitive assembling the first message of the AKE,
             the D-H Commit Message.
@@ -587,7 +594,7 @@
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
     </branch>
 
-    <xform id="Serialize g^x (S)">
+    <xform id="Serialize g^x (S)" code="mpi">
         <description>
             Serialize input g^x as an MPI called gxmpi
             (typically 196 bytes long, starting with
@@ -655,7 +662,7 @@
     <!--
       ** Receive D-H Commit message
       -->
-    <xform id="D-H Commit (R)">
+    <xform id="D-H Commit (R)" code="dh_commit_r">
         <description>
             First message of the AKE received by peer in the responder case.
         </description>
@@ -667,7 +674,7 @@
     <!--
       ** Send D-H Key message
       -->
-    <xform id="D-H Key (S)">
+    <xform id="D-H Key (S)" code="dh_key_s">
         <description>
             Second message of the AKE send by us in the responder case.
         </description>
@@ -760,7 +767,7 @@
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
     </branch>
 
-    <xform id="Serialize g^y (S)">
+    <xform id="Serialize g^y (S)" code="mpi">
         <description>
             Serialize input g^y as an MPI called gxmpi
             (typically 196 bytes long, starting with
@@ -775,7 +782,7 @@
     <!--
       ** Receive D-H Key message
       -->
-    <xform id="D-H Key (R)">
+    <xform id="D-H Key (R)" code="dh_key_r">
         <description>
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
@@ -818,7 +825,7 @@
     <!--
       ** Send Signature message
       -->
-    <xform id="Signature (S)">
+    <xform id="Signature (S)" code="signature_s">
         <description>
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
@@ -885,7 +892,7 @@
         <flow sarg="const#2" sink="Concat X_A" darg="keyid"/>
     </branch>
 
-    <xform id="Concat M_A (S)">
+    <xform id="Concat M_A (S)" code="concat">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
@@ -913,7 +920,7 @@
         <flow sarg="auth" sink="Concat X_A" darg="Signed M_A"/>
     </sign>
 
-    <xform id="Concat X_A">
+    <xform id="Concat X_A" code="concat">
         <description>
             Let X_A be the following structure: pub (PUBKEY), keyid (INT), sig_A(M_A) (SIG)
         </description>
@@ -953,11 +960,14 @@
         <flow sarg="auth" sink="Trim X_A" darg="macd_signature"/>
     </hmac>
 
-    <xform id="Trim X_A">
+    <xform id="Trim X_A" code="prefix">
         <description>
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
+        <config>
+            <length value="160"/>
+        </config>
         <flow sarg="macd_signature" sink="Signature (S)" darg="macd_signature"/>
         <arg name="macd_signature"/>
     </xform>
@@ -965,7 +975,7 @@
     <!--
       ** Receive Signature message
       -->
-    <xform id="Signature (R)">
+    <xform id="Signature (R)" code="signature_r">
         <description>
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
@@ -1005,7 +1015,7 @@
         <flow sarg="plaintext" sink="Split X_A" darg="X_A"/>
     </decrypt>
 
-    <xform id="Split X_A">
+    <xform id="Split X_A" code="split_x">
         <description>
             Split X_A into pub, keyid, sig_A(M_A)
         </description>
@@ -1016,7 +1026,7 @@
         <arg name="X_A"/>
     </xform>
 
-    <xform id="Concat M_A (R)">
+    <xform id="Concat M_A (R)" code="concat">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
@@ -1027,7 +1037,7 @@
         <arg name="keyid"/>
     </xform>
 
-    <layout id="Layout M_A (R)">
+    <layout id="Layout M_A (R)" code="layout_m">
         <description>
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
@@ -1061,7 +1071,7 @@
     <!--
       ** Send Reveal Signature Message
       -->
-    <xform id="Reveal Signature (S)">
+    <xform id="Reveal Signature (S)" code="reveal_signature_s">
         <description>
             Primitive assembling the third message of the AKE,
             the Reveal Signature Message. It reveals the D-H
@@ -1123,7 +1133,7 @@
         <flow sarg="const#2" sink="Concat X_B" darg="keyid"/>
     </branch>
 
-    <xform id="Concat M_B (S)">
+    <xform id="Concat M_B (S)" code="concat">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
@@ -1134,7 +1144,7 @@
         <arg name="keyid"/>
     </xform>
 
-    <layout id="Layout M_B (S)">
+    <layout id="Layout M_B (S)" code="layout_m">
         <description>
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
@@ -1158,7 +1168,7 @@
         <flow sarg="auth" sink="Concat X_B" darg="Signed M_B"/>
     </sign>
 
-    <xform id="Concat X_B">
+    <xform id="Concat X_B" code="concat">
         <description>
             Let X_B be the following structure: pub (PUBKEY), keyid (INT), sig_B(M_B) (SIG)
         </description>
@@ -1198,11 +1208,14 @@
         <flow sarg="auth" sink="Trim X_B" darg="macd_signature"/>
     </hmac>
 
-    <xform id="Trim X_B">
+    <xform id="Trim X_B" code="prefix">
         <description>
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
+        <config>
+            <length value="160"/>
+        </config>
         <flow sarg="macd_signature" sink="Reveal Signature (S)" darg="macd_signature"/>
         <arg name="macd_signature"/>
     </xform>
@@ -1210,7 +1223,7 @@
     <!--
       ** Receive Reveal Signature Message
       -->
-    <xform id="Reveal Signature (R)">
+    <xform id="Reveal Signature (R)" code="reveal_signature_r">
         <description>
             Primitive assembling the third message of the AKE,
             the Reveal Signature Message. It reveals the D-H
@@ -1294,7 +1307,7 @@
         <flow sarg="plaintext" sink="Split X_B (R)" darg="X_B"/>
     </decrypt>
 
-    <xform id="Split X_B (R)">
+    <xform id="Split X_B (R)" code="split_x">
         <description>
             Split X_B into pub, keyid, sig_B(M_B)
         </description>
@@ -1305,7 +1318,7 @@
         <arg name="X_B"/>
     </xform>
 
-    <xform id="Concat M_B (R)">
+    <xform id="Concat M_B (R)" code="concat">
         <description>
             Compute the 32-byte value MB to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
@@ -1354,7 +1367,7 @@
 
     <!-- Key management -->
 
-    <xform id="Select remote pubkey (M)">
+    <xform id="Select remote pubkey (M)" code="select_remote_pubkey">
         <description>
             Picks the most recent D-H encryption key received from the remote
             party, either in a Data Message or in the AKE.
@@ -1420,7 +1433,7 @@
         <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="pub_local"/>
     </branch>
     
-    <xform id="Serialize g^y (M)">
+    <xform id="Serialize g^y (M)" code="mpi">
         <description>
             Serialize Diffie-Hellman public value as MPI
         </description>
@@ -1429,7 +1442,7 @@
         <arg name="data"/>
     </xform>
 
-    <xform id="Join local pubkeys (M)">
+    <xform id="Join local pubkeys (M)" code="concat">
         <description>
             Pass all potential local pubkeys to layout component.
             FIXME: This component exists due to a limitation in 
@@ -1442,7 +1455,7 @@
         <arg name="initiator_pub_local"/>
     </xform>
 
-    <layout id="Select local pubkey (M)">
+    <layout id="Select local pubkey (M)" code="select_local_pubkey">
         <description>
             Picks the most recent local D-H encryption key remote side
             has acknowledged receiving by using it in a Data Message
@@ -1451,7 +1464,7 @@
         <flow sarg="data" sink="Split local pubkey (M)" darg="data"/>
     </layout>
 
-    <xform id="Split local pubkey (M)">
+    <xform id="Split local pubkey (M)" code="split_local_pubkeys">
         <description>
             Split public keys and key IDs received from layout
             component.
@@ -1465,7 +1478,7 @@
         <arg name="data"/>
     </xform>
 
-    <xform id="Join secret key (M)">
+    <xform id="Join secret key (M)" code="concat">
         <description>
             Join secret keys from AKE initiator/responder/last data message.
         </description>
@@ -1475,7 +1488,7 @@
         <arg name="responder_psec"/>
     </xform>
 
-    <layout id="Select secret key (M)">
+    <layout id="Select secret key (M)" code="select_secret_key">
         <!-- FIXME: If the "recipient keyid" in the Data message equals
          our_keyid, then he's seen the public part of our most recent DH key
          pair, so you must securely forget our_dh[our_keyid-1], increment
@@ -1497,7 +1510,7 @@
         <flow sarg="ssec" sink="Serialize s (M)" darg="s"/>
     </dhsec>
 
-    <xform id="Serialize s (M)">
+    <xform id="Serialize s (M)" code="mpi">
         <description>
             Serialize shared secret as MPI
         </description>
@@ -1506,7 +1519,7 @@
         <arg name="s"/>
     </xform>
 
-    <layout id="Determine end (M)">
+    <layout id="Determine end (M)" code="determine_end">
         <description>
             The sender determines if she is the "low" end or the "high" end
             of this Data Message. If the senders public key is numerically
@@ -1526,7 +1539,7 @@
 
     <!-- Sending a data message to the network -->
 
-    <xform id="Concat sendkey (M)">
+    <xform id="Concat sendkey (M)" code="concat">
         <description>
             Byte b, followed by secbytes.
         </description>
@@ -1543,10 +1556,13 @@
         <flow sarg="hash" sink="Truncate sending enc key (M)" darg="data"/>
     </hash>
 
-    <xform id="Truncate sending enc key (M)">
+    <xform id="Truncate sending enc key (M)" code="prefix">
         <description>
             The first 16 bytes of h1(sendbyte)
         </description>
+        <config>
+            <length value="128"/>
+        </config>
         <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
         <flow sarg="data#3" sink="Detect key change (M)" darg="data"/>
@@ -1560,7 +1576,7 @@
         <flow sarg="hash" sink="Calculate authenticator (M)" darg="key"/>
     </hash>
 
-    <xform id="Reveal old MAC keys (M)">
+    <xform id="Reveal old MAC keys (M)" code="reveal_old_mac_keys">
         <description>
             Whenever you are about to forget either one of your old D-H key pairs,
             or one of your correspondent's old D-H public keys, take all of the
@@ -1626,7 +1642,7 @@
         <flow sarg="ciphertext#2" sink="Concat authenticator (S)" darg="encrypted_message"/>
     </branch>
 
-    <xform id="Concat authenticator (S)">
+    <xform id="Concat authenticator (S)" code="concat">
         <description>
             Input for the authenticator to MAC outgoing messages.
         </description>
@@ -1642,7 +1658,7 @@
         <arg name="encrypted_message"/>
     </xform>
 
-    <layout id="Layout authenticator (S)">
+    <layout id="Layout authenticator (S)" code="authenticator_s">
         <description>
             Input for the authenticator to MAC outgoing messages.
         </description>
@@ -1733,7 +1749,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="flags"/>
     </branch>
 
-    <xform id="Data (S)">
+    <xform id="Data (S)" code="data_s">
         <description>
             Encrypted data message sent to the network.
         </description>
@@ -1754,7 +1770,7 @@
 
     <!-- Receiving a data message from network -->
 
-    <xform id="Concat recvkey (M)">
+    <xform id="Concat recvkey (M)" code="concat">
         <description>
             Byte b, followed by secbytes.
         </description>
@@ -1771,10 +1787,13 @@
         <flow sarg="hash" sink="Truncate receiving enc key (M)" darg="data"/>
     </hash>
 
-    <xform id="Truncate receiving enc key (M)">
+    <xform id="Truncate receiving enc key (M)" code="prefix">
         <description>
             The first 16 bytes of h1(recvbyte)
         </description>
+        <config>
+            <length value="128"/>
+        </config>
         <flow sarg="data#1" sink="Derive receiving MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Decrypt (M)" darg="key"/>
         <arg name="data"/>
@@ -1795,7 +1814,7 @@
         <flow sarg="hash#2" sink="Reveal old MAC keys (M)" darg="key"/>
     </branch>
 
-    <xform id="Data (R)">
+    <xform id="Data (R)" code="data_r">
         <description>
             Encrypted data message received from the network.
         </description>
@@ -1818,7 +1837,7 @@
         <arg name="data"/>
     </xform>
 
-    <xform id="Concat authenticator (R)">
+    <xform id="Concat authenticator (R)" code="concat">
         <description>
             Input for the authenticator for checking received messages.
         </description>
@@ -1850,7 +1869,7 @@
         <flow sarg="data" sink="Guard counter (M)" darg="data"/>
     </guard>
 
-    <xform id="Verify counter (M)">
+    <xform id="Verify counter (M)" code="verify_counter">
         <description>
             Check that the counter in the Data message is strictly larger
             than the last counter you saw using this pair of keys.

@@ -65,13 +65,31 @@ class encrypt (SPG_base):
             raise Exception ("Keylen != " + str(self.keylen))
         self.key = key
         print ("Key set")
-    
-class env (threading.Thread):
+
+class output (SPG_base):
 
     def __init__ (self, name, config, recvmethods):
-        super(env, self).__init__ ()
+        super().__init__ (name, config, recvmethods)
 
-        print ("   Env init: " + str(recvmethods))
+        self.port    = int(config.attrib['port'])
+        self.host    = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
+        self.bufsize = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
+
+        print ("   Output init: " + self.host + ":" + str(self.port))
+
+        self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.connect ((self.host, self.port))
+
+    def recv_data (self, data):
+        self.socket.send (data)
+    
+class input (threading.Thread):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ ()
+
+        print ("   Input init: " + str(recvmethods))
 
         self.recvmethods = recvmethods
         self.name        = name
@@ -97,6 +115,3 @@ class env (threading.Thread):
             if 'data' in self.recvmethods:
                 data = self.conn.recv (self.bufsize)
                 self.recvmethods['data'](data)
-
-    def recv_data (self, data):
-        self.conn.send (data)

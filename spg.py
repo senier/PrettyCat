@@ -2418,7 +2418,7 @@ def parse_graph (inpath):
     if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
         assert_fail = True
 
-    mdg  = nx.DiGraph()
+    mdg  = nx.MultiDiGraph()
     name = os.path.splitext(os.path.basename (inpath))[0]
     G    = Graph (mdg, name, assert_fail)
 

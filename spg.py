@@ -190,6 +190,10 @@ def info (message):
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
+class MissingIncomingEdge (Exception):
+    def __init__ (self, name, arg):
+        Exception.__init__(self, "Node '" + name + "' has no incoming edge for argument '" + arg + "'")
+
 class PrimitiveDuplicateConfRule (Exception):
     def __init__ (self, name):
         Exception.__init__(self, "Duplicate confidentiality rule for '" + name + "'")
@@ -2488,7 +2492,7 @@ def parse_graph (inpath):
                     found = True
                     break
             if not found:
-                warn ("'" + node + "' has no incoming edge for '" + arg + "'")
+                raise MissingIncomingEdge (node, arg)
 
         if mdg.node[node]['kind'] == "xform":
             if not mdg.in_edges (nbunch=node):
@@ -2497,7 +2501,6 @@ def parse_graph (inpath):
                 raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No outputs")
 
         objname = "Primitive_" + mdg.node[node]['kind']
-        info (objname + ": " + node)
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node)
             mdg.node[node]['primitive'].prove(SPG_Solver())

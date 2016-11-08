@@ -48,10 +48,10 @@ class encrypt (SPG_base):
             raise Exception ("Encryption while no key set")
 
         if len(pt) != AES.block_size:
-            raise Exception ("Encryption with invalid blocksize")
+            raise Exception ("Encryption with invalid blocksize (expected " + str (AES.blocksize) + ")")
 
         cipher = AES.new (self.key, AES.MODE_CBC, self.ctr)
-        self.send_ct (cipher.encrypt (pt))
+        self.recvmethods['ciphertext'](cipher.encrypt (pt))
         print ("Encryption done")
 
     def recv_ctr (self, ctr):
@@ -80,22 +80,23 @@ class env (threading.Thread):
         self.host        = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
         self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
 
-        print ("   Default TCP for " + name + ", on " + self.host + ": " + str(self.port))
-
-    def run (self):
-
         self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
         self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.socket.bind ((self.host, self.port))
         self.socket.listen (1)
 
+        print ("   Waiting: TCP for " + name + " on " + self.host + ": " + str(self.port))
+        (self.conn, addr) = self.socket.accept()
+        print ("   Connect: " + str(addr[0]) + ":" + str(addr[1]))
+        message = name + ": ";
+        self.conn.send (message.encode())
+
+    def run (self):
+
         while True:
-            (conn, addr) = self.socket.accept()
-            print ("Connected with " + str(addr[0]) + ": " + str(addr[1]))
-            data = conn.recv (self.bufsize)
-            if not data: break
-            self.recvmethods['data'](data)
-            conn.close()
+            if 'data' in self.recvmethods:
+                data = self.conn.recv (self.bufsize)
+                self.recvmethods['data'](data)
 
     def recv_data (self, data):
-        self.conn (data)
+        self.conn.send (data)

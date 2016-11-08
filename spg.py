@@ -67,15 +67,30 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     </xs:complexContent>
 </xs:complexType>
 
-<xs:complexType name="envElement">
+<xs:complexType name="outputElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
-            <xs:sequence minOccurs="0" maxOccurs="1">
+            <xs:sequence minOccurs="1" maxOccurs="1">
                 <xs:choice>
-                    <xs:element name="flow" type="flowElement"/>
-                    <xs:element name="arg" type="argElement"/>
+                    <xs:element name="arg"  type="argElement"/>
                 </xs:choice>
             </xs:sequence>
+            <xs:attribute name="code" type="xs:string"/>
+            <xs:attribute name="confidentiality" type="xs:boolean"/>
+            <xs:attribute name="integrity" type="xs:boolean"/>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
+<xs:complexType name="inputElement">
+    <xs:complexContent>
+        <xs:extension base="baseElement">
+            <xs:sequence minOccurs="1" maxOccurs="1">
+                <xs:choice>
+                    <xs:element name="flow" type="flowElement"/>
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="code" type="xs:string"/>
             <xs:attribute name="confidentiality" type="xs:boolean"/>
             <xs:attribute name="integrity" type="xs:boolean"/>
         </xs:extension>
@@ -119,7 +134,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
-            <xs:element name="env"             type="envElement"/>
+            <xs:element name="output"          type="outputElement"/>
+            <xs:element name="input"           type="inputElement"/>
             <xs:element name="xform"           type="xformElement"/>
             <xs:element name="layout"          type="layoutElement"/>
             <xs:element name="branch"          type="forwardElement"/>
@@ -371,8 +387,10 @@ class Graph:
         G = self.graph
         for node in G.node:
 
-            if G.node[node]['kind'] == "env":
+            if G.node[node]['kind'] == "sink":
                 G.node[node]['shape'] = "invhouse"
+            elif G.node[node]['kind'] == "source":
+                G.node[node]['shape'] = "cds"
             else:
                 G.node[node]['shape'] = "rectangle"
 
@@ -736,11 +754,11 @@ class Primitive:
             raise PrimitiveInvalidRules (self.__class__.__name__, self.name)
         del solver
 
-class Primitive_env (Primitive):
+class Primitive_output (Primitive):
     """
-    The nenv primitive
+    The output primitive
 
-    Denotes one source and sink outside the model. Fixed guarantees according to the
+    Denotes one sink outside the model. Fixed guarantees according to the
     XML definition are used only here.
     """
 
@@ -755,6 +773,20 @@ class Primitive_env (Primitive):
                 ig.conf (Conf (ig) == g['c'])
             if g['i'] != None:
                 ig.intg (Intg (ig) == g['i'])
+
+class Primitive_input (Primitive):
+    """
+    The input primitive
+
+    Denotes one source outside the model. Fixed guarantees according to the
+    XML definition are used only here.
+    """
+
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Guarantees explicitly set in the XML
+        g = self.node['guarantees']
 
         for (name, og) in self.output.guarantees().items():
             if g['c'] != None:
@@ -2447,7 +2479,7 @@ def parse_graph (inpath):
                 penwidth="2")
 
     # Initialize all objects
-    for node in mdg.node:
+    for node in nx.topological_sort (mdg, reverse=True):
 
         for arg in mdg.node[node]['arguments']:
             found = False
@@ -2465,6 +2497,7 @@ def parse_graph (inpath):
                 raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No outputs")
 
         objname = "Primitive_" + mdg.node[node]['kind']
+        info (objname + ": " + node)
         try:
             mdg.node[node]['primitive'] = globals()[objname](G, node)
             mdg.node[node]['primitive'].prove(SPG_Solver())

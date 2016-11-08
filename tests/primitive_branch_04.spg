@@ -6,12 +6,12 @@
       ** and Output_Intg2, thus it must be guaranteed in Input, too.
       ** -->
 
-    <env id="Input" integrity="true" confidentiality="false">
+    <input id="Input" integrity="true" confidentiality="false">
         <description>
             Confidential input
         </description>
         <flow sarg="data" sink="Branch" darg="data"/>
-    </env>
+    </input>
 
     <branch id="Branch">
         <description>
@@ -25,15 +25,17 @@
         </flow>
     </branch>
 
-    <env id="Output_Intg" integrity="true" confidentiality="false">
+    <output id="Output_Intg" integrity="true" confidentiality="false">
         <description>
             Integrity output
         </description>
-    </env>
+        <arg name="data"/>
+    </output>
 
-    <env id="Output_Nonintg" integrity="true" confidentiality="false">
+    <output id="Output_Nonintg" integrity="true" confidentiality="false">
         <description>
             Non-integrity output
         </description>
-    </env>
+        <arg name="data"/>
+    </output>
 </spg>

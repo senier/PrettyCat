@@ -1,32 +1,61 @@
 <?xml version="1.0"?>
-<spg id="OTRv3">
+<spg>
 
     <!--
       ** Environment
       -->
-    <env id="Network" confidentiality="false" integrity="false" code="network">
+    <input id="Network_Input" confidentiality="false" integrity="false" code="network_input">
         <description>
-            Network environment without confidentiality or integrity guarantees.
+            Network environment source without confidentiality or integrity guarantees.
+        </description>
+        <flow sarg="data" sink="Network_Input_Mux" darg="msg"/>
+    </input>
+
+    <output id="Network_Output" confidentiality="false" integrity="false" code="network_output">
+        <description>
+            Network environment sink without confidentiality or integrity guarantees.
+        </description>
+        <arg name="data"/>
+    </output>
+
+    <xform id="Network_Input_Mux">
+        <description>
+            Disassemble incoming OTR messages
         </description>
         <flow sarg="dhcm" sink="D-H Commit (R)" darg="dhcm"/>
         <flow sarg="dhkm" sink="D-H Key (R)" darg="dhkm"/>
         <flow sarg="rvsm" sink="Reveal Signature (R)" darg="rvsm"/>
         <flow sarg="sigm" sink="Signature (R)" darg="sigm"/>
         <flow sarg="data" sink="Data (R)" darg="data"/>
+        <arg name="msg"/>
+    </xform>
+
+    <xform id="Network_Output_Mux">
+        <description>
+            Compile outgoing OTR messages
+        </description>
+        <flow sarg="msg" sink="Network_Output" darg="data"/>
         <arg name="dhkm"/>
         <arg name="dhcm"/>
         <arg name="rvsm"/>
         <arg name="sigm"/>
         <arg name="data"/>
-    </env>
+    </xform>
 
-    <env id="User_Data" confidentiality="true" integrity="true" code="user_data">
+
+    <input id="User_Input" confidentiality="true" integrity="true" code="user_data">
         <description>
             User data environment guaranteeing confidentiality and integrity.
         </description>
         <flow sarg="data" sink="Encrypt (M)" darg="plaintext"/>
+    </input>
+
+    <output id="User_Output" confidentiality="true" integrity="true" code="user_data">
+        <description>
+            User data environment guaranteeing confidentiality and integrity.
+        </description>
         <arg name="data"/>
-    </env>
+    </output>
 
     <!-- FIXME: User_Interface should not require confidentiality (after all,
          displaying SSID is not confidential). However, if we require no
@@ -34,13 +63,13 @@
          to create SSID do not remove confidentialty from the output. This is
          right for key derivation, but wrong in this case. How do we distinguish
          these cases? -->
-    <env id="User_Interface" confidentiality="true" integrity="true" code="user_interface">
+    <output id="User_Interface" confidentiality="true" integrity="true" code="user_interface">
         <description>
             User interface environment guaranteeing integrity for displayed
             content.
         </description>
         <arg name="ssid"/>
-    </env>
+    </output>
 
     <!--
       ** AKE
@@ -488,7 +517,7 @@
             Primitive assembling the first message of the AKE,
             the D-H Commit Message.
         </description>
-        <flow sarg="dhcm" sink="Network" darg="dhcm"/>
+        <flow sarg="dhcm" sink="Network_Output_Mux" darg="dhcm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -678,7 +707,7 @@
         <description>
             Second message of the AKE send by us in the responder case.
         </description>
-        <flow sarg="dhkm" sink="Network" darg="dhkm"/>
+        <flow sarg="dhkm" sink="Network_Output_Mux" darg="dhkm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -844,7 +873,7 @@
             Only send a Signature message once the reveal signature message
             was verified correctly.
         </description>
-        <flow sarg="data" sink="Network" darg="sigm"/>
+        <flow sarg="data" sink="Network_Output_Mux" darg="sigm"/>
     </guard>
 
     <const id="SIGM Protocol Version (S)" confidentiality="false">
@@ -1078,7 +1107,7 @@
             encryption key, thuse establishing and authenticating
             the encrypted channel.
         </description>
-        <flow sarg="rvsm" sink="Network" darg="rvsm"/>
+        <flow sarg="rvsm" sink="Network_Output_Mux" darg="rvsm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1753,7 +1782,7 @@
         <description>
             Encrypted data message sent to the network.
         </description>
-        <flow sarg="data" sink="Network" darg="data"/>
+        <flow sarg="data" sink="Network_Output_Mux" darg="data"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1889,7 +1918,7 @@
         <description>
             Decrypt the message using the receiving encryption key.
         </description>
-        <flow sarg="plaintext" sink="User_Data" darg="data"/>
+        <flow sarg="plaintext" sink="User_Output" darg="data"/>
     </decrypt>
 
 </spg>

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg>
 
-    <env id="Input" integrity="false" confidentiality="true">
+    <input id="Input" integrity="false" confidentiality="true">
         <description>
             Confidential input
         </description>
@@ -10,16 +10,16 @@
                 Plaintext is confidential.
             </assert>
         </flow>
-    </env>
+    </input>
 
-    <env id="IV">
+    <input id="IV">
         <description>
             Static IV
         </description>
         <flow sarg="const" sink="Encrypt" darg="ctr"/>
-    </env>
+    </input>
 
-    <env id="Random" integrity="true" confidentiality="true">
+    <input id="Random" integrity="true" confidentiality="true">
         <description>
             Generate random key
         </description>
@@ -28,7 +28,7 @@
                 Secret key.
             </assert>
         </flow>
-    </env>
+    </input>
 
     <xform id="KDF">
         <description>
@@ -49,11 +49,11 @@
         <flow sarg="ciphertext" sink="Output" darg="data"/>
     </encrypt>
 
-    <env id="Output" integrity="false" confidentiality="false">
+    <output id="Output" integrity="false" confidentiality="false">
         <description>
             Send out encrypted protected message
         </description>
         <arg name="data"/>
-    </env>
+    </output>
 </spg>
 

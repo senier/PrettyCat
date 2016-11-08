@@ -5,12 +5,12 @@
       ** Output_Nonconf hasn't
       ** -->
 
-    <env id="Input" integrity="false" confidentiality="true">
+    <input id="Input" integrity="false" confidentiality="true">
         <description>
             Confidential input
         </description>
         <flow sarg="data" sink="Branch" darg="data"/>
-    </env>
+    </input>
 
     <branch id="Branch">
         <description>
@@ -24,15 +24,17 @@
         </flow>
     </branch>
 
-    <env id="Output_Nonconf" integrity="false" confidentiality="false">
+    <output id="Output_Nonconf" integrity="false" confidentiality="false">
         <description>
             Non-confidential output
         </description>
-    </env>
+        <arg name="data"/>
+    </output>
 
-    <env id="Output_Conf" integrity="false" confidentiality="true">
+    <output id="Output_Conf" integrity="false" confidentiality="true">
         <description>
             Confidential output
         </description>
-    </env>
+        <arg name="data"/>
+    </output>
 </spg>

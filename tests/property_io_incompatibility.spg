@@ -1,15 +1,16 @@
 <?xml version="1.0"?>
 <spg assert_fail="true">
-    <env id="Input" confidentiality="true" integrity="false">
+    <input id="Input" confidentiality="true" integrity="false">
         <description>
             Input guaranteeing confidentiality
         </description>
         <flow sarg="data" sink="Output" darg="data"/>
-    </env>
+    </input>
 
-    <env id="Output" confidentiality="false" integrity="false">
+    <output id="Output" confidentiality="false" integrity="false">
         <description>
             Output *not* guaranteeing confidentiality
         </description>
-    </env>
+        <arg name="data"/>
+    </output>
 </spg>

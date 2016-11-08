@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <spg>
 
-    <env id="Input" integrity="true" confidentiality="true">
+    <input id="Input" integrity="true" confidentiality="true">
         <description>
             Trusted input
         </description>
         <flow sarg="data" sink="Encrypt" darg="plaintext"/>
-    </env>
+    </input>
 
     <const id="IV">
         <description>
@@ -60,10 +60,10 @@
         <arg name="auth"/>
     </xform>
 
-    <env id="Output" integrity="false" confidentiality="false">
+    <output id="Output" integrity="false" confidentiality="false">
         <description>
             Send out encrypted/integrity protected message
         </description>
         <arg name="data"/>
-    </env>
+    </output>
 </spg>

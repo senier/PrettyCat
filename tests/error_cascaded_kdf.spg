@@ -54,16 +54,22 @@
         <description>
             Split hash result into 2 keys
         </description>
-        <flow sarg="c1" sink="Key_Output" darg="c1"/>
-        <flow sarg="c2" sink="Key_Output" darg="c2"/>
+        <flow sarg="c1" sink="Key_Output1" darg="data"/>
+        <flow sarg="c2" sink="Key_Output2" darg="data"/>
         <arg name="c"/>
     </xform>
 
-    <env id="Key_Output" integrity="false" confidentiality="true">
+    <output id="Key_Output1" integrity="false" confidentiality="true">
         <description>
-            Send to key store
+            Send to key store 1
         </description>
-        <arg name="c1"/>
-        <arg name="c2"/>
-    </env>
+        <arg name="data"/>
+    </output>
+
+    <output id="Key_Output2" integrity="false" confidentiality="true">
+        <description>
+            Send to key store 2
+        </description>
+        <arg name="data"/>
+    </output>
 </spg>

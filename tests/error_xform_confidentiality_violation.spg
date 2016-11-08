@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <spg assert_fail="true">
 
-    <env id="Input" integrity="false" confidentiality="true">
+    <input id="Input" integrity="false" confidentiality="true">
         <description>
             Confidential input
         </description>
         <flow sarg="data" sink="Encrypt" darg="plaintext"/>
-    </env>
+    </input>
 
     <const id="IV">
         <description>
@@ -34,7 +34,7 @@
             Key derivation
         </description>
         <flow sarg="const#1" sink="Encrypt" darg="key"/>
-        <flow sarg="const#2" sink="Output" darg="key"/>
+        <flow sarg="const#2" sink="Output_Mux" darg="key"/>
         <arg name="random"/>
     </xform>
 
@@ -42,15 +42,23 @@
         <description>
             Symmetric counter mode encryption
         </description>
-        <flow sarg="ciphertext" sink="Output" darg="data"/>
+        <flow sarg="ciphertext" sink="Output_Mux" darg="data"/>
     </encrypt>
 
-    <env id="Output" integrity="false" confidentiality="false">
+    <xform id="Output_Mux">
+        <description>
+            Multiplex key/data onto output
+        </description>
+        <flow sarg="data" sink="Output" darg="data"/>
+        <arg name="data"/>
+        <arg name="key"/>
+    </xform>
+
+    <output id="Output" integrity="false" confidentiality="false">
         <description>
             Send out encrypted protected message
         </description>
         <arg name="data"/>
-        <arg name="key"/>
-    </env>
+    </output>
 </spg>
 

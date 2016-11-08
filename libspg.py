@@ -13,6 +13,7 @@ class SPG_base:
 
     def start (self): pass
     def join (self): pass
+    def setDaemon (self): pass
 
 class encrypt (SPG_base):
 

@@ -551,6 +551,7 @@ class Graph:
 
         # start all threads
         for thread in threads:
+            thread.setDaemon(True)
             thread.start()
 
         # join all threads

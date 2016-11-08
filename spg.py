@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import time
 import sys
 import argparse
 import subprocess
@@ -8,6 +9,7 @@ import re
 import pydot
 import json
 
+from os.path import dirname
 from io   import StringIO
 from lxml import etree
 
@@ -34,8 +36,8 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:sequence>
         <xs:element name="assert" type="assertionElement" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
-    <xs:attribute name="sarg" use="required" />
     <xs:attribute name="sink" use="required" />
+    <xs:attribute name="sarg" use="required" />
     <xs:attribute name="darg" use="required" />
 </xs:complexType>
 
@@ -47,6 +49,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:sequence>
         <xs:element name="assert" type="assertionElement" minOccurs="0" maxOccurs="1"/>
         <xs:element name="description" type="xs:string" minOccurs="0" maxOccurs="1"/>
+        <xs:element name="config" type="xs:anyType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="id" use="required" />
 </xs:complexType>
@@ -64,6 +67,21 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     </xs:complexContent>
 </xs:complexType>
 
+<xs:complexType name="envElement">
+    <xs:complexContent>
+        <xs:extension base="baseElement">
+            <xs:sequence minOccurs="0" maxOccurs="1">
+                <xs:choice>
+                    <xs:element name="flow" type="flowElement"/>
+                    <xs:element name="arg" type="argElement"/>
+                </xs:choice>
+            </xs:sequence>
+            <xs:attribute name="confidentiality" type="xs:boolean"/>
+            <xs:attribute name="integrity" type="xs:boolean"/>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
 <xs:complexType name="xformElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
@@ -73,15 +91,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                     <xs:element name="arg" type="argElement"/>
                 </xs:choice>
             </xs:sequence>
-        </xs:extension>
-    </xs:complexContent>
-</xs:complexType>
-
-<xs:complexType name="envElement">
-    <xs:complexContent>
-        <xs:extension base="xformElement">
-            <xs:attribute name="confidentiality" type="xs:boolean"/>
-            <xs:attribute name="integrity" type="xs:boolean"/>
+            <xs:attribute name="code" type="xs:string"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -98,11 +108,20 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     </xs:complexContent>
 </xs:complexType>
 
+<xs:complexType name="layoutElement">
+    <xs:complexContent>
+        <xs:extension base="forwardElement">
+            <xs:attribute name="code" type="xs:string" use="required"/>
+        </xs:extension>
+    </xs:complexContent>
+</xs:complexType>
+
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
             <xs:element name="env"             type="envElement"/>
             <xs:element name="xform"           type="xformElement"/>
+            <xs:element name="layout"          type="layoutElement"/>
             <xs:element name="branch"          type="forwardElement"/>
             <xs:element name="const"           type="constElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
@@ -122,11 +141,11 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="comp"            type="forwardElement"/>
             <xs:element name="scomp"           type="forwardElement"/>
             <xs:element name="verify_commit"   type="forwardElement"/>
-            <xs:element name="layout"          type="forwardElement"/>
             <xs:element name="counter"         type="forwardElement"/>
             <xs:element name="latch"           type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
+    <xs:attribute name="id" type="xs:string" use="required"/>
     <xs:attribute name="assert_fail" type="xs:boolean" />
 </xs:complexType>
 
@@ -180,6 +199,10 @@ class InconsistentRule(Exception):
     def __init__ (self, rule, text):
         Exception.__init__(self, "Rule '" + rule + "': " + text)
 
+class PrimitiveNotImplemented (Exception):
+    def __init__ (self, kind):
+        Exception.__init__(self, "No implementation for primitive '" + kind + "'")
+
 def mark_partition (G, node, partition):
 
     # Partition already set
@@ -207,9 +230,10 @@ def jdefault (o):
 
 class Graph:
 
-    def __init__ (self, graph, fail):
+    def __init__ (self, graph, name, fail):
         self.graph    = graph
         self.fail     = fail
+        self.name     = name
         self.pd       = None
 
     def graph (self):
@@ -486,7 +510,52 @@ class Graph:
         info ("in_c: " + str(in_c) + " in_i: " + str(in_i) + " out_c: " + str(out_c) + " out_i: " + str(out_i))
 
     def run (self):
-        raise Exception ("Run not implemented")
+
+        G = self.graph
+
+        # import global library
+        libspg   = __import__ ("libspg")
+        liblocal = __import__ (self.name)
+        threads  = []
+
+        for node in nx.topological_sort (G, reverse=True):
+
+            print ("Handling node " + node)
+            kind = G.node[node]['kind']
+            lib  = libspg
+            name = kind
+
+            if kind == "input" or kind == "output" or kind == "xform" or kind == "layout":
+                classname = G.node[node]['classname']
+                if classname != None:
+                    lib  = liblocal
+                    name = kind + "_" + G.node[node]['classname']
+
+            try:
+                libclass = getattr (lib, name)
+            except AttributeError:
+                raise PrimitiveNotImplemented (name)
+
+            recvmethods = {}
+
+            # Insert send methods into class object
+            for (parent, child, data) in G.out_edges (nbunch=node, data=True):
+                recvmethod = getattr (G.node[child]['class'], "recv_" + data['darg'])
+                recvmethods[data['sarg']] = recvmethod
+
+            classobj = libclass (node, G.node[node]['config'], recvmethods)
+
+            if kind == 'env':
+                threads.append (classobj)
+            G.node[node]['class'] = classobj
+
+        # start all threads
+        for thread in threads:
+            thread.start()
+
+        # join all threads
+        for thread in threads:
+            thread.join()
 
 class Args:
 
@@ -669,9 +738,9 @@ class Primitive:
 
 class Primitive_env (Primitive):
     """
-    The env primitive
+    The nenv primitive
 
-    Denotes sources and sinks outside the model. Fixed guarantees according to the
+    Denotes one source and sink outside the model. Fixed guarantees according to the
     XML definition are used only here.
     """
 
@@ -2317,8 +2386,8 @@ def parse_graph (inpath):
     if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
         assert_fail = True
 
-    mdg = nx.MultiDiGraph()
-    G   = Graph (mdg, assert_fail)
+    mdg = nx.DiGraph()
+    G   = Graph (mdg, root.attrib["id"], assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
@@ -2337,10 +2406,15 @@ def parse_graph (inpath):
             argname = element.attrib['name']
             arguments.append (argname)
 
+        classname = child.attrib['code'] if 'code' in child.attrib else None
+        config    = child.find('config')
+
         mdg.add_node \
             (name, \
              guarantees = parse_guarantees (child.attrib), \
              kind       = child.tag, \
+             classname  = classname, \
+             config     = config, \
              tooltip    = desc, \
              arguments  = arguments,
              style      = "bold", \
@@ -2443,13 +2517,17 @@ def dump_primitive_rules():
 
         # FIXME: This does not work as long as the primitive
         # structure is constructed from the config file.
-        mdg = nx.MultiDiGraph()
+        mdg = nx.DiGraph()
         mdg.add_node (name, guarantees = None, kind = name)
 
-        G = Graph (mdg, False)
+        G = Graph (mdg, "dump", False)
         P = primitive_class (G, name)
 
 def main():
+
+    # Add directory containing our model to search path so we can find the
+    # local library there
+    sys.path.append (dirname(args.input[0]))
 
     # Read in graph
     G = parse_graph (args.input[0])

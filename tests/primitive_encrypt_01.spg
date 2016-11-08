@@ -1,10 +1,11 @@
 <?xml version="1.0"?>
-<spg>
+<spg id="primitive_encrypt_01">
 
     <env id="Plaintext_Input" integrity="false" confidentiality="true">
         <description>
             Trusted plaintext input
         </description>
+        <config port="10000"/>
         <flow sarg="data" sink="Encrypt" darg="plaintext"/>
     </env>
 
@@ -12,6 +13,7 @@
         <description>
             Trusted key input
         </description>
+        <config port="10001"/>
         <flow sarg="data" sink="Encrypt" darg="key"/>
     </env>
 
@@ -19,6 +21,7 @@
         <description>
             Trusted ctr input
         </description>
+        <config port="10002"/>
         <flow sarg="data" sink="Encrypt" darg="ctr"/>
     </env>
 
@@ -26,6 +29,7 @@
         <description>
             Symmetric counter mode encryption
         </description>
+        <config algo="aes" keylen="128"/>
         <flow sarg="ciphertext" sink="Ciphertext_Output" darg="data"/>
     </encrypt>
 
@@ -33,7 +37,8 @@
         <description>
             Ciphertext output
         </description>
+        <config port="10003"/>
+        <arg name="data"/>
     </env>
 
 </spg>
-

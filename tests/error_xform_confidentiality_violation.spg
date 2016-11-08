@@ -29,7 +29,7 @@
         <flow sarg="data" sink="KDF" darg="random"/>
     </rng>
 
-    <xform id="KDF">
+    <xform id="KDF" code="kdf">
         <description>
             Key derivation
         </description>
@@ -45,7 +45,7 @@
         <flow sarg="ciphertext" sink="Output_Mux" darg="data"/>
     </encrypt>
 
-    <xform id="Output_Mux">
+    <xform id="Output_Mux" code="assemble_message">
         <description>
             Multiplex key/data onto output
         </description>

@@ -51,7 +51,7 @@
         <flow sarg="auth" sink="Message" darg="auth"/>
     </hmac>
 
-    <xform id="Message">
+    <xform id="Message" code="assemble_message">
         <description>
             Assemble message
         </description>

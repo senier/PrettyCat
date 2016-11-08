@@ -18,7 +18,7 @@
         <arg name="data"/>
     </output>
 
-    <xform id="Network_Input_Mux">
+    <xform id="Network_Input_Mux" code="network_input_mux">
         <description>
             Disassemble incoming OTR messages
         </description>
@@ -30,7 +30,7 @@
         <arg name="msg"/>
     </xform>
 
-    <xform id="Network_Output_Mux">
+    <xform id="Network_Output_Mux" code="network_output_mux">
         <description>
             Compile outgoing OTR messages
         </description>

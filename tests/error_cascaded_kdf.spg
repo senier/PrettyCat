@@ -26,7 +26,7 @@
         <flow sarg="data" sink="Concat" darg="secbytes"/>
     </rng>
 
-    <xform id="Concat">
+    <xform id="Concat" code="concat">
         <description>
             Concatenate key with prefix for hash
         </description>
@@ -50,7 +50,7 @@
         </flow>
     </hash>
 
-    <xform id="Split">
+    <xform id="Split" code="split_keys">
         <description>
             Split hash result into 2 keys
         </description>

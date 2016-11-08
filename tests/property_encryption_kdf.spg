@@ -30,7 +30,7 @@
         </flow>
     </input>
 
-    <xform id="KDF">
+    <xform id="KDF" code="kdf">
         <description>
             Key derivation
         </description>

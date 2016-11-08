@@ -106,7 +106,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                     <xs:element name="arg" type="argElement"/>
                 </xs:choice>
             </xs:sequence>
-            <xs:attribute name="code" type="xs:string"/>
+            <xs:attribute name="code" type="xs:string" use="required"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>

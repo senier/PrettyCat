@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<spg id="primitive_encrypt_01">
+<spg>
 
     <env id="Plaintext_Input" integrity="false" confidentiality="true">
         <description>

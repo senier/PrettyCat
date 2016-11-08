@@ -145,7 +145,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="latch"           type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
-    <xs:attribute name="id" type="xs:string" use="required"/>
     <xs:attribute name="assert_fail" type="xs:boolean" />
 </xs:complexType>
 
@@ -2387,8 +2386,9 @@ def parse_graph (inpath):
     if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
         assert_fail = True
 
-    mdg = nx.DiGraph()
-    G   = Graph (mdg, root.attrib["id"], assert_fail)
+    mdg  = nx.DiGraph()
+    name = os.path.splitext(os.path.basename (inpath))[0]
+    G    = Graph (mdg, name, assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):

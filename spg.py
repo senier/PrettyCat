@@ -391,10 +391,12 @@ class Graph:
         G = self.graph
         for node in G.node:
 
-            if G.node[node]['kind'] == "sink":
+            if G.node[node]['kind'] == "output":
                 G.node[node]['shape'] = "invhouse"
-            elif G.node[node]['kind'] == "source":
+                G.node[node]['style'] = "filled"
+            elif G.node[node]['kind'] == "input":
                 G.node[node]['shape'] = "cds"
+                G.node[node]['style'] = "filled"
             else:
                 G.node[node]['shape'] = "rectangle"
 
@@ -566,7 +568,7 @@ class Graph:
 
             classobj = libclass (node, G.node[node]['config'], recvmethods)
 
-            if kind == 'env':
+            if kind == 'input':
                 threads.append (classobj)
             G.node[node]['class'] = classobj
 
@@ -2546,6 +2548,8 @@ def set_style (o, c, i):
         o['color'] = "blue"
     else:
         o['color'] = "orange"
+
+    o['fillcolor'] = o['color']
 
 def dump_primitive_rules():
     for primitive_class in Primitive.__subclasses__():

@@ -2608,7 +2608,6 @@ if __name__ == "__main__":
         main()
     except PrimitiveMissing as e:
         warn (e)
-    except (PrimitiveInvalidAttributes, InconsistentRule) as e:
+    except (PrimitiveInvalidAttributes, InconsistentRule, PrimitiveNotImplemented) as e:
         err (e)
-        raise
         sys.exit (1)

@@ -1,0 +1,84 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Plaintext">
+        <description>
+            Plaintext
+        </description>
+        <config value="This is my plain"/>
+        <flow sarg="const" sink="Branch Plaintext" darg="data"/>
+    </const>
+
+    <branch id="Branch Plaintext">
+        <description>
+            Split the plaintext to feed into encryption and comparator
+            (used to compare with decrypted value)
+        </description>
+        <flow sarg="data#1" sink="Encrypt" darg="plaintext"/>
+        <flow sarg="data#2" sink="Compare" darg="data2"/>
+    </branch>
+
+    <const id="IV">
+        <description>
+            Initial counter
+        </description>
+        <config value="DeAdBeeFdeadC0DE"/>
+        <flow sarg="const" sink="Branch IV" darg="data"/>
+    </const>
+
+    <branch id="Branch IV">
+        <description>
+            Branch initial counter to encryption/decryption
+        </description>
+        <flow sarg="data#1" sink="Encrypt" darg="ctr"/>
+        <flow sarg="data#2" sink="Decrypt" darg="ctr"/>
+    </branch>
+
+    <const id="Key">
+        <description>
+            Encryption key
+        </description>
+        <config value="MyVerySecretKey7"/>
+        <flow sarg="const" sink="Branch Key" darg="data"/>
+    </const>
+
+    <branch id="Branch Key">
+        <description>
+            Branch Encryption key to encryption/decryption
+        </description>
+        <flow sarg="data#1" sink="Encrypt" darg="key"/>
+        <flow sarg="data#2" sink="Decrypt" darg="key"/>
+    </branch>
+
+    <encrypt id="Encrypt">
+        <description>
+            Counter-mode encryption of input value
+        </description>
+        <config keylen="128"/>
+        <flow sarg="ciphertext" sink="Decrypt" darg="ciphertext"/>
+    </encrypt>
+
+    <decrypt id="Decrypt">
+        <description>
+            Counter-mode decryption of input value
+        </description>
+        <config keylen="128"/>
+        <flow sarg="plaintext" sink="Compare" darg="data1"/>
+    </decrypt>
+
+    <comp id="Compare">
+        <description>
+            Compare both values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </comp>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

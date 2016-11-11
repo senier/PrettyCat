@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Data">
+        <description>
+            Left value
+        </description>
+        <config value="foobar"/>
+        <flow sarg="const" sink="Branch" darg="data"/>
+    </const>
+
+    <branch id="Branch">
+        <description>
+            Branch same value into comparator
+        </description>
+        <config value="baz"/>
+        <flow sarg="data#1" sink="Compare" darg="data1"/>
+        <flow sarg="data#2" sink="Compare" darg="data2"/>
+    </branch>
+
+    <comp id="Compare">
+        <description>
+            Compare both values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </comp>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

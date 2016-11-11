@@ -14,4 +14,4 @@ class output_check_fixed (libspg.SPG_base):
 
     def recv_data (self, data):
         if str(data) != self.value:
-            sys.exit(1)
+            libspg.exitval = 1

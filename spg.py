@@ -8,6 +8,7 @@ import os
 import re
 import pydot
 import json
+import libspg
 
 from os.path import dirname
 from io   import StringIO
@@ -2583,6 +2584,7 @@ def main():
     #if args.dump_rules:
     #    dump_primitive_rules()
 
+    libspg.exitval = 0
     if solved:
         G.partition(args.cluster)
         if args.run:
@@ -2591,7 +2593,7 @@ def main():
 
     G.statistics()
 
-    sys.exit (0 if solved else 1)
+    sys.exit (libspg.exitval if solved else 1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

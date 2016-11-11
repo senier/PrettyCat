@@ -17,3 +17,4 @@ test.pdf
 *.graph
 *.bak
 __pycache__
+*.run

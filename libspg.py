@@ -5,15 +5,41 @@ from Crypto.Cipher import AES
 
 class SPG_base:
 
-    def __init__ (self, name, config, recvmethods):
-        print ("   Base init: " + str(recvmethods))
+    def __init__ (self, name, config, recvmethods, needconfig = False):
+
+        if needconfig and config == None:
+            raise Exception ("Missing config for " + name)
+
         self.recvmethods = recvmethods
         self.name        = name
         self.config      = config
 
     def start (self): pass
     def join (self): pass
-    def setDaemon (self): pass
+    def setDaemon (self, dummy): pass
+
+class comp (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+        self.data1  = None
+        self.data2 = None
+
+    def recv_data1 (self, data):
+
+        if self.data1 == None:
+            self.data1 = data
+        else:
+            self.recvmethods['result'](self.data2 == data)
+            self.data2 = None
+
+    def recv_data2 (self, data):
+
+        if self.data1 == None:
+            self.data2 = data
+        else:
+            self.recvmethods['result'](self.data1 == data)
+            self.data1 = None
 
 class encrypt (SPG_base):
 
@@ -115,3 +141,16 @@ class input (threading.Thread):
             if 'data' in self.recvmethods:
                 data = self.conn.recv (self.bufsize)
                 self.recvmethods['data'](data)
+
+class const (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods, needconfig = True)
+
+        if not 'value' in config.attrib:
+            raise Exception ("No value set for const")
+
+        self.value = self.config.attrib['value']
+
+    def start (self):
+        self.recvmethods['const'](self.value)

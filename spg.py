@@ -162,6 +162,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
         </xs:choice>
     </xs:sequence>
     <xs:attribute name="assert_fail" type="xs:boolean" />
+    <xs:attribute name="code" type="xs:string" />
 </xs:complexType>
 
 <xs:element name="spg" type="baseElements">
@@ -249,10 +250,10 @@ def jdefault (o):
 
 class Graph:
 
-    def __init__ (self, graph, name, fail):
+    def __init__ (self, graph, code, fail):
         self.graph    = graph
         self.fail     = fail
-        self.name     = name
+        self.code     = code 
         self.pd       = None
 
     def graph (self):
@@ -538,12 +539,10 @@ class Graph:
 
         # import global library
         libspg   = __import__ ("libspg")
-        liblocal = __import__ (self.name)
-        threads  = []
+        liblocal = __import__ (self.code)
 
         for node in nx.topological_sort (G, reverse=True):
 
-            print ("Handling node " + node)
             kind = G.node[node]['kind']
             lib  = libspg
             name = kind
@@ -568,18 +567,15 @@ class Graph:
 
             classobj = libclass (node, G.node[node]['config'], recvmethods)
 
-            if kind == 'input':
-                threads.append (classobj)
             G.node[node]['class'] = classobj
 
-        # start all threads
-        for thread in threads:
-            thread.setDaemon(True)
-            thread.start()
+        for node in nx.topological_sort (G):
+            G.node[node]['class'].setDaemon (True)
+            G.node[node]['class'].start ()
 
         # join all threads
-        for thread in threads:
-            thread.join()
+        for node in nx.topological_sort (G):
+            G.node[node]['class'].join ()
 
 class Args:
 
@@ -2106,7 +2102,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data1_in)
         # Assertion:
         #   data1_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data1_in_i)
-        self.input.data1.intg (Implies (Intg(self.output.result), self.input.data1))
+        self.input.data1.intg (Implies (Intg(self.output.result), Intg(self.input.data1)))
 
         # Parameter
         #   data2_in
@@ -2129,7 +2125,7 @@ class Primitive_comp (Primitive):
         #   likelihood by choosing a random value for data2_in)
         # Assertion:
         #   data2_in_i ∨ ¬result_out_c (equiv: result_out_c ⇒ data2_in_i)
-        self.input.data2.intg (Implies (Intg(self.output.result), self.input.data2))
+        self.input.data2.intg (Implies (Intg(self.output.result), Intg(self.input.data2)))
 
         # Parameter
         #   result_out
@@ -2140,7 +2136,7 @@ class Primitive_comp (Primitive):
         #   by comparing both values
         # Assertion:
         #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
-        self.output.result.conf (Or (Conf(self.output.result), Not (And (self.input.data1, self.input.data2))))
+        self.output.result.conf (Or (Conf(self.output.result), Not (And (Conf (self.input.data1), Conf (self.input.data2)))))
 
         # Parameter
         #   result_out
@@ -2424,9 +2420,13 @@ def parse_graph (inpath):
     if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
         assert_fail = True
 
+    if 'code' in root.attrib:
+        code = root.attrib['code']
+    else:
+        code = os.path.splitext(os.path.basename (inpath))[0]
+
     mdg  = nx.MultiDiGraph()
-    name = os.path.splitext(os.path.basename (inpath))[0]
-    G    = Graph (mdg, name, assert_fail)
+    G    = Graph (mdg, code, assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):

@@ -4,17 +4,19 @@
     <!--
       ** Environment
       -->
-    <input id="Network_Input" confidentiality="false" integrity="false" code="network_input">
+    <input id="Network_Input" confidentiality="false" integrity="false">
         <description>
             Network environment source without confidentiality or integrity guarantees.
         </description>
+        <config port="10000"/>
         <flow sarg="data" sink="Network_Input_Mux" darg="msg"/>
     </input>
 
-    <output id="Network_Output" confidentiality="false" integrity="false" code="network_output">
+    <output id="Network_Output" confidentiality="false" integrity="false">
         <description>
             Network environment sink without confidentiality or integrity guarantees.
         </description>
+        <config port="10001"/>
         <arg name="data"/>
     </output>
 
@@ -43,17 +45,19 @@
     </xform>
 
 
-    <input id="User_Input" confidentiality="true" integrity="true" code="user_data">
+    <input id="User_Input" confidentiality="true" integrity="true">
         <description>
             User data environment guaranteeing confidentiality and integrity.
         </description>
+        <config port="10002"/>
         <flow sarg="data" sink="Encrypt (M)" darg="plaintext"/>
     </input>
 
-    <output id="User_Output" confidentiality="true" integrity="true" code="user_data">
+    <output id="User_Output" confidentiality="true" integrity="true">
         <description>
             User data environment guaranteeing confidentiality and integrity.
         </description>
+        <config port="10003"/>
         <arg name="data"/>
     </output>
 
@@ -63,11 +67,12 @@
          to create SSID do not remove confidentialty from the output. This is
          right for key derivation, but wrong in this case. How do we distinguish
          these cases? -->
-    <output id="User_Interface" confidentiality="true" integrity="true" code="user_interface">
+    <output id="User_Interface" confidentiality="true" integrity="true">
         <description>
             User interface environment guaranteeing integrity for displayed
             content.
         </description>
+        <config port="10004"/>
         <arg name="ssid"/>
     </output>
 

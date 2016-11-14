@@ -139,7 +139,7 @@ class decrypt (counter):
 class output (SPG_base):
 
     def __init__ (self, name, config, recvmethods):
-        super().__init__ (name, config, recvmethods)
+        super().__init__ (name, config, recvmethods, needconfig = True)
 
         self.port    = int(config.attrib['port'])
         self.host    = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
@@ -156,7 +156,7 @@ class output (SPG_base):
     
 class input (threading.Thread):
 
-    def __init__ (self, name, config, recvmethods):
+    def __init__ (self, name, config, recvmethods, needconfig = True):
         super().__init__ ()
 
         print ("   Input init: " + str(recvmethods))

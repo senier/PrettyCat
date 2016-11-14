@@ -191,13 +191,17 @@ class const (SPG_base):
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods, needconfig = True)
 
-        if not 'value' in config.attrib:
-            raise Exception ("No value set for const")
-
-        self.value = self.config.attrib['value']
+        if 'string' in config.attrib:
+            self.value = self.config.attrib['string']
+        elif 'int' in config.attrib:
+            self.value = int(self.config.attrib['int'])
+        elif 'hex' in config.attrib:
+            self.value = int(self.config.attrib['hex'], 16)
+        else:
+            raise Exception ("No value set for const '" + name + "'")
 
     def start (self):
-        self.recvmethods['const'](bytes(self.value.encode()))
+        self.recvmethods['const'](self.value)
 
 class branch (SPG_base):
 
@@ -207,3 +211,47 @@ class branch (SPG_base):
     def recv_data (self, data):
         for send_data in self.recvmethods:
             self.recvmethods[send_data] (data)
+
+class dh (SPG_base):
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+        self.generator = None
+        self.modulus   = None
+        self.psec      = None
+
+    def recv_generator (self, generator):
+        self.generator = generator
+        self.calculate_if_valid ()
+
+    def recv_modulus (self, modulus):
+        self.modulus = modulus
+        self.calculate_if_valid ()
+
+    def recv_psec (self, psec):
+        self.psec = psec
+        self.calculate_if_valid ()
+
+class dhpub (dh):
+
+    def calculate_if_valid (self):
+        if self.generator and self.modulus and self.psec:
+            self.recvmethods['pub'] (pow(self.generator, self.psec, self.modulus))
+
+class dhsec (dh):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+        self.pub = None
+
+    def calculate_if_valid (self):
+        if self.generator and self.modulus and self.pub and self.psec:
+            # Checks as per NIST Special Publication 800-56A, rev 2
+            # (1) 2 <= pub <= (modulus-1)
+            # (2) 1 == pub^q mod modulus for q = (modulus-1)/2
+            if 2 <= self.pub and self.pub <= self.modulus - 2:
+                if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
+                    self.recvmethods['ssec'] (pow(self.pub, self.psec, self.modulus))
+
+    def recv_pub (self, pub):
+        self.pub = pub
+        self.calculate_if_valid ()

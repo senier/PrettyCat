@@ -1,0 +1,115 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Modulus" confidentiality="false">
+        <description>
+            Modulus for D-H operations
+        </description>
+        <config hex="FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"/>
+        <flow sarg="const" sink="Branch modulus" darg="data"/>
+    </const>
+
+    <branch id="Branch modulus">
+        <description>
+            Branch modulus
+        </description>
+        <flow sarg="modulus#1" sink="Calculate pub (I)" darg="modulus"/>
+        <flow sarg="modulus#2" sink="Calculate pub (R)" darg="modulus"/>
+        <flow sarg="modulus#3" sink="Calculate sec (I)" darg="modulus"/>
+        <flow sarg="modulus#4" sink="Calculate sec (R)" darg="modulus"/>
+    </branch>
+
+    <const id="Generator" confidentiality="false">
+        <description>
+            Generator for D-H operations
+        </description>
+        <config int="2"/>
+        <flow sarg="const" sink="Branch generator" darg="data"/>
+    </const>
+
+    <branch id="Branch generator">
+        <description>
+            Branch generator
+        </description>
+        <flow sarg="generator#1" sink="Calculate pub (I)" darg="generator"/>
+        <flow sarg="generator#2" sink="Calculate pub (R)" darg="generator"/>
+        <flow sarg="generator#3" sink="Calculate sec (I)" darg="generator"/>
+        <flow sarg="generator#4" sink="Calculate sec (R)" darg="generator"/>
+    </branch>
+
+    <const id="Secret (I)">
+        <description>
+            Secret of initiator
+        </description>
+        <config hex="51425579546a745766656474486169674d504e566a6a536b5057525637597239667170584a636346000a"/>
+        <flow sarg="const" sink="Branch sec (I)" darg="data"/>
+    </const>
+
+    <branch id="Branch sec (I)">
+        <description>
+            Branch secret of initiator
+        </description>
+        <flow sarg="data#1" sink="Calculate pub (I)" darg="psec"/>
+        <flow sarg="data#2" sink="Calculate sec (I)" darg="psec"/>
+    </branch>
+
+    <dhpub id="Calculate pub (I)">
+        <description>
+            Calculate initiator public value
+        </description>
+        <flow sarg="pub" sink="Calculate sec (R)" darg="pub"/>
+    </dhpub>
+
+    <dhsec id="Calculate sec (I)">
+        <description>
+            Calculate initiator secret value
+        </description>
+        <flow sarg="ssec" sink="Compare" darg="data1"/>
+    </dhsec>
+
+    <const id="Secret (R)">
+        <description>
+            Secret of responder
+        </description>
+        <config hex="69765763595358726354346a4234767468424f3231344962704f79346c4d436d447a71354f624e35000a"/>
+        <flow sarg="const" sink="Branch sec (R)" darg="data"/>
+    </const>
+
+    <branch id="Branch sec (R)">
+        <description>
+            Branch responder secret
+        </description>
+        <flow sarg="data#1" sink="Calculate pub (R)" darg="psec"/>
+        <flow sarg="data#2" sink="Calculate sec (R)" darg="psec"/>
+    </branch>
+
+    <dhpub id="Calculate pub (R)">
+        <description>
+            Calculate responder public value
+        </description>
+        <flow sarg="pub" sink="Calculate sec (I)" darg="pub"/>
+    </dhpub>
+
+    <dhsec id="Calculate sec (R)">
+        <description>
+            Calculate responder secret value
+        </description>
+        <flow sarg="ssec" sink="Compare" darg="data2"/>
+    </dhsec>
+
+    <comp id="Compare">
+        <description>
+            Compare both secret value
+        </description>
+        <flow sarg="result" sink="Result" darg="data"/>
+    </comp>
+
+    <output id="Result" code="check_fixed">
+        <description>
+            Output result
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

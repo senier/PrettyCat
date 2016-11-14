@@ -844,6 +844,44 @@
         <flow sarg="g^y#4" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
     </branch>
 
+    <const id="Modulus">
+        <description>
+            Modulus for D-H operations
+        </description>
+        <flow sarg="const" sink="Branch modulus" darg="data"/>
+    </const>
+
+    <branch id="Branch modulus">
+        <description>
+            Branch modulus
+        </description>
+        <flow sarg="modulus#1" sink="Shared secret (R)" darg="modulus"/>
+        <flow sarg="modulus#2" sink="Shared secret (S)" darg="modulus"/>
+        <flow sarg="modulus#3" sink="Shared secret (M)" darg="modulus"/>
+        <flow sarg="modulus#4" sink="Calculate next D-H key (M)" darg="modulus"/>
+        <flow sarg="modulus#5" sink="Calculate g^x (S)" darg="modulus"/>
+        <flow sarg="modulus#6" sink="Calculate g^y (S)" darg="modulus"/>
+    </branch>
+
+    <const id="Generator">
+        <description>
+            Generator for D-H operations
+        </description>
+        <flow sarg="const" sink="Branch generator" darg="data"/>
+    </const>
+
+    <branch id="Branch generator">
+        <description>
+            Branch generator
+        </description>
+        <flow sarg="generator#1" sink="Shared secret (R)" darg="generator"/>
+        <flow sarg="generator#2" sink="Shared secret (S)" darg="generator"/>
+        <flow sarg="generator#3" sink="Shared secret (M)" darg="generator"/>
+        <flow sarg="generator#4" sink="Calculate next D-H key (M)" darg="generator"/>
+        <flow sarg="generator#5" sink="Calculate g^x (S)" darg="generator"/>
+        <flow sarg="generator#6" sink="Calculate g^y (S)" darg="generator"/>
+    </branch>
+
     <dhsec id="Shared secret (R)">
         <description>
             Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then

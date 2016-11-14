@@ -1033,132 +1033,49 @@ class Primitive_dhpub (Primitive):
         super ().setup (G, name)
 
         # Parameters
-        #   Input:   psec
+        #   Input:   modulus, generator, psec
         #   Outputs: pub
 
-        # Parameter
-        #   psec_in
-        # Confidentiality guarantee can be dropped if:
-        #   The pub_in interfaces (g^y in DH terms) of the corresponding dhsec
-        #   primitive demands confidentiality or the result of that dhsec
-        #   operation (g^xy) does not demand confidentiality.
-        # Reason:
+        # Parameters are public, but an attacker may not chose a weak ones.
+        # Hence, integrity must be guaranteed
+        self.input.modulus.intg (Intg(self.input.modulus))
+        self.input.generator.intg (Intg(self.input.generator))
+
         #   With knowledge of g^y and psec_in (x in DH terms) an attacker can
         #   calculate the shared secret g^y^x
-        # Assertion:
-        #   FIXME: This requires inter-component reasoning. Interesting, but I
-        #   feel a stabbing pain in my head without that already. We should
-        #   think about that later and demand confidentiality for psec_in
-        #   unconditionally for now.
         self.input.psec.conf (Conf(self.input.psec))
 
-        # Parameter
-        #   psec_in
-        # Integrity guarantees can be dropped if:
-        #   same as above.
-        # Reason:
         #   If an attacker can choose psec_in (x in DH terms) and knows g^y,
         #   she can calculate the shared secret g^yx
-        # Assertion:
-        #   See above.
         self.input.psec.intg (Intg(self.input.psec))
 
-        # Parameter
-        #   pub_out
-        # Confidentiality guarantee can be dropped if:
-        #   psec_in demands confidentiality and integrity
-        # Reason:
         #   Being able to transmit g^x over an non-confidential channel is the
         #   sole purpose of the DH key exchange, given that x has
         #   confidentiality and integrity guarantees
-        # Truth table:
-        #   pub_out_c psec_in_c psec_in_i result
-        #   0         0         0         0
-        #   0         0         1         0
-        #   0         1         0         0
-        #   0         1         1         1
-        # Assertion:
-        #   pub_out_c or (psec_in_c and psec_in_i)
         self.output.pub.conf (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
-
-        # Parameter
-        #   pub_out
-        # Integrity guarantees can be dropped if:
-        #   Anytime
-        # Reason:
-        #   DH does not achieve nor assume integrity
-        # Assertion:
-        #   None
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
         # Parameters
-        #   Inputs:  pub, psec
+        #   Inputs:  modulus, generator, pub, psec
         #   Outputs: ssec
 
-        # Parameter
-        #   psec_in
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for ssec (g^xy in DH terms) or
-        #   confidentiality is guaranteed for pub (g^y)
-        # Reason:
-        #   With knowledge of pub (g^y) and psec_in (x) an attacker can
-        #   calculate ssec (the shared secret g^yx ≡ g^xy)
-        # Assertion:
-        #   psec_in_c ∨ ssec_out_c ∨ ¬pub_in_c
-        self.input.psec.conf (Or (Conf(self.input.psec), Conf(self.output.ssec), Not (Conf(self.input.pub))))
+        # With knowledge of pub (g^y) and psec_in (x) an attacker can
+        # calculate ssec (the shared secret g^yx ≡ g^xy)
+        self.input.psec.conf (Conf(self.input.psec))
 
-        # Parameter
-        #   psec_in
-        # Integrity guarantees can be dropped if:
-        #   No confidentiality is guaranteed for ssec (g^xy in DH terms)
-        # Reason:
-        # Assertion:
-        #   ssec_out_c => psec_in_i
-        self.input.psec.intg (Implies (Conf(self.output.ssec), Intg(self.input.psec)))
+        # If the shared secret shall be confidential, then psec must not be chosen
+        # by an attacker
+        self.input.psec.intg (Intg(self.input.psec))
 
-        # Parameter
-        #   pub_in
-        # Confidentiality guarantee can be dropped if:
-        #   psec_in demands confidentiality or no confidentiality is guaranteed
-        #   for ssec_out
-        # Reason:
-        #   Being able to transmit g^x over an non-confidential channel is the
-        #   sole purpose of the DH key exchange, given that x is confidential.
-        #   FIXME: How about integrity of x? If an attacker can choose x, she
-        #   cannot derive g^xy. MITM attacks may be possible, though.
-        # Truth table:
-        #   pub_in_c   ssec_out_c psec_in_c result
-        #   0          0          0         1
-        #   0          0          1         1
-        #   0          1          0         0
-        #   0          1          1         1
-        # Assertion:
-        #   pub_in_c ∨ ¬ssec_out_c ∨ psec_in_c
-        self.input.pub.conf (Or (Conf(self.input.pub), Not (Conf(self.output.ssec)), Conf(self.input.psec)))
-
-        # Parameter
-        #   pub_in
-        # Integrity guarantees can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   DH does not achieve nor assume integrity
-        # Assertion:
-        #   None
+        # No weak parameters must be chosen by an attacker
+        self.input.modulus.intg (Intg(self.input.modulus))
+        self.input.generator.intg (Intg (self.input.generator))
 
         # Confidentiality must be guaranteed for shared secret
         self.output.ssec.conf (Conf(self.output.ssec))
-
-        # Parameter
-        #   ssec_out
-        # Integrity guarantees can be dropped if:
-        #   Anytime
-        # Reason:
-        #   DH does not achieve nor assume integrity
-        # Assertion:
-        #   None
 
 class Primitive_encrypt (Primitive):
     def __init__ (self, G, name):

@@ -2,6 +2,7 @@ all: otr.svg
 
 clean:
 	rm -f otr.svg tests/*.svg *.graph TEMP_*
+	rm -rf __pycache__
 
 TESTS = $(wildcard tests/*.spg)
 RUNS  = $(wildcard tests/run_*.spg)

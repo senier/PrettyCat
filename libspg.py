@@ -2,6 +2,8 @@ import socket
 import threading
 
 from Crypto.Cipher import AES
+from Crypto.Hash import HMAC
+from Crypto.Hash import SHA256
 
 exitval = 0
 
@@ -193,6 +195,8 @@ class const (SPG_base):
 
         if 'string' in config.attrib:
             self.value = self.config.attrib['string']
+        elif 'bytes' in config.attrib:
+            self.value = self.config.attrib['bytes'].encode()
         elif 'int' in config.attrib:
             self.value = int(self.config.attrib['int'])
         elif 'hex' in config.attrib:
@@ -255,3 +259,60 @@ class dhsec (dh):
     def recv_pub (self, pub):
         self.pub = pub
         self.calculate_if_valid ()
+
+class hmac (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+
+        self.key = None
+        self.msg = None
+
+    def calculate_if_valid (self):
+
+        if self.key and self.msg:
+            hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
+            self.recvmethods['auth'](hmac.digest())
+
+    def recv_msg (self, msg):
+        self.msg = msg
+        self.calculate_if_valid ()
+
+    def recv_key (self, key):
+        self.key = key
+        self.calculate_if_valid ()
+
+class hmac_out (hmac):
+
+    def calculate_if_valid (self):
+
+        if self.key and self.msg:
+            hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
+            self.recvmethods['auth'](hmac.digest())
+            self.recvmethods['msg'](self.msg)
+
+class verify_hmac (hmac):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+
+        self.auth = None
+
+    def calculate_if_valid (self):
+
+        if self.key and self.msg and self.auth:
+            hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
+            self.recvmethods['result'](hmac.digest() == self.auth)
+
+    def recv_auth (self, auth):
+        self.key = auth
+        self.calculate_if_valid ()
+
+class verify_hmac_out (verify_hmac):
+
+    def calculate_if_valid (self):
+
+        if self.key and self.msg and self.auth:
+            hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
+            self.recvmethods['result'](hmac.digest() == self.auth)
+            self.recvmethods['msg'](self.msg)

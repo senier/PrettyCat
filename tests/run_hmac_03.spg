@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Key">
+        <description>
+            HMAC key
+        </description>
+        <config bytes="deadfbeefbabe"/>
+        <flow sarg="const" sink="Branch key" darg="data"/>
+    </const>
+
+    <branch id="Branch key">
+        <description>
+            Branch HMAC key
+        </description>
+        <flow sarg="data#1" sink="HMAC" darg="key"/>
+        <flow sarg="data#2" sink="Verify HMAC" darg="key"/>
+    </branch>
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <config bytes="This is our message"/>
+        <flow sarg="const" sink="Branch message" darg="data"/>
+    </const>
+
+    <branch id="Branch message">
+        <description>
+            Branch input message
+        </description>
+        <flow sarg="data#1" sink="HMAC" darg="msg"/>
+        <flow sarg="data#2" sink="Verify HMAC" darg="msg"/>
+        <flow sarg="data#3" sink="Comp" darg="data2"/>
+    </branch>
+
+    <hmac id="HMAC">
+        <description>
+            Calculate authentication value for message using key
+        </description>
+        <flow sarg="auth" sink="Verify HMAC" darg="auth"/>
+    </hmac>
+
+    <verify_hmac_out id="Verify HMAC">
+        <description>
+            Check the auth value for msg
+        </description>
+        <flow sarg="result" sink="Check hash" darg="data"/>
+        <flow sarg="msg" sink="Comp" darg="data1"/>
+    </verify_hmac_out>
+
+    <comp id="Comp">
+        <description>
+            Compare messages
+        </description>
+        <flow sarg="result" sink="Check message" darg="data"/>
+    </comp>
+    
+    <output id="Check hash" code="check_fixed">
+        <description>
+            Check whether has was OK
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+    <output id="Check message" code="check_fixed">
+        <description>
+            Check whether messages are equal
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

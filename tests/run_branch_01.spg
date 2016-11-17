@@ -5,7 +5,7 @@
         <description>
             Left value
         </description>
-        <config value="foobar"/>
+        <config string="foobar"/>
         <flow sarg="const" sink="Branch" darg="data"/>
     </const>
 
@@ -13,7 +13,7 @@
         <description>
             Branch same value into comparator
         </description>
-        <config value="baz"/>
+        <config string="baz"/>
         <flow sarg="data#1" sink="Compare" darg="data1"/>
         <flow sarg="data#2" sink="Compare" darg="data2"/>
     </branch>

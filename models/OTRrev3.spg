@@ -253,7 +253,7 @@
             Let ssid be the first 64 bits of h2(0x00).
         </description>
         <config>
-            <length value="64"/>
+            <length int="64"/>
         </config>
         <flow sarg="ssid" sink="User_Interface" darg="ssid">
             <assert integrity="true" >
@@ -310,8 +310,8 @@
             and let c' be the second 128 bits of h2(0x01).
         </description>
         <config>
-            <first value="128"/>
-            <second value="128"/>
+            <first int="128"/>
+            <second int="128"/>
         </config>
         <flow sarg="c#1"  sink="Encrypt X_B" darg="key">
             <assert confidentiality="true" integrity="true">
@@ -1038,7 +1038,7 @@
             of the encrypted signature field.
         </description>
         <config>
-            <length value="160"/>
+            <length int="160"/>
         </config>
         <flow sarg="macd_signature" sink="Signature (S)" darg="macd_signature"/>
         <arg name="macd_signature"/>
@@ -1286,7 +1286,7 @@
             of the encrypted signature field.
         </description>
         <config>
-            <length value="160"/>
+            <length int="160"/>
         </config>
         <flow sarg="macd_signature" sink="Reveal Signature (S)" darg="macd_signature"/>
         <arg name="macd_signature"/>
@@ -1633,7 +1633,7 @@
             The first 16 bytes of h1(sendbyte)
         </description>
         <config>
-            <length value="128"/>
+            <length int="128"/>
         </config>
         <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
@@ -1864,7 +1864,7 @@
             The first 16 bytes of h1(recvbyte)
         </description>
         <config>
-            <length value="128"/>
+            <length int="128"/>
         </config>
         <flow sarg="data#1" sink="Derive receiving MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Decrypt (M)" darg="key"/>

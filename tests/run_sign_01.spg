@@ -1,0 +1,58 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Public key">
+        <description>
+            Pulic DSA key
+        </description>
+        <config string="TBD"/>
+        <flow sarg="const" sink="Branch public key" darg="data"/>
+    </const>
+
+    <branch id="Branch public key">
+        <description>
+            Branch public key to sign/verify
+        </description>
+        <flow sarg="data#1" sink="Sign" darg="pubkey"/>
+        <flow sarg="data#2" sink="Verify" darg="pubkey"/>
+    </branch>
+
+    <const id="Private key">
+        <description>
+            Private DSA key
+        </description>
+        <config string="TBD"/>
+        <flow sarg="const" sink="Sign" darg="privkey"/>
+    </const>
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <flow sarg="const" sink="Sign" darg="msg"/>
+    </const>
+
+    <sign id="Sign">
+        <description>
+            Sign a message
+        </description>
+        <flow sarg="auth" sink="Verify Sig" darg="auth"/>
+    </sign>
+
+    <verify_sig id="Verify">
+        <description>
+            Compare both values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </verify_sig>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

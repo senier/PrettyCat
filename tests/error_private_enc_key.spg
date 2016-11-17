@@ -7,7 +7,16 @@
         <flow sarg="data" sink="Sign" darg="msg"/>
     </input>
 
-    <const id="Key">
+    <const id="Public key">
+        <description>
+            Public key
+        </description>
+        <flow sarg="const" sink="Sign" darg="pubkey">
+            <assert integrity="true"/>
+        </flow>
+    </const>
+
+    <const id="Private key">
         <description>
             Secret key
         </description>
@@ -20,7 +29,7 @@
         <description>
             Branch secret key
         </description>
-        <flow sarg="data#1" sink="Sign" darg="skey">
+        <flow sarg="data#1" sink="Sign" darg="privkey">
             <assert confidentiality="true"/>
         </flow>
     </branch>

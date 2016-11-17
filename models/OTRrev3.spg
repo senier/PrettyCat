@@ -102,11 +102,13 @@
         <flow sarg="const#2" sink="Concat X_A" darg="pub"/>
         <flow sarg="const#3" sink="Concat M_B (S)" darg="pub"/>
         <flow sarg="const#4" sink="Concat X_B" darg="pub"/>
+        <flow sarg="const#5" sink="Sign M_A" darg="pubkey"/>
+        <flow sarg="const#6" sink="Sign M_B" darg="pubkey"/>
     </branch>
 
     <const id="priv" confidentiality="true">
         <description>
-            Private key
+            Private part of DSA key
         </description>
         <flow sarg="const" sink="Branch priv const" darg="data">
             <assert confidentiality="true" integrity="true">
@@ -120,12 +122,12 @@
         <description>
             Branch output arguments
         </description>
-        <flow sarg="const#1" sink="Sign M_A" darg="skey">
+        <flow sarg="const#1" sink="Sign M_A" darg="privkey">
             <assert confidentiality="true" integrity="true">
                 Signature key must be confidential and not be chosen by attacker.
             </assert>
         </flow>
-        <flow sarg="const#2" sink="Sign M_B" darg="skey">
+        <flow sarg="const#2" sink="Sign M_B" darg="privkey">
             <assert confidentiality="true" integrity="true">
                 Signature key must be confidential and not be chosen by attacker.
             </assert>
@@ -1091,7 +1093,7 @@
         <description>
             Split X_A into pub, keyid, sig_A(M_A)
         </description>
-        <flow sarg="pub#1" sink="Verify Sig M_A (R)" darg="pkey"/>
+        <flow sarg="pub#1" sink="Verify Sig M_A (R)" darg="pubkey"/>
         <flow sarg="pub#2" sink="Concat M_A (R)" darg="pub"/>
         <flow sarg="Signature" sink="Verify Sig M_A (R)" darg="auth"/>
         <flow sarg="keyid" sink="Concat M_A (R)" darg="keyid"/>
@@ -1384,7 +1386,7 @@
             Split X_B into pub, keyid, sig_B(M_B)
         </description>
         <flow sarg="pub#1" sink="Concat M_B (R)" darg="pub"/>
-        <flow sarg="pub#2" sink="Verify Sig M_B" darg="pkey"/>
+        <flow sarg="pub#2" sink="Verify Sig M_B" darg="pubkey"/>
         <flow sarg="keyid" sink="Concat M_B (R)" darg="keyid"/>
         <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
         <arg name="X_B"/>

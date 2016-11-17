@@ -1463,69 +1463,26 @@ class Primitive_sign (Primitive):
         super ().setup (G, name)
 
         # Parameters
-        #   Input:  msg, skey
+        #   Input:  msg, pubkey, privkey
         #   Output: auth
 
-        # Parameter
-        #   msg_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Sign does not assume nor achieve confidentiality for the input
-        #   message.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   msg_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
-        #   Signing arbitrary data makes no sense.
-        # Assertion:
-        #   msg_in_i
+        # Signing arbitrary data is pointless
         self.input.msg.intg (Intg (self.input.msg))
 
-        # Parameter
-        #   skey_in
-        # Confidentiality guarantee can be dropped if:
-        #   Never
-        # Reason:
-        # Assertion:
-        #   skey_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ skey_in_c)
-        self.input.skey.conf (Conf (self.input.skey))
+        # The private key must stay confidential
+        self.input.privkey.conf (Conf (self.input.privkey))
 
-        # Parameter
-        #   skey_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
-        # Assertion:
-        #   skey_in_i
-        self.input.skey.intg (Intg (self.input.skey))
+        # An attacker must not chose the private key
+        self.input.privkey.intg (Intg (self.input.privkey))
 
-        # Parameter
-        #   auth_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for data_in
-        # Reason:
+        # An attacker must not chose the public key
+        self.input.pubkey.intg (Intg (self.input.pubkey))
+
         #   Even with a cryptographically secure hash function, an attacker
-        #   may be able to recover data_in from hash_out, depending on the
-        #   resource available and the structure of data_in. As we don't want
+        #   may be able to recover data_in from auth_out, depending on the
+        #   resource available and the structure of msg_in. As we don't want
         #   to get probabilistic here, we just assume this is always possible.
-        # Assertion:
-        #   auth_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ auth_out_c)
         self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
-
-        # Parameter
-        #   auth_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Achieving integrity (in addition to authentication) cryptographically
-        #   is the purpose of a signature operation.
-        # Assertion:
-        #   None
 
 class Primitive_verify_sig (Primitive):
 
@@ -1539,88 +1496,17 @@ class Primitive_verify_sig (Primitive):
         super ().setup (G, name)
 
         # Parameters
-        #   Input:  msg, auth, pkey
+        #   Input:  msg, auth, pubkey
         #   Output: result
 
-        # Parameter
-        #   msg_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Signature verification does not assume confidentiality for the input
-        #   message.
-        # Assertion:
-        #   None
+        # If an attacker can modify the result of a verify operation, she could
+        # as well chose an own public key for which she has the secret key available
+        # (and thus can create a valid signature yielding a positive result)
+        self.input.pubkey.intg (Intg(self.input.pubkey))
 
-        # Parameter
-        #   msg_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Achieving integrity (in addition to authentication) cryptographically
-        #   is the purpose of a signature operation.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   auth_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Signature verification does not assume confidentiality for signature.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   auth_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Achieving integrity (in addition to authentication) cryptographically
-        #   is the purpose of a signature operation.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   pkey_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Public key is, by definition, public.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   pkey_in
-        # Integrity guarantee can be dropped if:
-        #   If no integrity is guaranteed for result
-        # Reason:
-        #   If an attacker can modify the result of a verify operation, she could
-        #   as well chose an own public key for which she has the secret key available
-        #   (and thus can create a valid signature yielding a positive result)
-        # Assertion:
-        #   pkey_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_i)
-        self.input.pkey.intg (Implies (Intg(self.output.result), Intg(self.input.pkey)))
-
-        # Parameter
-        #   result_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for msg_in
-        # Reason:
-        #   FIXME: Does the value of result really allow for gaining knowledge about msg?
-        # Assertion:
-        #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
+        # If confidentiality is to be guaranteed for msg, this may also apply for
+        # the fact whether it was signed with pubkey.
         self.output.result.conf (Implies (Conf(self.input.msg), Conf(self.output.result)))
-
-        # Parameter
-        #   result_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
 
 class Primitive_verify_hmac (Primitive):
 

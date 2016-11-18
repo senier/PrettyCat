@@ -458,3 +458,8 @@ class guard (SPG_base):
         self.cond = cond
         if self.data:
             self.recvmethods['data'](self.data)
+
+class release (SPG_base):
+
+    def recv_data (self, data):
+        self.recvmethods['data'](data)

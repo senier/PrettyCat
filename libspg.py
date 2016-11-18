@@ -37,7 +37,7 @@ class comp (SPG_base):
 
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods)
-        self.data1  = None
+        self.data1 = None
         self.data2 = None
 
     def recv_data1 (self, data):
@@ -45,6 +45,8 @@ class comp (SPG_base):
         if self.data2 == None:
             self.data1 = data
         else:
+            if type(self.data2) != type(data):
+                warn ("Incompatible types: '" + str(type(self.data2)) + "' != '" + str(type(data)) + "'")
             self.recvmethods['result'](self.data2 == data)
             self.data2 = None
 
@@ -53,6 +55,8 @@ class comp (SPG_base):
         if self.data1 == None:
             self.data2 = data
         else:
+            if type(self.data1) != type(data):
+                warn ("Incompatible types: '" + str(type(self.data1)) + "' != '" + str(type(data)) + "'")
             self.recvmethods['result'](self.data1 == data)
             self.data1 = None
 

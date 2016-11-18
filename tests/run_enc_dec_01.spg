@@ -5,7 +5,7 @@
         <description>
             Plaintext
         </description>
-        <config string="This is my plain"/>
+        <config bytes="This is my plain"/>
         <flow sarg="const" sink="Branch Plaintext" darg="data"/>
     </const>
 
@@ -22,7 +22,7 @@
         <description>
             Initial counter
         </description>
-        <config string="DeAdBeeFdeadC0DE"/>
+        <config bytes="DeAdBeeFdeadC0DE"/>
         <flow sarg="const" sink="Branch IV" darg="data"/>
     </const>
 
@@ -38,7 +38,7 @@
         <description>
             Encryption key
         </description>
-        <config string="MyVerySecretKey7"/>
+        <config bytes="MyVerySecretKey7"/>
         <flow sarg="const" sink="Branch Key" darg="data"/>
     </const>
 

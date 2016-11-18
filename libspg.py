@@ -6,6 +6,17 @@ from Crypto.Hash import HMAC
 from Crypto.Hash import SHA256
 
 exitval = 0
+quiet = 0
+
+def warn (message):
+    print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
+
+def info (message):
+    if not quiet:
+        print ("[1m[34mINFO: [2m" + str(message) + "[0m")
+
+def err (message):
+    print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
 class SPG_base:
 

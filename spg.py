@@ -8,6 +8,8 @@ import os
 import re
 import pydot
 import json
+
+from libspg import warn, info, err
 import libspg
 
 from os.path import dirname
@@ -181,16 +183,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 ''')
 
 args = ()
-
-def warn (message):
-    print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
-
-def info (message):
-    if not args.test:
-        print ("[1m[34mINFO: [2m" + str(message) + "[0m")
-
-def err (message):
-    print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
 class MissingIncomingEdge (Exception):
     def __init__ (self, name, arg):
@@ -2410,6 +2402,8 @@ if __name__ == "__main__":
 
     try:
         args = parser.parse_args ()
+        if args.test or args.run:
+            libspg.quiet = 1
         main()
     except PrimitiveMissing as e:
         warn (e)

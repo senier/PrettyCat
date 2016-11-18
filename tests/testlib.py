@@ -1,7 +1,8 @@
 import sys
+from libspg import info, warn, err, SPG_base
 import libspg
 
-class output_check_fixed (libspg.SPG_base):
+class output_check_fixed (SPG_base):
 
     def __init__ (self, name, config, recvmethods):
 
@@ -14,4 +15,5 @@ class output_check_fixed (libspg.SPG_base):
 
     def recv_data (self, data):
         if str(data) != self.value:
+            warn ("Output '" + str(data) + "' did not match expected value '" + str(self.value) + "'")
             libspg.exitval = 1

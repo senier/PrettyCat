@@ -89,6 +89,7 @@ class encrypt (counter):
 
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods)
+
         self.pt = None
 
     def recv_ctr (self, ctr):
@@ -96,14 +97,14 @@ class encrypt (counter):
         if len(ctr) != AES.block_size:
             raise Exception ("Counter length != " + str (AES.block_size))
 
-        self.ctr = ctr
+        self.ctr = bytes(ctr)
         self.encrypt_if_valid ()
 
     def recv_key (self, key):
         if len(key) != self.keylen:
             raise Exception ("Keylen != " + str(self.keylen))
 
-        self.key = key
+        self.key = bytes(key)
         self.encrypt_if_valid ()
 
     def recv_plaintext (self, pt):
@@ -111,7 +112,7 @@ class encrypt (counter):
         if len(pt) != AES.block_size:
             raise Exception ("Encryption with invalid blocksize (expected " + str (AES.block_size) + ")")
 
-        self.pt = pt
+        self.pt = bytes(pt)
         self.encrypt_if_valid ()
 
     def encrypt_if_valid (self):
@@ -130,14 +131,14 @@ class decrypt (counter):
         if len(ctr) != AES.block_size:
             raise Exception ("Counter length != " + str (AES.block_size))
 
-        self.ctr = ctr
+        self.ctr = bytes(ctr)
         self.decrypt_if_valid ()
 
     def recv_key (self, key):
         if len(key) != self.keylen:
             raise Exception ("Keylen != " + str(self.keylen))
 
-        self.key = key
+        self.key = bytes(key)
         self.decrypt_if_valid ()
 
     def recv_ciphertext (self, ct):
@@ -145,7 +146,7 @@ class decrypt (counter):
         if len(ct) != AES.block_size:
             raise Exception ("Decryption with invalid blocksize (expected " + str (AES.blocksize) + ")")
 
-        self.ct = ct
+        self.ct = bytes(ct)
         self.decrypt_if_valid()
 
     def decrypt_if_valid (self):
@@ -304,11 +305,11 @@ class hmac (SPG_base):
             self.recvmethods['auth'](hmac.digest())
 
     def recv_msg (self, msg):
-        self.msg = msg
+        self.msg = bytes(msg)
         self.calculate_if_valid ()
 
     def recv_key (self, key):
-        self.key = key
+        self.key = bytes(key)
         self.calculate_if_valid ()
 
 class hmac_out (hmac):

@@ -222,6 +222,14 @@ class const (SPG_base):
             self.value = int(self.config.attrib['int'])
         elif 'hex' in config.attrib:
             self.value = int(self.config.attrib['hex'], 16)
+        elif 'bool' in config.attrib:
+            attrib = self.config.attrib['bool'].lower()
+            if attrib == "true":
+                self.value = True
+            elif attrib == "false":
+                self.value = False
+            else:
+                self.value = None
         else:
             raise Exception ("No value set for const '" + name + "'")
 
@@ -432,3 +440,21 @@ class hash (SPG_base):
     def recv_data (self, data):
         self.hash.update (data)
         self.recvmethods['hash'](self.hash.digest())
+
+class guard (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+
+        self.cond = None
+        self.data = None
+
+    def recv_data (self, data):
+        self.data = data
+        if self.cond:
+            self.recvmethods['data'](self.data)
+
+    def recv_cond (self, cond):
+        self.cond = cond
+        if self.data:
+            self.recvmethods['data'](self.data)

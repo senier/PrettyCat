@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <!-- FIXME: This does not really test the case where the guard prevents
+         data from flowing. This is hard to test, as we'd need to check whether
+         no data is passed on by guard. -->
+
+    <const id="Data">
+        <description>
+            Left value
+        </description>
+        <config string="foobar"/>
+        <flow sarg="const" sink="Guard" darg="data"/>
+    </const>
+
+    <const id="Cond">
+        <description>
+           Condition
+        </description>
+        <config bool="True"/>
+        <flow sarg="const" sink="Guard" darg="cond"/>
+    </const>
+
+    <guard id="Guard">
+        <description>
+            Guard value
+        </description>
+        <flow sarg="data" sink="Check" darg="data"/>
+    </guard>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="foobar"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

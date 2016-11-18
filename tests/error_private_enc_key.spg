@@ -18,7 +18,7 @@
 
     <const id="Private key">
         <description>
-            Secret key
+            Private key
         </description>
         <flow sarg="const" sink="Branch Key" darg="data">
             <assert confidentiality="true"/>
@@ -33,6 +33,20 @@
             <assert confidentiality="true"/>
         </flow>
     </branch>
+
+    <const id="Per-message key length">
+        <description>
+            DSA Per-message key length
+        </description>
+        <flow sarg="const" sink="Per message key" darg="len"/>
+    </const>
+
+    <rng id="Per message key">
+        <description>
+            DSA Per-message key k
+        </description>
+        <flow sarg="data" sink="Sign" darg="rand"/>
+    </rng>
 
     <sign id="Sign">
         <description>

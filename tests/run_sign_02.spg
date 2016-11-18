@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Public key">
+        <description>
+            Pulic DSA key
+        </description>
+        <config bytes="000000808000000000000007304d1c890f67c2a86d373b0e1cd3c25f54bfafa3cac9544e2c6912c4184ea4c2ec39d93abc054fdbf45451d500086a6fcef67e37cb9630665b22289e21006945f0cb3b42518f1b995076dc13776662d7120bb9c0ef56988dc4ea927f593a930d55d5fae75883a142db51a5589d5e7fd6a9e7b2586054ab0100000014e30ee0609f5a297d123e63a93d922a1f3ddd34bf0000007e6e5a3f0995f93b82cb34dfa45ba1b6c312c62f584d7d288de1cd6675f5ee458799777338f312d3f3e83298d1d2b0fac9b92f6bc890b31cacc677cc9d4978cf5a2302af8244f7701d95f3e68ef9f837f0dfe974c6086bc8b741aa65d5f509598ca42a03199646062bff2bc220ce51d7fa0f57ded01b09b4fdc3cfccae7b2ad00000080675d6a9f3d89fbc0582129174c5e0ef593fa094f35b0bd4c19fde001866c6a32eb8d809ce2797e0526613f8112408f95a69ee5bf685f3f3f0916d6ff1e63bb66bcb5bdbadbc58dd470651eb04ff849344d040747e6ec01e2ee925d3fafa9b0ae845e385e5adb9cdcbd4a2cb8a4110fb2f88cbb15e99fbc45527982fbd9e1674d"/>
+        <flow sarg="const" sink="Branch public key" darg="data"/>
+    </const>
+
+    <branch id="Branch public key">
+        <description>
+            Branch public key to sign/verify
+        </description>
+        <flow sarg="data#1" sink="Sign" darg="pubkey"/>
+        <flow sarg="data#2" sink="Verify sig" darg="pubkey"/>
+    </branch>
+
+    <const id="Private key">
+        <description>
+            Private DSA key
+        </description>
+        <config hexbytes="3e933c50825a467abe7bb0015b66a1628bfc8bf9"/>
+        <flow sarg="const" sink="Sign" darg="privkey"/>
+    </const>
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <config hexbytes="f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0"/>
+        <flow sarg="const" sink="Branch message" darg="data"/>
+    </const>
+
+    <branch id="Branch message">
+        <description>
+            Branch message for sign/verify components
+        </description>
+        <flow sarg="data#1" sink="Sign" darg="msg"/>
+        <flow sarg="data#2" sink="Verify sig" darg="msg"/>
+    </branch>
+
+    <const id="K">
+        <description>
+            "Random" K - Only for testing. Normally this must be
+            a random number between [1, q-1] for which the attacker
+            does not know the value of any bit.
+        </description>
+        <config hexbytes="616d7068326861583969757745396e6961674e65000a"/>
+        <flow sarg="const" sink="Sign" darg="rand"/>
+    </const>
+
+    <sign id="Sign">
+        <description>
+            Sign a message
+        </description>
+        <flow sarg="auth" sink="Verify sig" darg="auth"/>
+    </sign>
+
+    <verify_sig id="Verify sig">
+        <description>
+            Compare both values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </verify_sig>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

@@ -986,6 +986,13 @@
         <flow sarg="auth" sink="Sign M_A" darg="msg"/>
     </hmac>
 
+    <rng id="Per message key M_A">
+        <description>
+            Per-message key k used for signing M_A
+        </description>
+        <flow sarg="data" sink="Sign M_A" darg="rand"/>
+    </rng>
+
     <sign id="Sign M_A">
         <description>
             This is the signature, using the private part of the key pub, of the
@@ -1233,6 +1240,28 @@
         </description>
         <flow sarg="auth" sink="Sign M_B" darg="msg"/>
     </hmac>
+
+    <const id="DSA keylen">
+        <description>
+            Length of DSA per-message keys
+        </description>
+        <flow sarg="const" sink="Branch DSA keylen" darg="data"/>
+    </const>
+
+    <branch id="Branch DSA keylen">
+        <description>
+            Branch length of per-message keys
+        </description>
+        <flow sarg="data#1" sink="Per message key M_A" darg="len"/>
+        <flow sarg="data#2" sink="Per message key M_B" darg="len"/>
+    </branch>
+
+    <rng id="Per message key M_B">
+        <description>
+            Per-message key k used for signing M_B
+        </description>
+        <flow sarg="data" sink="Sign M_B" darg="rand"/>
+    </rng>
 
     <sign id="Sign M_B">
         <description>

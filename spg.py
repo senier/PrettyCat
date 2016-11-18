@@ -1455,11 +1455,8 @@ class Primitive_sign (Primitive):
         super ().setup (G, name)
 
         # Parameters
-        #   Input:  msg, pubkey, privkey
+        #   Input:  msg, pubkey, privkey, rand
         #   Output: auth
-
-        # Signing arbitrary data is pointless
-        self.input.msg.intg (Intg (self.input.msg))
 
         # The private key must stay confidential
         self.input.privkey.conf (Conf (self.input.privkey))
@@ -1470,10 +1467,14 @@ class Primitive_sign (Primitive):
         # An attacker must not chose the public key
         self.input.pubkey.intg (Intg (self.input.pubkey))
 
-        #   Even with a cryptographically secure hash function, an attacker
-        #   may be able to recover data_in from auth_out, depending on the
-        #   resource available and the structure of msg_in. As we don't want
-        #   to get probabilistic here, we just assume this is always possible.
+        # Random number x must be confidential and not chosen by attacker
+        self.input.rand.intg (Intg (self.input.rand))
+        self.input.rand.conf (Conf (self.input.rand))
+
+        # Even with a cryptographically secure hash function, an attacker
+        # may be able to recover data_in from auth_out, depending on the
+        # resource available and the structure of msg_in. As we don't want
+        # to get probabilistic here, we just assume this is always possible.
         self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
 
 class Primitive_verify_sig (Primitive):

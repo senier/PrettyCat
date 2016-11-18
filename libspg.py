@@ -2,8 +2,9 @@ import socket
 import threading
 
 from Crypto.Cipher import AES
-from Crypto.Hash import HMAC
+from Crypto.Hash import HMAC, SHA256
 from Crypto.Hash import SHA256
+from Crypto.PublicKey import DSA
 
 exitval = 0
 quiet = 0
@@ -17,6 +18,10 @@ def info (message):
 
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
+
+def decode_mpi (mpi):
+    length = int.from_bytes (mpi[0:4], byteorder='big')
+    return (int.from_bytes (mpi[4:4+length], byteorder='big'), mpi[4+length:])
 
 class SPG_base:
 
@@ -212,6 +217,8 @@ class const (SPG_base):
             self.value = self.config.attrib['string']
         elif 'bytes' in config.attrib:
             self.value = self.config.attrib['bytes'].encode()
+        elif 'hexbytes' in config.attrib:
+            self.value = bytearray.fromhex(self.config.attrib['hexbytes'])
         elif 'int' in config.attrib:
             self.value = int(self.config.attrib['int'])
         elif 'hex' in config.attrib:
@@ -331,3 +338,40 @@ class verify_hmac_out (verify_hmac):
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             self.recvmethods['result'](hmac.digest() == self.auth)
             self.recvmethods['msg'](self.msg)
+
+class verify_sig (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+
+        self.key  = None
+        self.auth = None
+        self.msg  = None
+
+    def try_verify (self):
+
+        if self.key and self.auth and self.msg:
+            result = self.key.verify (self.msg, self.auth)
+            self.recvmethods['result'](result)
+
+    def recv_pubkey (self, pubkeys):
+
+        (p, pubkeys) = decode_mpi (pubkeys)
+        (q, pubkeys) = decode_mpi (pubkeys)
+        (g, pubkeys) = decode_mpi (pubkeys)
+        (y, pubkeys) = decode_mpi (pubkeys)
+        self.key = DSA.construct ((y, g, p, q))
+        self.try_verify()
+
+    def recv_msg (self, msg):
+
+        self.msg = int.from_bytes (msg, byteorder='big')
+        self.try_verify()
+
+    def recv_auth (self, auth):
+
+        siglen = int(len(auth)/2)
+        r = int.from_bytes(auth[0:siglen], byteorder='big')
+        s = int.from_bytes(auth[siglen:], byteorder='big')
+        self.auth = (r, s)
+        self.try_verify()

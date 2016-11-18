@@ -555,7 +555,11 @@ class Graph:
 
             # Insert send methods into class object
             for (parent, child, data) in G.out_edges (nbunch=node, data=True):
-                recvmethod = getattr (G.node[child]['class'], "recv_" + data['darg'])
+                try:
+                    recvmethod = getattr (G.node[child]['class'], "recv_" + data['darg'])
+                except AttributeError:
+                    warn ("Implementation of '" + child + "' does not have receive method for parameter '" + data['darg'] + "'")
+                    raise
                 recvmethods[data['sarg']] = recvmethod
 
             classobj = libclass (node, G.node[node]['config'], recvmethods)

@@ -2,8 +2,7 @@ import socket
 import threading
 
 from Crypto.Cipher import AES
-from Crypto.Hash import HMAC, SHA256
-from Crypto.Hash import SHA256
+from Crypto.Hash import HMAC, SHA, SHA256
 from Crypto.PublicKey import DSA
 
 exitval = 0
@@ -50,8 +49,6 @@ class comp (SPG_base):
         if self.data2 == None:
             self.data1 = data
         else:
-            if type(self.data2) != type(data):
-                warn ("Incompatible types: '" + str(type(self.data2)) + "' != '" + str(type(data)) + "'")
             self.recvmethods['result'](self.data2 == data)
             self.data2 = None
 
@@ -60,8 +57,6 @@ class comp (SPG_base):
         if self.data1 == None:
             self.data2 = data
         else:
-            if type(self.data1) != type(data):
-                warn ("Incompatible types: '" + str(type(self.data1)) + "' != '" + str(type(data)) + "'")
             self.recvmethods['result'](self.data1 == data)
             self.data1 = None
 
@@ -216,7 +211,7 @@ class const (SPG_base):
         if 'string' in config.attrib:
             self.value = self.config.attrib['string']
         elif 'bytes' in config.attrib:
-            self.value = self.config.attrib['bytes'].encode()
+            self.value = bytearray (self.config.attrib['bytes'], 'utf-8')
         elif 'hexbytes' in config.attrib:
             try:
                 self.value = bytearray.fromhex(self.config.attrib['hexbytes'])
@@ -419,3 +414,21 @@ class verify_sig (__sig_base):
         s = int.from_bytes(auth[siglen:], byteorder='big')
         self.auth = (r, s)
         self.verify_if_valid()
+
+class hash (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods, needconfig=True)
+
+        if not 'algo' in config.attrib:
+            raise Exception ("No hash algorithm configured")
+
+        algo = config.attrib['algo']
+        if algo == "SHA":
+            self.hash = SHA.new ()
+        elif algo == "SHA256":
+            self.hash = SHA256.new ()
+
+    def recv_data (self, data):
+        self.hash.update (data)
+        self.recvmethods['hash'](self.hash.digest())

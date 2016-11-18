@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <config bytes="Off-the-record"/>
+        <flow sarg="const" sink="Hash" darg="data"/>
+    </const>
+
+    <hash id="Hash">
+        <description>
+            SHA1 Hash
+        </description>
+        <config algo="SHA"/>
+        <flow sarg="hash" sink="Compare" darg="data1"/>
+    </hash>
+
+    <const id="Hash result">
+        <description>
+            Expected result
+        </description>
+        <config hexbytes="738864e2369aee68012d4bffdc6e30600f9c80d9"/>
+        <flow sarg="const" sink="Compare" darg="data2"/>
+    </const>
+
+    <comp id="Compare">
+        <description>
+            Compare calculated with expected values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </comp>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>

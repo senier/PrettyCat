@@ -50,6 +50,7 @@ class comp (SPG_base):
             self.data1 = data
         else:
             self.recvmethods['result'](self.data2 == data)
+            self.data1 = None
             self.data2 = None
 
     def recv_data2 (self, data):
@@ -59,6 +60,7 @@ class comp (SPG_base):
         else:
             self.recvmethods['result'](self.data1 == data)
             self.data1 = None
+            self.data2 = None
 
 class counter_mode (SPG_base):
 

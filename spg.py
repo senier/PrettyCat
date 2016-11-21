@@ -2185,10 +2185,11 @@ if __name__ == "__main__":
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--run', action='store_true', required=False, help='Run model', dest='run');
+    parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
 
     try:
         args = parser.parse_args ()
-        if args.test or args.run:
+        if args.test or args.run and not args.verbose:
             libspg.quiet = 1
         main()
     except PrimitiveMissing as e:

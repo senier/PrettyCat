@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <spg code="testlib">
 
-    <const id="Plaintext">
+    <input id="Plaintext" code="list">
         <description>
             Plaintext
         </description>
-        <config bytes="This is my plain"/>
-        <flow sarg="const" sink="Branch Plaintext" darg="data"/>
-    </const>
+        <config data="This is my plain,Another plaintxt,A 3 rd plaintext" delay="0.1"/>
+        <flow sarg="data" sink="Branch Plaintext" darg="data"/>
+    </input>
 
     <branch id="Branch Plaintext">
         <description>
@@ -22,17 +22,9 @@
         <description>
             Initial counter
         </description>
-        <config bytes="DeAdBeeFdeadC0DE"/>
-        <flow sarg="const" sink="Branch IV" darg="data"/>
+        <config bytes="DEADBEEFdEADC0DE"/>
+        <flow sarg="const" sink="Encrypt" darg="ctr"/>
     </const>
-
-    <branch id="Branch IV">
-        <description>
-            Branch initial counter to encryption/decryption
-        </description>
-        <flow sarg="data#1" sink="Encrypt" darg="ctr"/>
-        <flow sarg="data#2" sink="Decrypt" darg="ctr"/>
-    </branch>
 
     <const id="Key">
         <description>
@@ -78,7 +70,7 @@
         <description>
             Check whether comparison yields true
         </description>
-        <config result="True"/>
+        <config result="True,True,True"/>
         <arg name="data"/>
     </output>
 

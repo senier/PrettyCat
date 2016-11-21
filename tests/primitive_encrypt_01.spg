@@ -17,7 +17,7 @@
         <flow sarg="data" sink="Encrypt" darg="key"/>
     </input>
 
-    <input id="Ctr_Input" integrity="true" confidentiality="true">
+    <input id="Ctr_Input" integrity="true" confidentiality="false">
         <description>
             Trusted ctr input
         </description>
@@ -25,13 +25,23 @@
         <flow sarg="data" sink="Encrypt" darg="ctr"/>
     </input>
 
-    <encrypt id="Encrypt">
+    <encrypt_ctr id="Encrypt">
         <description>
             Symmetric counter mode encryption
         </description>
         <config algo="aes" keylen="128"/>
+        <flow sarg="ctr" sink="Concat" darg="ctr"/>
+        <flow sarg="ciphertext" sink="Concat" darg="data"/>
+    </encrypt_ctr>
+
+    <xform id="Concat" code="concat">
+        <description>
+            Build message
+        </description>
+        <arg name="ctr"/>
+        <arg name="data"/>
         <flow sarg="ciphertext" sink="Ciphertext_Output" darg="data"/>
-    </encrypt>
+    </xform>
 
     <output id="Ciphertext_Output" integrity="false" confidentiality="false">
         <description>

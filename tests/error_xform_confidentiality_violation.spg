@@ -38,18 +38,20 @@
         <arg name="random"/>
     </xform>
 
-    <encrypt id="Encrypt">
+    <encrypt_ctr id="Encrypt">
         <description>
             Symmetric counter mode encryption
         </description>
+        <flow sarg="ctr" sink="Output_Mux" darg="ctr"/>
         <flow sarg="ciphertext" sink="Output_Mux" darg="data"/>
-    </encrypt>
+    </encrypt_ctr>
 
     <xform id="Output_Mux" code="assemble_message">
         <description>
-            Multiplex key/data onto output
+            Multiplex key/ctr/data onto output
         </description>
         <flow sarg="data" sink="Output" darg="data"/>
+        <arg name="ctr"/>
         <arg name="data"/>
         <arg name="key"/>
     </xform>

@@ -155,6 +155,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="hash"            type="forwardElement"/>
             <xs:element name="decrypt"         type="forwardElement"/>
             <xs:element name="encrypt"         type="forwardElement"/>
+            <xs:element name="encrypt_ctr"     type="forwardElement"/>
             <xs:element name="guard"           type="forwardElement"/>
             <xs:element name="release"         type="forwardElement"/>
             <xs:element name="comp"            type="forwardElement"/>
@@ -1106,6 +1107,20 @@ class Primitive_encrypt (Primitive):
         # combination twice), an attacker cannot decrypt the ciphertext and
         # thus no confidentiality needs to be guaranteed by the environment.
         self.output.ciphertext.conf (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
+
+class Primitive_encrypt_ctr (Primitive_encrypt):
+    def __init__ (self, G, name):
+        super ().setup (G, name)
+
+        # Parameters
+        #   Inputs:  plaintext, key, ctr
+        #   Outputs: ciphertext, ctr
+
+        # If integrity is guaranteed for output counter, integrity must be guaranteed for initial counter
+        self.output.ctr.intg (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
+
+        # If confidentiality is guaranteed for initial counter, confidentiality must be guaranteed for output counter
+        self.output.ctr.conf (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):

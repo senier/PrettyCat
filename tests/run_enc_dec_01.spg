@@ -50,13 +50,14 @@
         <flow sarg="data#2" sink="Decrypt" darg="key"/>
     </branch>
 
-    <encrypt id="Encrypt">
+    <encrypt_ctr id="Encrypt">
         <description>
             Counter-mode encryption of input value
         </description>
         <config keylen="128"/>
         <flow sarg="ciphertext" sink="Decrypt" darg="ciphertext"/>
-    </encrypt>
+        <flow sarg="ctr" sink="Decrypt" darg="ctr"/>
+    </encrypt_ctr>
 
     <decrypt id="Decrypt">
         <description>

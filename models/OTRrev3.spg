@@ -1696,21 +1696,21 @@
         <flow sarg="data" sink="Data (S)" darg="old_mac_keys"/>
     </release>
 
-    <const id="Initial counter (M)">
+    <const id="Initial counter (M)" confidentiality="false">
         <description>
             Initial value for counter to encrypt data message. Must not be 0.
         </description>
         <flow sarg="const" sink="Encrypt (M)" darg="ctr"/>
     </const>
 
-    <encrypt id="Encrypt (M)">
+    <encrypt_ctr id="Encrypt (M)">
         <description>
             Perform AES128 counter-mode encryption of the message using
             the most recent D-H encryption keys.
         </description>
         <flow sarg="ciphertext" sink="Branch Encrypt (M) ciphertext" darg="data"/>
         <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="data"/>
-    </encrypt>
+    </encrypt_ctr>
 
     <branch id="Branch Counter (M) ctr">
         <description>

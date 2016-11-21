@@ -98,10 +98,7 @@ class encrypt (counter_mode):
         # IV must only be set once
         if self.ctr != None: return
 
-        if len(ctr) != AES.block_size:
-            raise Exception ("Counter length != " + str (AES.block_size))
-
-        self.ctr = bytes(ctr)
+        self.ctr = int.from_bytes (ctr, byteorder='big')
         self.encrypt_if_valid ()
 
     def recv_key (self, key):
@@ -120,12 +117,23 @@ class encrypt (counter_mode):
         self.pt = bytes(pt)
         self.encrypt_if_valid ()
 
+    def send_ctr(self, ctr): pass
+
     def encrypt_if_valid (self):
+
         if self.ctr and self.key and self.pt:
             if not self.key_changed:
                 self.ctr = self.ctr + 1
-            cipher = AES.new (self.key, AES.MODE_CBC, self.ctr)
+            ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
+            cipher = AES.new (self.key, AES.MODE_CBC, ctr)
+            self.key_changed = False
             self.recvmethods['ciphertext'](cipher.encrypt (self.pt))
+            self.send_ctr(ctr)
+
+class encrypt_ctr (encrypt):
+
+    def send_ctr(self, ctr):
+        self.recvmethods['ctr'](ctr)
 
 class decrypt (counter_mode):
 
@@ -135,10 +143,7 @@ class decrypt (counter_mode):
 
     def recv_ctr (self, ctr):
 
-        if len(ctr) != AES.block_size:
-            raise Exception ("Counter length != " + str (AES.block_size))
-
-        self.ctr = bytes(ctr)
+        self.ctr = int.from_bytes (ctr, byteorder='big')
         self.decrypt_if_valid ()
 
     def recv_key (self, key):
@@ -151,15 +156,16 @@ class decrypt (counter_mode):
     def recv_ciphertext (self, ct):
 
         if len(ct) != AES.block_size:
-            raise Exception ("Decryption with invalid blocksize (expected " + str (AES.blocksize) + ")")
+            raise Exception ("Decryption with invalid blocksize (expected " + str (AES.block_size) + ")")
 
         self.ct = bytes(ct)
         self.decrypt_if_valid()
 
     def decrypt_if_valid (self):
         if self.ctr and self.key and self.ct:
-            cipher = AES.new (self.key, AES.MODE_CBC, self.ctr)
+            cipher = AES.new (self.key, AES.MODE_CBC, self.ctr.to_bytes (AES.block_size, byteorder='big'))
             self.recvmethods['plaintext'](cipher.decrypt (self.ct))
+            self.ctr = None
 
 class output (SPG_base):
 

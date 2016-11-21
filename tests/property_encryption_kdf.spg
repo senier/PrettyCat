@@ -42,12 +42,22 @@
         <arg name="random"/>
     </xform>
 
-    <encrypt id="Encrypt">
+    <encrypt_ctr id="Encrypt">
         <description>
             Symmetric counter mode encryption
         </description>
-        <flow sarg="ciphertext" sink="Output" darg="data"/>
-    </encrypt>
+        <flow sarg="ctr" sink="Concat" darg="ctr"/>
+        <flow sarg="ciphertext" sink="Concat" darg="data"/>
+    </encrypt_ctr>
+
+    <xform id="Concat" code="concat">
+        <description>
+            Create message from ctr,ciphertext
+        </description>
+        <arg name="ctr"/>
+        <arg name="data"/>
+        <flow sarg="data" sink="Output" darg="data"/>
+    </xform>
 
     <output id="Output" integrity="false" confidentiality="false">
         <description>

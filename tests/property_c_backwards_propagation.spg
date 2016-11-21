@@ -8,7 +8,7 @@
         <flow sarg="data" sink="Encrypt" darg="plaintext"/>
     </input>
 
-    <const id="IV">
+    <const id="IV" confidentiality="false">
         <description>
             Static IV
         </description>
@@ -22,12 +22,13 @@
         <flow sarg="const" sink="Encrypt" darg="key"/>
     </const>
 
-    <encrypt id="Encrypt">
+    <encrypt_ctr id="Encrypt">
         <description>
             Symmetric counter mode encryption
         </description>
+        <flow sarg="ctr" sink="Message" darg="ctr"/>
         <flow sarg="ciphertext" sink="Branch" darg="data"/>
-    </encrypt>
+    </encrypt_ctr>
 
     <branch id="Branch">
         <description>
@@ -56,6 +57,7 @@
             Assemble message
         </description>
         <flow sarg="data" sink="Output" darg="data"/>
+        <arg name="ctr"/>
         <arg name="msg"/>
         <arg name="auth"/>
     </xform>

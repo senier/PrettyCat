@@ -158,9 +158,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="guard"           type="forwardElement"/>
             <xs:element name="release"         type="forwardElement"/>
             <xs:element name="comp"            type="forwardElement"/>
-            <xs:element name="scomp"           type="forwardElement"/>
             <xs:element name="verify_commit"   type="forwardElement"/>
-            <xs:element name="counter"         type="forwardElement"/>
             <xs:element name="latch"           type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
@@ -1081,112 +1079,33 @@ class Primitive_encrypt (Primitive):
         #   Inputs:  plaintext, key, ctr
         #   Outputs: ciphertext
 
-        # Parameter
-        #   plaintext_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   plaintext_in
-        # Integrity guarantee can be dropped if:
-        #   ciphertext_out has no integrity guarantees
-        # Reason:
-        #   Counter mode encryption does not achieve integrity, hence an attacker
-        #   can could change plaintext_in to influence the integrity of
-        #   ciphertext_out. If integrity must be guaranteed for ciphertext_out,
-        #   it also must be guaranteed for plaintext_in.
-        # Truth table:
-        #   ciphertext_out_i plaintext_in_i result
-        #   0                0              1
-        #   0                1              0
-        # Assertion:
-        #   plaintext_in_i ∨ ¬ciphertext_out_i (equiv: ciphertext_out_i ⇒ plaintext_in_i)
+        # Counter mode encryption does not achieve integrity, hence an attacker
+        # can could change plaintext_in to influence the integrity of
+        # ciphertext_out. If integrity must be guaranteed for ciphertext_out,
+        # it also must be guaranteed for plaintext_in.
         self.input.plaintext.intg (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
 
-        # Parameter
-        #   key_in
-        # Confidentiality guarantee can be dropped if:
-        #   Plaintext_in demands no confidentiality or
-        #   confidentiality is guaranteed for ciphertext_out
-        # Reason:
-        #   If plaintext_in is known to an attacker (i.e. not confidential), it
-        #   is superfluous to guarantee confidentiality for key_in.
-        #   If ciphertext_out requires confidentiality, the confidentiality of
-        #   pt_in is guaranteed even if key_in is known to an attacker.
-        # Truth table:
-        #   key_in_c       plaintext_in_c  ciphertext_out_c result
-        #   0              0               0                1
-        #   0              0               1                1
-        #   0              1               0                0
-        #   0              1               1                1
-        # Assertion:
-        #   key_in_c ∨ ¬plaintext_in_c ∨ cipertext_out_c
+        # If plaintext_in is known to an attacker (i.e. not confidential), it
+        # is superfluous to guarantee confidentiality for key_in.
+        # If ciphertext_out requires confidentiality, the confidentiality of
+        # pt_in is guaranteed even if key_in is known to an attacker.
         self.input.key.conf (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
-        # Parameter
-        #   key_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
-        # Assertion:
+        # Integrity of input key must always be guaranteed
         self.input.key.intg (Intg (self.input.key))
 
-        # Parameter
-        #   ctr_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The counter/IV in counter mode encryption is not confidential by
-        #   definition
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   ctr_in
-        # Integrity guarantee can be dropped if:
-        #   No confidentiality is guaranteed for plaintext_in or
-        #   confidentiality is guaranteed for ciphertext_out
-        # Reason:
-        #   If no confidentiality is guaranteed for plaintext_in in the first
-        #   place, it is superfluous to encrypt (and hence chose unique counter
-        #   values). If confidentiality is guaranteed for ciphertext_out,
-        #   encryption is not necessary. Hence, a ctr_in chose by an attacker
-        #   does no harm.
-        # Assertion:
-        #   ctr_in_i ∨ ¬plaintext_in_c ∨ cipertext_out_c
+        # If no confidentiality is guaranteed for plaintext_in in the first
+        # place, it is superfluous to encrypt (and hence chose unique counter
+        # values). If confidentiality is guaranteed for ciphertext_out,
+        # encryption is not necessary. Hence, a ctr_in chose by an attacker
+        # does no harm.
         self.input.ctr.intg (Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
-        # Parameter
-        #   ciphertext_out
-        # Confidentiality guarantee can be dropped if:
-        #   Confidentiality is guaranteed for key_in and
-        #   integrity is guaranteed for key_in and
-        #   integrity is guaranteed for ctr_in.
-        # Reason:
-        #   If confidentiality and integrity is guaranteed for the key and
-        #   integrity is guaranteed for ctr (to avoid using the same key/ctr
-        #   combination twice), an attacker cannot decrypt the ciphertext and
-        #   thus no confidentiality needs to be guaranteed by the environment.
-        # Assertion:
-        #   ciphertext_out_c ∨ (key_in_c ∧ key_in_i ∧ ctr_in_i)
+        # If confidentiality and integrity is guaranteed for the key and
+        # integrity is guaranteed for ctr (to avoid using the same key/ctr
+        # combination twice), an attacker cannot decrypt the ciphertext and
+        # thus no confidentiality needs to be guaranteed by the environment.
         self.output.ciphertext.conf (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
-
-        # Parameter
-        #   ciphertext_out
-        # Integrity guarantee can be dropped if:
-        #   If plaintext_in has no integrity guarantees
-        # Reason:
-        #   Counter mode encryption neither assumes nor achieves integrity.
-        # Assertion:
-        #   ciphertext_out_i ∨ ¬plaintext_in_i (equiv: plaintext_in_i ⇒ ciphertext_out_i)
-        #self.output.ciphertext.intg (Implies (Intg(self.input.plaintext), Intg(self.output.ciphertext)))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):
@@ -1632,100 +1551,6 @@ class Primitive_verify_hmac_out (Primitive_verify_hmac):
         # Assertion:
         #   None
 
-class Primitive_counter (Primitive):
-
-    """
-    Monotonic counter primitive
-
-    This primitive outputs a monotonic sequence of counters initialized by to a
-    specific value every time the trigger input receives a true value.
-    """
-
-    def __init__ (self, G, name):
-        super ().setup (G, name)
-
-        # Parameters
-        #   Input:  init, trigger
-        #   Output: ctr
-
-        # Parameter
-        #   init_in
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for ctr_out or confidentiality
-        #   is guaranteed for trigger.
-        # Reason:
-        #   By observing the initial value and the trigger values, an attacker
-        #   may derive the value of the counter. If ctr_out requires
-        #   confidentiality guarantees, init or trigger must guarantee
-        #   confidentiality.
-        # Assertion:
-        #   init_in_c ∨ trigger_in_c ∨ ¬ctr_out_c
-        self.input.init.conf (Or (Conf(self.input.init), Conf(self.input.trigger), Not (Conf(self.output.ctr))))
-
-        # Parameter
-        #   init_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity is to be guaranteed for ctr_out
-        # Reason:
-        #   An attacker who's able to chose the initial value of the counter can
-        #   void the integrity of ctr_out
-        # Assertion:
-        #   init_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ init_in_i)
-        #
-        self.input.init.intg (Implies (Intg(self.output.ctr), Intg(self.input.init)))
-
-        # Parameter
-        #   trigger_in
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for ctr_out
-        # Reason:
-        #   By observing the initial value and the trigger values, an attacker
-        #   may derive the value of the counter. As the initial value may not
-        #   be random, it is not sufficient to guarantee confidentiality for
-        #   init_in
-        # Assertion:
-        #   trigger_in_c ∨ ¬ctr_out_c (equiv: ctr_out_c ⇒ trigger_in_c)
-        self.input.trigger.conf (Implies (Conf(self.output.ctr), Conf(self.input.trigger)))
-
-        # Parameter
-        #   trigger_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity is to be guaranteed for ctr_out
-        # Reason:
-        #   An attacker who's able to chose a sequence of triggers can void the
-        #   integrity of ctr_out. While the initial value of the counter is
-        #   required, confidentiality for init_in is not sufficient to drop
-        #   confidentiality guarantees for trigger_in. The reason is, that even
-        #   though init_in is be confidential, it may still be predictable and
-        #   allow and attacker to construct a specific ctr_out from a chosen
-        #   sequence of triggers.
-        # Assertion:
-        #   trigger_in_i ∨ ¬ctr_out_i (equiv: ctr_out_i ⇒ trigger_in_i)
-        #
-        self.input.trigger.intg (Implies (Intg(self.output.ctr), Intg(self.input.trigger)))
-
-        # Parameter
-        #   ctr_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for init_in or trigger_in
-        # Reason:
-        #   If trigger_in or init_in have not confidentiality guarantees, an
-        #   attacker may derive ctr from it, hence guaranteeing confidentiality
-        #   for ctr_out is superfluous.
-        # Assertion:
-        #   ctr_out_c ∨ ¬init_in_c ∨ ¬trigger_in_c
-        self.output.ctr.conf (Or (Conf(self.output.ctr), Not (Conf(self.input.trigger)), Not (Conf(self.input.init))))
-
-        # Parameter
-        #   ctr_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
-
 class Primitive_guard (Primitive):
 
     """
@@ -1938,65 +1763,6 @@ class Primitive_comp (Primitive):
         # Assertion:
         #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
         self.output.result.conf (Or (Conf(self.output.result), Not (And (Conf (self.input.data1), Conf (self.input.data2)))))
-
-        # Parameter
-        #   result_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
-
-class Primitive_scomp (Primitive):
-
-    """
-    Comp primitive
-
-    The stream comparator compares data with the previous message received on
-    the same interface. Depending on whether the current value equals the previous
-    value a boolean result is emitted on the outgoing result interfaces.
-    """
-
-    def __init__ (self, G, name):
-        super ().setup (G, name)
-
-        # Parameters
-        #   Input:  data
-        #   Output: result
-
-        # Parameter
-        #   data_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity guarantee is demanded for result_out
-        # Reason:
-        #   If an attacker can chose data_in, she can determine the value
-        #   of result_out
-        # Assertion:
-        #   data_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data_in_i)
-        self.input.data.intg (Implies (Intg(self.output.result), Intg(self.input.data)))
-
-        # Parameter
-        #   result_out
-        # Confidentiality guarantee can be dropped if:
-        #   If confidentiality is not guaranteed for both data
-        # Reason:
-        #   If an attacker knows data result by comparing with previous values
-        # Assertion:
-        #   result_out_c ∨ ¬data_in_c (equiv: result_out_c ⇒ data_in_c)
-        self.output.result.conf (Implies (Conf(self.output.result), Conf(self.input.data)))
 
         # Parameter
         #   result_out

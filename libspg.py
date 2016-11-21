@@ -60,7 +60,7 @@ class comp (SPG_base):
             self.recvmethods['result'](self.data1 == data)
             self.data1 = None
 
-class counter (SPG_base):
+class counter_mode (SPG_base):
 
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods)
@@ -85,14 +85,18 @@ class counter (SPG_base):
         self.ctr = None
         self.key = None
 
-class encrypt (counter):
+class encrypt (counter_mode):
 
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods)
 
-        self.pt = None
+        self.pt          = None
+        self.key_changed = False
 
     def recv_ctr (self, ctr):
+
+        # IV must only be set once
+        if self.ctr != None: return
 
         if len(ctr) != AES.block_size:
             raise Exception ("Counter length != " + str (AES.block_size))
@@ -105,6 +109,7 @@ class encrypt (counter):
             raise Exception ("Keylen != " + str(self.keylen))
 
         self.key = bytes(key)
+        self.key_changed = True
         self.encrypt_if_valid ()
 
     def recv_plaintext (self, pt):
@@ -117,10 +122,12 @@ class encrypt (counter):
 
     def encrypt_if_valid (self):
         if self.ctr and self.key and self.pt:
+            if not self.key_changed:
+                self.ctr = self.ctr + 1
             cipher = AES.new (self.key, AES.MODE_CBC, self.ctr)
             self.recvmethods['ciphertext'](cipher.encrypt (self.pt))
 
-class decrypt (counter):
+class decrypt (counter_mode):
 
     def __init__ (self, name, config, recvmethods):
         super().__init__ (name, config, recvmethods)

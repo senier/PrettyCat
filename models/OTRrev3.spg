@@ -1668,7 +1668,6 @@
         </config>
         <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
-        <flow sarg="data#3" sink="Detect key change (M)" darg="data"/>
         <arg name="data"/>
     </xform>
 
@@ -1701,33 +1700,8 @@
         <description>
             Initial value for counter to encrypt data message. Must not be 0.
         </description>
-        <flow sarg="const" sink="Counter (M)" darg="init"/>
+        <flow sarg="const" sink="Encrypt (M)" darg="ctr"/>
     </const>
-
-    <scomp id="Detect key change (M)">
-        <description>
-            Compare key stream and trigger whenever the current key equals the
-            previous key to ensures that the counter is increase whenever we
-            use a key twice.
-        </description>
-        <flow sarg="result" sink="Counter (M)" darg="trigger"/>
-    </scomp>
-
-    <counter id="Counter (M)">
-        <description>
-            Monotonic counter used in counter mode encryption of data messages.
-        </description>
-        <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="data"/>
-    </counter>
-
-    <branch id="Branch Counter (M) ctr">
-        <description>
-            Branch output arguments
-        </description>
-        <flow sarg="ctr#1" sink="Encrypt (M)" darg="ctr"/>
-        <flow sarg="ctr#2" sink="Data (S)" darg="top_half_of_counter_init"/>
-        <flow sarg="ctr#3" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>
-    </branch>
 
     <encrypt id="Encrypt (M)">
         <description>
@@ -1735,7 +1709,16 @@
             the most recent D-H encryption keys.
         </description>
         <flow sarg="ciphertext" sink="Branch Encrypt (M) ciphertext" darg="data"/>
+        <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="data"/>
     </encrypt>
+
+    <branch id="Branch Counter (M) ctr">
+        <description>
+            Branch output arguments
+        </description>
+        <flow sarg="ctr#1" sink="Data (S)" darg="top_half_of_counter_init"/>
+        <flow sarg="ctr#2" sink="Concat authenticator (S)" darg="top_half_of_counter_init"/>
+    </branch>
 
     <branch id="Branch Encrypt (M) ciphertext">
         <description>

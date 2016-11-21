@@ -533,7 +533,7 @@ class Graph:
         libspg   = __import__ ("libspg")
         liblocal = __import__ (self.code)
 
-        for node in nx.topological_sort (G, reverse=True):
+        for node in G.node:
 
             kind = G.node[node]['kind']
             lib  = libspg
@@ -550,6 +550,11 @@ class Graph:
             except AttributeError:
                 raise PrimitiveNotImplemented (name)
 
+            classobj = libclass (node, G.node[node]['config'])
+            G.node[node]['class'] = classobj
+
+        for node in G.node:
+
             recvmethods = {}
 
             # Insert send methods into class object
@@ -561,16 +566,14 @@ class Graph:
                     raise
                 recvmethods[data['sarg']] = recvmethod
 
-            classobj = libclass (node, G.node[node]['config'], recvmethods)
+            G.node[node]['class'].recvmethods (recvmethods)
 
-            G.node[node]['class'] = classobj
-
-        for node in nx.topological_sort (G):
+        for node in G.node:
             G.node[node]['class'].setDaemon (True)
             G.node[node]['class'].start ()
 
         # join all threads
-        for node in nx.topological_sort (G):
+        for node in G.node:
             G.node[node]['class'].join ()
 
 class Args:
@@ -2067,7 +2070,7 @@ def parse_graph (inpath):
                 penwidth="2")
 
     # Initialize all objects
-    for node in nx.topological_sort (mdg, reverse=True):
+    for node in mdg.node:
 
         for arg in mdg.node[node]['arguments']:
             found = False

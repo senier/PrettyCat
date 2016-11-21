@@ -2,17 +2,12 @@ import sys
 from libspg import info, warn, err, SPG_base
 import libspg
 import time
-import threading
 
-class input_list (threading.Thread):
+class input_list (libspg.SPG_thread):
 
-    def __init__ (self, name, config, recvmethods):
+    def __init__ (self, name, config):
 
-        super().__init__ ()
-
-        self.recvmethods = recvmethods
-        self.name        = name
-        self.config      = config
+        super().__init__ (name, config)
 
         if not 'data' in config.attrib:
             raise Exception ("No input data configured")
@@ -31,9 +26,9 @@ class input_list (threading.Thread):
 
 class output_check_fixed (SPG_base):
 
-    def __init__ (self, name, config, recvmethods):
+    def __init__ (self, name, config):
 
-        super().__init__ (name, config, recvmethods, needconfig = True)
+        super().__init__ (name, config, needconfig = True)
 
         if not 'result' in config.attrib:
             raise Exception ("No result set for output check")

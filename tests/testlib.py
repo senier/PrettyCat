@@ -40,3 +40,14 @@ class output_check_fixed (SPG_base):
         if data != value:
             warn ("Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
             libspg.exitval = 1
+
+class xform_get_random (SPG_base):
+
+    def start (self):
+        self.request_length = 597
+        self.recvmethods['len'](self.request_length)
+
+    def recv_random (self, data):
+        recvlen = len(data)
+        if (recvlen != self.request_length):
+            libspg.exitval = 1

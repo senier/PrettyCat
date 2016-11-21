@@ -4,6 +4,7 @@ import threading
 from Crypto.Cipher import AES
 from Crypto.Hash import HMAC, SHA, SHA256
 from Crypto.PublicKey import DSA
+from Crypto import Random
 
 exitval = 0
 quiet = 0
@@ -502,3 +503,11 @@ class latch (SPG_base):
             self.data = data
             self.recvmethods['trigger']('True'.encode())
         self.recvmethods['data'](self.data)
+
+class rng (SPG_base):
+
+    def __init__ (self, name, config):
+        super().__init__ (name, config)
+
+    def recv_len (self, length):
+        self.recvmethods['data'](Random.get_random_bytes(int(length)))

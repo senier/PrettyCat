@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <xform id="Get Random" code="get_random">
+        <description>
+            Retrieve random values from RNG
+        </description>
+        <flow sarg="len" sink="RNG" darg="len"/>
+        <arg name="random"/>
+    </xform>
+
+    <rng id="RNG">
+        <description>
+            RNG
+        </description>
+        <flow sarg="data" sink="Get Random" darg="random"/>
+    </rng>
+
+</spg>
+

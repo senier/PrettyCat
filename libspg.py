@@ -481,3 +481,16 @@ class release (SPG_base):
 
     def recv_data (self, data):
         self.recvmethods['data'](data)
+
+class latch (SPG_base):
+
+    def __init__ (self, name, config, recvmethods):
+        super().__init__ (name, config, recvmethods)
+
+        self.data = None
+
+    def recv_data (self, data):
+        if self.data == None:
+            self.data = data
+            self.recvmethods['trigger']('True'.encode())
+        self.recvmethods['data'](self.data)

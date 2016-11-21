@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <input id="Input" code="list">
+        <description>
+            Plaintext
+        </description>
+        <config data="A,B,C" delay="0.1"/>
+        <flow sarg="data" sink="Latch" darg="data"/>
+    </input>
+
+    <latch id="Latch">
+        <description>
+            Keep first received value
+        </description>
+        <flow sarg="data" sink="Check" darg="data"/>
+        <flow sarg="trigger" sink="Trigger" darg="data"/>
+    </latch>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether only As were received
+        </description>
+        <config result="A,A,A"/>
+        <arg name="data"/>
+    </output>
+
+    <output id="Trigger" code="check_fixed">
+        <description>
+            One trigger is expected
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

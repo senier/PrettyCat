@@ -9,7 +9,7 @@
         <description>
             Left value
         </description>
-        <config string="foobar"/>
+        <config bytes="foobar"/>
         <flow sarg="const" sink="Guard" darg="data"/>
     </const>
 

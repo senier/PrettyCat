@@ -41,7 +41,7 @@ class output_check_fixed (SPG_base):
         self.values = [x.strip() for x in config.attrib['result'].split(',')]
 
     def recv_data (self, data):
-        value = self.values.pop()
-        if str(data) != value:
+        value = self.values.pop().encode()
+        if data != value:
             warn ("Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
             libspg.exitval = 1

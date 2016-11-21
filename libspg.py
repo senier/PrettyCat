@@ -49,7 +49,8 @@ class comp (SPG_base):
         if self.data2 == None:
             self.data1 = data
         else:
-            self.recvmethods['result'](self.data2 == data)
+            result = 'True' if self.data2 == data else 'False'
+            self.recvmethods['result'](result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -58,7 +59,8 @@ class comp (SPG_base):
         if self.data1 == None:
             self.data2 = data
         else:
-            self.recvmethods['result'](self.data1 == data)
+            result = 'True' if self.data1 == data else 'False'
+            self.recvmethods['result'](result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -420,8 +422,8 @@ class verify_sig (__sig_base):
     def verify_if_valid (self):
 
         if self.pubkey and self.auth and self.msg:
-            result = self.pubkey.verify (self.msg, self.auth)
-            self.recvmethods['result'](result)
+            result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
+            self.recvmethods['result'](result.encode())
 
     def recv_msg (self, msg):
         super().recv_msg (msg)

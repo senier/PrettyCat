@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <config bytes="Off-the-record"/>
+        <flow sarg="const" sink="Branch message" darg="data"/>
+    </const>
+
+    <branch id="Branch message">
+        <description>
+            Branch input message
+        </description>
+        <flow sarg="data#1" sink="Hash" darg="data"/>
+        <flow sarg="data#2" sink="Verify" darg="data"/>
+        <flow sarg="data#3" sink="Compare" darg="data1"/>
+    </branch>
+
+    <hash id="Hash">
+        <description>
+            SHA1 Hash
+        </description>
+        <config algo="SHA"/>
+        <flow sarg="hash" sink="Verify" darg="hash"/>
+    </hash>
+
+    <verify_commit id="Verify">
+        <description>
+            Verify commitment
+        </description>
+        <config algo="SHA"/>
+        <flow sarg="data" sink="Compare" darg="data2"/>
+    </verify_commit>
+
+    <comp id="Compare">
+        <description>
+            Compare calculated with expected values
+        </description>
+        <flow sarg="result" sink="Check" darg="data"/>
+    </comp>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="True"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

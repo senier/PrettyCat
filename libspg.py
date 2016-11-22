@@ -460,13 +460,13 @@ class hash (SPG_base):
 
         algo = config.attrib['algo']
         if algo == "SHA":
-            self.hash = SHA.new ()
+            self.hashalgo = SHA
         elif algo == "SHA256":
-            self.hash = SHA256.new ()
+            self.hashalgo = SHA256
 
     def recv_data (self, data):
-        self.hash.update (data)
-        self.recvmethods['hash'](self.hash.digest())
+        h = self.hashalgo.new(data)
+        self.recvmethods['hash'](h.digest())
 
 class guard (SPG_base):
 
@@ -511,3 +511,19 @@ class rng (SPG_base):
 
     def recv_len (self, length):
         self.recvmethods['data'](Random.get_random_bytes(int(length)))
+
+class verify_commit (hash):
+
+    def __init__ (self, name, config):
+        super().__init__ (name, config)
+        self.hash = None
+
+    def recv_hash (self, data):
+        self.hash = data
+
+    def recv_data (self, data):
+        if self.hash:
+            h = self.hashalgo.new(data)
+            if h.digest() == self.hash:
+                self.recvmethods['data'](data)
+            self.hash = None

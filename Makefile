@@ -21,6 +21,10 @@ otr.dot: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
+otr.run: models/OTRrev3.spg spg.py
+	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@ --run
+	mv TEMP_$@ $@
+
 otr.graph: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@

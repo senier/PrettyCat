@@ -542,13 +542,15 @@ class Graph:
             if kind == "input" or kind == "output" or kind == "xform" or kind == "layout":
                 classname = G.node[node]['classname']
                 if classname != None:
-                    lib  = liblocal
                     name = kind + "_" + G.node[node]['classname']
 
             try:
-                libclass = getattr (lib, name)
+                libclass = getattr (libspg, name)
             except AttributeError:
-                raise PrimitiveNotImplemented (name)
+                try:
+                    libclass = getattr (liblocal, name)
+                except AttributeError:
+                    raise PrimitiveNotImplemented (name)
 
             classobj = libclass (node, G.node[node]['config'])
             G.node[node]['class'] = classobj

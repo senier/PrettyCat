@@ -22,7 +22,7 @@ class input_list (libspg.SPG_thread):
 
         time.sleep(self.delay)
         for v in self.values:
-            self.recvmethods['data'](v.encode())
+            self.send['data'](v.encode())
 
 class output_check_fixed (SPG_base):
 
@@ -45,7 +45,7 @@ class xform_get_random (SPG_base):
 
     def start (self):
         self.request_length = 597
-        self.recvmethods['len'](self.request_length)
+        self.send['len'](self.request_length)
 
     def recv_random (self, data):
         recvlen = len(data)

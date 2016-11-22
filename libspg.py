@@ -34,7 +34,10 @@ class SPG_base:
         self.config      = config
 
     def recvmethods (self, recvmethods):
-        self.recvmethods = recvmethods
+        self.recv = recvmethods
+
+    def sendmethods (self, sendmethods):
+        self.send = sendmethods
 
     def start (self): pass
     def join (self): pass
@@ -49,7 +52,10 @@ class SPG_thread (threading.Thread):
         self.config      = config
 
     def recvmethods (self, recvmethods):
-        self.recvmethods = recvmethods
+        self.recv = recvmethods
+
+    def sendmethods (self, sendmethods):
+        self.send = sendmethods
 
 class comp (SPG_base):
 
@@ -64,7 +70,7 @@ class comp (SPG_base):
             self.data1 = data
         else:
             result = 'True' if self.data2 == data else 'False'
-            self.recvmethods['result'](result.encode())
+            self.send['result'](result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -74,7 +80,7 @@ class comp (SPG_base):
             self.data2 = data
         else:
             result = 'True' if self.data1 == data else 'False'
-            self.recvmethods['result'](result.encode())
+            self.send['result'](result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -145,13 +151,13 @@ class encrypt (counter_mode):
             ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
             cipher = AES.new (self.key, AES.MODE_CBC, ctr)
             self.key_changed = False
-            self.recvmethods['ciphertext'](cipher.encrypt (self.pt))
+            self.send['ciphertext'](cipher.encrypt (self.pt))
             self.send_ctr(ctr)
 
 class encrypt_ctr (encrypt):
 
     def send_ctr(self, ctr):
-        self.recvmethods['ctr'](ctr)
+        self.send['ctr'](ctr)
 
 class decrypt (counter_mode):
 
@@ -182,7 +188,7 @@ class decrypt (counter_mode):
     def decrypt_if_valid (self):
         if self.ctr and self.key and self.ct:
             cipher = AES.new (self.key, AES.MODE_CBC, self.ctr.to_bytes (AES.block_size, byteorder='big'))
-            self.recvmethods['plaintext'](cipher.decrypt (self.ct))
+            self.send['plaintext'](cipher.decrypt (self.ct))
             self.ctr = None
 
 class output (SPG_base):
@@ -226,9 +232,9 @@ class input (SPG_thread):
     def run (self):
 
         while True:
-            if 'data' in self.recvmethods:
+            if 'data' in self.send:
                 data = self.conn.recv (self.bufsize)
-                self.recvmethods['data'](data)
+                self.send['data'](data)
 
 class const (SPG_base):
 
@@ -261,7 +267,7 @@ class const (SPG_base):
             raise Exception ("No value set for const '" + name + "'")
 
     def start (self):
-        self.recvmethods['const'](self.value)
+        self.send['const'](self.value)
 
 class branch (SPG_base):
 
@@ -269,8 +275,8 @@ class branch (SPG_base):
         super().__init__ (name, config)
 
     def recv_data (self, data):
-        for send_data in self.recvmethods:
-            self.recvmethods[send_data] (data)
+        for send_data in self.send:
+            self.send[send_data] (data)
 
 class dh (SPG_base):
     def __init__ (self, name, config):
@@ -295,7 +301,7 @@ class dhpub (dh):
 
     def calculate_if_valid (self):
         if self.generator and self.modulus and self.psec:
-            self.recvmethods['pub'] (pow(self.generator, self.psec, self.modulus))
+            self.send['pub'] (pow(self.generator, self.psec, self.modulus))
 
 class dhsec (dh):
 
@@ -310,7 +316,7 @@ class dhsec (dh):
             # (2) 1 == pub^q mod modulus for q = (modulus-1)/2
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
-                    self.recvmethods['ssec'] (pow(self.pub, self.psec, self.modulus))
+                    self.send['ssec'] (pow(self.pub, self.psec, self.modulus))
 
     def recv_pub (self, pub):
         self.pub = pub
@@ -328,7 +334,7 @@ class hmac (SPG_base):
 
         if self.key and self.msg:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.recvmethods['auth'](hmac.digest())
+            self.send['auth'](hmac.digest())
 
     def recv_msg (self, msg):
         self.msg = bytes(msg)
@@ -344,8 +350,8 @@ class hmac_out (hmac):
 
         if self.key and self.msg:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.recvmethods['auth'](hmac.digest())
-            self.recvmethods['msg'](self.msg)
+            self.send['auth'](hmac.digest())
+            self.send['msg'](self.msg)
 
 class verify_hmac (hmac):
 
@@ -358,7 +364,7 @@ class verify_hmac (hmac):
 
         if self.key and self.msg and self.auth:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.recvmethods['result'](hmac.digest() == self.auth)
+            self.send['result'](hmac.digest() == self.auth)
 
     def recv_auth (self, auth):
         self.key = auth
@@ -370,8 +376,8 @@ class verify_hmac_out (verify_hmac):
 
         if self.key and self.msg and self.auth:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.recvmethods['result'](hmac.digest() == self.auth)
-            self.recvmethods['msg'](self.msg)
+            self.send['result'](hmac.digest() == self.auth)
+            self.send['msg'](self.msg)
 
 class __sig_base (SPG_base):
 
@@ -404,7 +410,7 @@ class sign (__sig_base):
     def sign_if_valid (self):
         if self.privkey and self.pubkey and self.msg and self.rand:
             key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-            self.recvmethods['auth'](key.sign (self.msg, self.rand))
+            self.send['auth'](key.sign (self.msg, self.rand))
 
     def recv_privkey (self, privkey):
         self.privkey = int.from_bytes (privkey, byteorder='big')
@@ -432,7 +438,7 @@ class verify_sig (__sig_base):
 
         if self.pubkey and self.auth and self.msg:
             result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
-            self.recvmethods['result'](result.encode())
+            self.send['result'](result.encode())
 
     def recv_msg (self, msg):
         super().recv_msg (msg)
@@ -466,7 +472,7 @@ class hash (SPG_base):
 
     def recv_data (self, data):
         h = self.hashalgo.new(data)
-        self.recvmethods['hash'](h.digest())
+        self.send['hash'](h.digest())
 
 class guard (SPG_base):
 
@@ -479,17 +485,17 @@ class guard (SPG_base):
     def recv_data (self, data):
         self.data = data
         if self.cond:
-            self.recvmethods['data'](self.data)
+            self.send['data'](self.data)
 
     def recv_cond (self, cond):
         self.cond = cond
         if self.data:
-            self.recvmethods['data'](self.data)
+            self.send['data'](self.data)
 
 class release (SPG_base):
 
     def recv_data (self, data):
-        self.recvmethods['data'](data)
+        self.send['data'](data)
 
 class latch (SPG_base):
 
@@ -501,8 +507,8 @@ class latch (SPG_base):
     def recv_data (self, data):
         if self.data == None:
             self.data = data
-            self.recvmethods['trigger']('True'.encode())
-        self.recvmethods['data'](self.data)
+            self.send['trigger']('True'.encode())
+        self.send['data'](self.data)
 
 class rng (SPG_base):
 
@@ -510,7 +516,7 @@ class rng (SPG_base):
         super().__init__ (name, config)
 
     def recv_len (self, length):
-        self.recvmethods['data'](Random.get_random_bytes(int(length)))
+        self.send['data'](Random.get_random_bytes(int(length)))
 
 class verify_commit (hash):
 
@@ -525,5 +531,5 @@ class verify_commit (hash):
         if self.hash:
             h = self.hashalgo.new(data)
             if h.digest() == self.hash:
-                self.recvmethods['data'](data)
+                self.send['data'](data)
             self.hash = None

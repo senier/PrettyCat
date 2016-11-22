@@ -552,3 +552,11 @@ class verify_commit (hash):
             if h.digest() == self.hash:
                 self.send['data'](data)
             self.hash = None
+
+class xform_concat (SPG_xform):
+
+    def finish (self):
+        result = bytearray()
+        for a in self.arguments:
+            result.extend(bytearray(self.args["recv_" + a]))
+        self.send['data'](result)

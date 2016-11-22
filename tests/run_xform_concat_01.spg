@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Data1">
+        <description>
+            Left value
+        </description>
+        <config bytes="foobar"/>
+        <flow sarg="const" sink="Concat" darg="left"/>
+    </const>
+
+    <const id="Data2">
+        <description>
+            Left value
+        </description>
+        <config bytes="baz"/>
+        <flow sarg="const" sink="Concat" darg="right"/>
+    </const>
+
+    <xform id="Concat" code="concat">
+        <description>
+            Branch same value into comparator
+        </description>
+        <config string="baz"/>
+        <flow sarg="data" sink="Check" darg="data"/>
+        <arg name="left"/>
+        <arg name="right"/>
+    </xform>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether comparison yields true
+        </description>
+        <config result="foobarbaz"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

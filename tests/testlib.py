@@ -5,9 +5,9 @@ import time
 
 class input_list (libspg.SPG_thread):
 
-    def __init__ (self, name, config):
+    def __init__ (self, name, config, arguments):
 
-        super().__init__ (name, config)
+        super().__init__ (name, config, arguments)
 
         if not 'data' in config.attrib:
             raise Exception ("No input data configured")
@@ -26,9 +26,9 @@ class input_list (libspg.SPG_thread):
 
 class output_check_fixed (SPG_base):
 
-    def __init__ (self, name, config):
+    def __init__ (self, name, config, arguments):
 
-        super().__init__ (name, config, needconfig = True)
+        super().__init__ (name, config, arguments, needconfig = True)
 
         if not 'result' in config.attrib:
             raise Exception ("No result set for output check")

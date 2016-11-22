@@ -30,8 +30,9 @@ class SPG_base:
         if needconfig and config == None:
             raise Exception ("Missing config for " + name)
 
-        self.name        = name
-        self.config      = config
+        self.name      = name
+        self.config    = config
+        self.arguments = arguments
 
     def recvmethods (self, recvmethods):
         self.recv = recvmethods
@@ -48,8 +49,9 @@ class SPG_thread (threading.Thread):
     def __init__ (self, name, config, arguments):
 
         super().__init__ ()
-        self.name        = name
-        self.config      = config
+        self.name      = name
+        self.config    = config
+        self.arguments = arguments
 
     def recvmethods (self, recvmethods):
         self.recv = recvmethods

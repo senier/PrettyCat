@@ -58,7 +58,7 @@
     
     <output id="Check hash" code="check_fixed">
         <description>
-            Check whether has was OK
+            Check whether hash was OK
         </description>
         <config result="True"/>
         <arg name="data"/>

@@ -385,10 +385,11 @@ class verify_hmac (hmac):
 
         if self.key and self.msg and self.auth:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.send['result'](hmac.digest() == self.auth)
+            result = 'True' if hmac.digest() == self.auth else 'False'
+            self.send['result'](result.encode())
 
     def recv_auth (self, auth):
-        self.key = auth
+        self.auth = auth
         self.calculate_if_valid ()
 
 class verify_hmac_out (verify_hmac):
@@ -397,7 +398,8 @@ class verify_hmac_out (verify_hmac):
 
         if self.key and self.msg and self.auth:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.send['result'](hmac.digest() == self.auth)
+            result = 'True' if hmac.digest() == self.auth else 'False'
+            self.send['result'](result.encode())
             self.send['msg'](self.msg)
 
 class __sig_base (SPG_base):

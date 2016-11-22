@@ -33,13 +33,15 @@ class output_check_fixed (SPG_base):
         if not 'result' in config.attrib:
             raise Exception ("No result set for output check")
 
+        libspg.exitval = 1
         self.values = [x.strip() for x in config.attrib['result'].split(',')]
 
     def recv_data (self, data):
         value = self.values.pop().encode()
-        if data != value:
-            warn ("Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
-            libspg.exitval = 1
+        if data == value:
+            libspg.exitval = 0
+        else:
+            warn ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
 
 class xform_get_random (SPG_base):
 

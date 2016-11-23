@@ -91,6 +91,7 @@ class comp (SPG_base):
             self.data1 = data
         else:
             result = 'True' if self.data2 == data else 'False'
+            #print ("Comp: " + str(self.data2) + " vs. " + str(data))
             self.send['result'](result.encode())
             self.data1 = None
             self.data2 = None
@@ -101,6 +102,7 @@ class comp (SPG_base):
             self.data2 = data
         else:
             result = 'True' if self.data1 == data else 'False'
+            #print ("Comp: " + str(self.data1) + " vs. " + str(data))
             self.send['result'](result.encode())
             self.data1 = None
             self.data2 = None
@@ -420,6 +422,10 @@ class __sig_base (SPG_base):
         (q, pubkey) = decode_mpi (pubkey)
         (g, pubkey) = decode_mpi (pubkey)
         (y, pubkey) = decode_mpi (pubkey)
+
+        if not p or not q or not g or not y:
+            raise Exception ("Invalid pubkey")
+
         self.pubkey = DSA.construct ((y, g, p, q))
 
 class sign (__sig_base):
@@ -433,10 +439,14 @@ class sign (__sig_base):
     def sign_if_valid (self):
         if self.privkey and self.pubkey and self.msg and self.rand:
             key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-            self.send['auth'](key.sign (self.msg, self.rand))
+            signature = key.sign (self.msg, self.rand)
+            r = signature[0].to_bytes(20, byteorder='big')
+            s = signature[1].to_bytes(20, byteorder='big')
+            self.send['auth'](r + s)
 
     def recv_privkey (self, privkey):
         self.privkey = int.from_bytes (privkey, byteorder='big')
+        self.sign_if_valid ()
 
     def recv_msg (self, msg):
         super().recv_msg (msg)
@@ -447,18 +457,16 @@ class sign (__sig_base):
         self.sign_if_valid ()
 
     def recv_rand (self, rand):
-        self.rand = int.from_bytes(rand, byteorder='big')
+        self.rand = bytes(rand)
         self.sign_if_valid ()
 
 class verify_sig (__sig_base):
 
     def __init__ (self, name, config, arguments):
         super().__init__ (name, config, arguments)
-
         self.auth = None
 
     def verify_if_valid (self):
-
         if self.pubkey and self.auth and self.msg:
             result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
             self.send['result'](result.encode())
@@ -472,12 +480,11 @@ class verify_sig (__sig_base):
         self.verify_if_valid ()
 
     def recv_auth (self, auth):
-
         siglen = int(len(auth)/2)
         r = int.from_bytes(auth[0:siglen], byteorder='big')
         s = int.from_bytes(auth[siglen:], byteorder='big')
         self.auth = (r, s)
-        self.verify_if_valid()
+        self.verify_if_valid ()
 
 class hash (SPG_base):
 

@@ -4,8 +4,8 @@ clean:
 	rm -f otr.svg tests/*.svg tests/*.run *.graph TEMP_*
 	rm -rf __pycache__
 
-TESTS = $(wildcard tests/*.spg)
 RUNS  = $(wildcard tests/run_*.spg)
+TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
 
 #SPG_ARGS = --dump
 
@@ -29,8 +29,11 @@ otr.graph: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
-tests:: $(sort $(TESTS:.spg=.svg)) $(sort $(RUNS:.spg=.run))
+tests:: $(sort $(TESTS:.spg=.svg))
 	@echo "$(words $^) TESTS DONE."
+
+run:: $(sort $(RUNS:.spg=.run))
+	@echo "$(words $^) RUNS DONE."
 
 tests/%.svg: tests/%.spg spg.py
 	@echo "=== Graph $@"

@@ -14,8 +14,15 @@
             Branch input message
         </description>
         <flow sarg="data#1" sink="Hash" darg="data"/>
-        <flow sarg="data#2" sink="Verify" darg="data"/>
+        <flow sarg="data#2" sink="Branch message 2" darg="data"/>
         <flow sarg="data#3" sink="Compare" darg="data1"/>
+    </branch>
+
+    <branch id="Branch message 2">
+        <description>
+            Branch input message to delay it
+        </description>
+        <flow sarg="data" sink="Verify" darg="data"/>
     </branch>
 
     <hash id="Hash">

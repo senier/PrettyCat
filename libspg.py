@@ -571,3 +571,16 @@ class xform_concat (SPG_xform):
         for a in self.arguments:
             result.extend(bytearray(self.args["recv_" + a]))
         self.send['data'](result)
+
+class xform_prefix (SPG_xform):
+    def finish (self):
+        if len(self.args) != 1:
+            raise Exception ("Prefix must only have one input argument")
+
+        if not 'len' in self.config.attrib:
+            raise Exception ("No length configured for " + self.name)
+
+        length = int(self.config.attrib['len'])
+
+        for a in self.args:
+            self.send['data'](bytes(self.args[a])[0:length])

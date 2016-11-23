@@ -9,6 +9,10 @@ from Crypto import Random
 exitval = 0
 quiet = 0
 
+class NotImplemented (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Not implemented: " + text)
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
@@ -46,7 +50,10 @@ class SPG_base:
 
 class SPG_thread (threading.Thread):
 
-    def __init__ (self, name, config, arguments):
+    def __init__ (self, name, config, arguments, needconfig = False):
+
+        if needconfig and config == None:
+            raise Exception ("Missing config for " + name)
 
         super().__init__ ()
         self.name      = name

@@ -85,6 +85,7 @@
         <description>
             Public key
         </description>
+        <config hexbytes="0000008080000000000000229cac14cdce2a3370141d0e1dcb8fa5820c4b0cd9994d33f5baca6e611eed7acf7b294260021ca6b01fa59c48c1d0ef052029a6a85513c35a7c5a6cd08da7c0b30dee2369f2599731e1431d1b84630708ce0ed251e7053b6176290f4c8f4bac08254b5f6ccd04b56147701823b679c6c81ff328d9ee8d2fe700000014f15bc6eaad1f0f58fcae7530c4ada70371ac70c100000080359280e0063ebe9ece613207c4ef294abe082ae40c72b9c87f9ca88a2e8b0a7ad69db512bfb63bb155797ea6884e3ab82d40fff9cb8f028e520dbf0a9f902f4c02cd670aea11531f071477ce777f37b84e3b4b1ed7f661466cf585c62511f7a636c1a22bd4cb82ed6cdf507b9f7071779eed21d59e2685b40162790fe1e5b4ab000000805b1b255518e3a6edda4ff34301fc875e9071f53c6f651b4539321e63c2f58296271f8c45080131baf6f66688be6c0e9223f3a2d641ad047fafbfb2851e517046df3d4527e9e23bd5d5753696c782a8b984cf12a76dbb9fab8e2649d3d5caeda69a720daa18728a5f28c764ada5d33ee9cd1e303581af26e60f186018f7cd25b6"/>
         <flow sarg="const" sink="Branch pub const" darg="data">
             <assert integrity="true">
                 Public key by its nature is not confidential, but
@@ -110,6 +111,7 @@
         <description>
             Private part of DSA key
         </description>
+        <config hexbytes="deadc0de"/>
         <flow sarg="const" sink="Branch priv const" darg="data">
             <assert confidentiality="true" integrity="true">
                 Private key must be confidential and must not be chosen
@@ -139,6 +141,7 @@
         <description>
             Constant signaling successful key exchange.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Branch State encrypted const" darg="data">
             <assert integrity="true">
                 This indicate successful key exchange which the user will
@@ -217,6 +220,7 @@
         <description>
             Prefix b to calculate ssid, value 0x00
         </description>
+        <config hexbytes="00"/>
         <flow sarg="const" sink="Concat ssid" darg="b">
             <assert integrity="true">
                 Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
@@ -242,6 +246,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Trim ssid" darg="ssid">
             <assert integrity="true">
                 Attacker must not choose ssid, as she could impersonate a connection
@@ -272,6 +277,7 @@
         <description>
             Prefix b to calculate c and c', value 0x01
         </description>
+        <config hexbytes="01"/>
         <flow sarg="const" sink="Concat c" darg="b">
             <assert integrity="true">
                 Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
@@ -299,6 +305,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Split c" darg="c">
             <assert confidentiality="true" integrity="true">
                 Encryption key must not be chosen or known by an attacker. 
@@ -315,6 +322,15 @@
             <first int="128"/>
             <second int="128"/>
         </config>
+        <flow sarg="first" sink="Branch c" darg="data"/>
+        <flow sarg="second" sink="Branch c'" darg="data"/>
+        <arg name="c"/>
+    </xform>
+
+    <branch id="Branch c">
+        <description>
+            Branch c to encrypt/decrypt
+        </description>
         <flow sarg="c#1"  sink="Encrypt X_B" darg="key">
             <assert confidentiality="true" integrity="true">
                 Encryption key must not be chosen or known by an attacker. 
@@ -326,6 +342,12 @@
                 does not harm confidentiality.
             </assert>
         </flow>
+    </branch>
+
+    <branch id="Branch c'">
+        <description>
+            Branch c' to encrypt/decrypt
+        </description>
         <flow sarg="c'#1" sink="Encrypt X_A" darg="key">
             <assert confidentiality="true" integrity="true">
                 Encryption key must not be chosen or known by an attacker. 
@@ -337,13 +359,13 @@
                 does not harm confidentiality.
             </assert>
         </flow>
-        <arg name="c"/>
-    </xform>
+    </branch>
 
     <const id="Prefix m1">
         <description>
             Prefix b to calculate m1, value 0x02
         </description>
+        <config hexbytes="02"/>
         <flow sarg="const" sink="Concat m1" darg="b">
             <assert integrity="true">
                 Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
@@ -369,6 +391,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Branch Hash m1" darg="data">
             <assert integrity="true" confidentiality="true">
                 Attacker must not learn nor choose key.
@@ -396,6 +419,7 @@
         <description>
             Prefix b to calculate m2, value 0x03
         </description>
+        <config hexbytes="03"/>
         <flow sarg="const" sink="Concat m2" darg="b">
             <assert integrity="true">
                 Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
@@ -421,6 +445,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Branch Hash m2 hash" darg="data">
             <assert integrity="true" confidentiality="true">
                 Attacker must not learn nor choose key.
@@ -448,6 +473,7 @@
         <description>
             Prefix b to calculate m1', value 0x04
         </description>
+        <config hexbytes="04"/>
         <flow sarg="const" sink="Concat m1'" darg="b">
             <assert integrity="true">
                 Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
@@ -469,6 +495,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Branch Hash m1' hash" darg="data"/>
     </hash>
 
@@ -484,6 +511,7 @@
         <description>
             Prefix b to calculate m2', value 0x05
         </description>
+        <config hexbytes="05"/>
         <flow sarg="const" sink="Concat m2'" darg="b">
             <assert integrity="true">
                 Attacker must not be able to to choose prefix used in KDF (FIXME: Why?)
@@ -505,6 +533,7 @@
             For a given byte b, define h2(b) to be the 256-bit output of the SHA256
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="Branch Hash m2' hash" darg="data"/>
     </hash>
 
@@ -537,6 +566,7 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
+        <config int="3"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="protocol_version"/>
     </const>
 
@@ -544,6 +574,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
+        <config int="2"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="message_type"/>
     </const>
 
@@ -551,6 +582,8 @@
         <description>
             The instance tag of the person sending this message.
         </description>
+        <!-- FIXME: This should be dynamic in the future -->
+        <config int="42"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -559,6 +592,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -567,6 +601,7 @@
             Counter for encrypting g^x. As the x is random, this is
             always zero.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Encrypt g^x (S)" darg="ctr"/>
     </const>
 
@@ -575,6 +610,7 @@
             Implement a commitment scheme by encrypting the intiators public
             Diffie-Hellman value g^x with a random key r.
         </description>
+        <config keylen="128"/>
         <flow sarg="ciphertext" sink="D-H Commit (S)" darg="encrypted_g^x"/>
     </encrypt>
 
@@ -583,6 +619,7 @@
             Length of the Diffie-Hellman exponent x.
             At least 320 bits for OTR v3.
         </description>
+        <config int="320"/>
         <flow sarg="const" sink="Random x (S)" darg="len">
             <assert integrity="true">
                 Secret may be too short if length of key is chosen by attacker
@@ -647,6 +684,7 @@
         <description>
             Length of the commitment key r. For OTR v3 this is 128 bit.
         </description>
+        <config int="128"/>
         <flow sarg="const" sink="Random r (S)" darg="len">
             <assert integrity="true">
                 Secret may be too short if length of key is chosen by attacker
@@ -692,6 +730,7 @@
         <description>
             SHA256 hash of the encoded gxmpi value.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="hash" sink="D-H Commit (S)" darg="hashed_g^x"/>
     </hash>
 
@@ -726,6 +765,7 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
+        <config int="3"/>
         <flow sarg="const" sink="D-H Key (S)" darg="protocol_version"/>
     </const>
 
@@ -733,6 +773,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
+        <config int="2"/>
         <flow sarg="const" sink="D-H Key (S)" darg="message_type"/>
     </const>
 
@@ -740,6 +781,8 @@
         <description>
             The instance tag of the person sending this message.
         </description>
+        <!-- FIXME: This should be dynamic in the future! -->
+        <config int="42"/>
         <flow sarg="const" sink="D-H Key (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -748,6 +791,8 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
+        <!-- FIXME: This should be dynamic in the future! -->
+        <config int="0"/>
         <flow sarg="const" sink="D-H Key (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -756,6 +801,7 @@
             Length of the Diffie-Hellman exponent y.
             At least 320 bits for OTR v3.
         </description>
+        <config int="320"/>
         <flow sarg="const" sink="Random y (S)" darg="len">
             <assert integrity="true">
                 Secret may be too short if length of key is chosen by attacker
@@ -850,6 +896,7 @@
         <description>
             Modulus for D-H operations
         </description>
+        <config hexbytes="FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"/>
         <flow sarg="const" sink="Branch modulus" darg="data"/>
     </const>
 
@@ -869,6 +916,7 @@
         <description>
             Generator for D-H operations
         </description>
+        <config int="2"/>
         <flow sarg="const" sink="Branch generator" darg="data"/>
     </const>
 
@@ -925,6 +973,7 @@
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
+        <config int="3"/>
         <flow sarg="const" sink="Signature (S)" darg="protocol_version"/>
     </const>
 
@@ -932,6 +981,7 @@
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
+        <config hex="0x12"/>
         <flow sarg="const" sink="Signature (S)" darg="message_type"/>
     </const>
 
@@ -939,6 +989,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
+        <config int="42"/>
         <flow sarg="const" sink="Signature (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -947,6 +998,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -955,6 +1007,7 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
+        <config int="1"/>
         <flow sarg="const" sink="Branch keyid A const" darg="data"/>
     </const>
 
@@ -1015,6 +1068,7 @@
         <description>
             Counter for encrypting X_A. Initial counter value 0.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Encrypt X_A" darg="ctr"/>
     </const>
 
@@ -1022,6 +1076,7 @@
         <description>
             Encrypt X_A using AES128-CTR with key c and initial counter value 0.
         </description>
+        <config keylen="128"/>
         <flow sarg="ciphertext" sink="Branch Encrypt X_A ciphertext" darg="data"/>
     </encrypt>
 
@@ -1085,6 +1140,7 @@
         <description>
             Counter for decrypting X_A. Initial value is 0.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Decrypt X_A" darg="ctr"/>
     </const>
 
@@ -1093,6 +1149,7 @@
             Decrypt X_A received in Signature Message using
             AES128-CTR with key c' and initial counter value 0.
         </description>
+        <config keylen="128"/>
         <flow sarg="plaintext" sink="Split X_A" darg="X_A"/>
     </decrypt>
 
@@ -1173,6 +1230,7 @@
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
+        <config int="3"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="protocol_version"/>
     </const>
 
@@ -1180,6 +1238,7 @@
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
+        <config hex="0x11"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="message_type"/>
     </const>
 
@@ -1187,6 +1246,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
+        <config int="42"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -1195,6 +1255,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -1203,6 +1264,7 @@
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
         </description>
+        <config int="1"/>
         <flow sarg="const" sink="Branch keyid B keyid" darg="data"/>
     </const>
 
@@ -1245,6 +1307,7 @@
         <description>
             Length of DSA per-message keys
         </description>
+        <config int="20"/>
         <flow sarg="const" sink="Branch DSA keylen" darg="data"/>
     </const>
 
@@ -1285,6 +1348,7 @@
         <description>
             Counter for encrypting X_B. Initial counter value 0.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Encrypt X_B" darg="ctr"/>
     </const>
 
@@ -1292,6 +1356,7 @@
         <description>
             Encrypt X_B using AES128-CTR with key c and initial counter value 0.
         </description>
+        <config keylen="128"/>
         <flow sarg="ciphertext" sink="Branch Encrypt X_B ciphertext" darg="data"/>
     </encrypt>
 
@@ -1344,6 +1409,7 @@
         <description>
             Counter for decrypting g^x. This is always zero.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Decrypt g^x" darg="ctr"/>
     </const>
 
@@ -1352,6 +1418,7 @@
             Use the received value of r to decrypt the value of g^x
             received in the D-H Commit Message
         </description>
+        <config keylen="128"/>
         <flow sarg="plaintext" sink="Branch Decrypt g^x plaintext" darg="data"/>
     </decrypt>
 
@@ -1370,6 +1437,7 @@
             Check that the hash of decrypted g^x matches the value of the
             hashed g^x sent in D-H Commit message.
         </description>
+        <config algo="SHA256"/>
         <flow sarg="data" sink="Branch Verify g^x (R) data" darg="data"/>
     </verify_commit>
 
@@ -1399,6 +1467,7 @@
         <description>
             Counter for decrypting X_B. Initial value is 0.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Decrypt X_B" darg="ctr"/>
     </const>
 
@@ -1407,6 +1476,7 @@
             Decrypt X_B received in Reveal Signature Message using
             AES128-CTR with key c and initial counter value 0.
         </description>
+        <config keylen="128"/>
         <flow sarg="plaintext" sink="Split X_B (R)" darg="X_B"/>
     </decrypt>
 
@@ -1493,6 +1563,7 @@
             Lenght of the Diffie-Hellmen exponent y.
             At least 320 bits for OTR v3.
         </description>
+        <config int="320"/>
         <flow sarg="const" sink="Random y (M)" darg="len">
             <assert integrity="true">
                 Secret may be too short if length of key is chosen by attacker
@@ -1656,6 +1727,7 @@
             The 160-bit output of the SHA-1 hash of the (5+len)
             bytes consisting of the byte b, followed by secbytes
         </description>
+        <config algo="SHA"/>
         <flow sarg="hash" sink="Truncate sending enc key (M)" darg="data"/>
     </hash>
 
@@ -1675,6 +1747,7 @@
         <description>
             The 20-byte SHA-1 hash of the 16-byte sending AES key.
         </description>
+        <config algo="SHA"/>
         <flow sarg="hash" sink="Calculate authenticator (M)" darg="key"/>
     </hash>
 
@@ -1700,6 +1773,7 @@
         <description>
             Initial value for counter to encrypt data message. Must not be 0.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Encrypt (M)" darg="ctr"/>
     </const>
 
@@ -1708,6 +1782,7 @@
             Perform AES128 counter-mode encryption of the message using
             the most recent D-H encryption keys.
         </description>
+        <config keylen="128"/>
         <flow sarg="ciphertext" sink="Branch Encrypt (M) ciphertext" darg="data"/>
         <flow sarg="ctr" sink="Branch Counter (M) ctr" darg="data"/>
     </encrypt_ctr>
@@ -1763,6 +1838,7 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
+        <config int="3"/>
         <flow sarg="const" sink="Branch Data Protocol Version (M) const" darg="data"/>
     </const>
 
@@ -1778,6 +1854,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
+        <config hex="0x03"/>
         <flow sarg="const" sink="Branch Data Message Type (M) const" darg="data"/>
     </const>
 
@@ -1793,6 +1870,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
+        <config int="42"/>
         <flow sarg="const" sink="Branch Data Sender Instance Tag (M) const" darg="data"/>
     </const>
 
@@ -1809,6 +1887,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Branch Data Receiver Instance Tag (M) const" darg="data"/>
     </const>
 
@@ -1824,6 +1903,7 @@
         <description>
             The bitwise-OR of the flags for this message.
         </description>
+        <config int="0"/>
         <flow sarg="const" sink="Branch Data Flags (M) const" darg="data"/>
     </const>
 
@@ -1870,6 +1950,7 @@
             The 160-bit output of the SHA-1 hash of the (5+len)
             bytes consisting of the byte b, followed by secbytes
         </description>
+        <config algo="SHA"/>
         <flow sarg="hash" sink="Truncate receiving enc key (M)" darg="data"/>
     </hash>
 
@@ -1889,6 +1970,7 @@
         <description>
             The 20-byte SHA-1 hash of the 16-byte sending AES key.
         </description>
+        <config algo="SHA"/>
         <flow sarg="hash" sink="Branch Derive receiving MAC key (M) hash" darg="data"/>
     </hash>
 
@@ -1975,6 +2057,7 @@
         <description>
             Decrypt the message using the receiving encryption key.
         </description>
+        <config keylen="128"/>
         <flow sarg="plaintext" sink="User_Output" darg="data"/>
     </decrypt>
 

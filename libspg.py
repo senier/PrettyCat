@@ -591,3 +591,20 @@ class xform_prefix (SPG_xform):
 
         for a in self.args:
             self.send['data'](bytes(self.args[a])[0:length])
+
+class xform_split (SPG_xform):
+
+    def finish (self):
+
+        if len(self.args) != 1:
+            raise Exception ("Split expects only one input")
+
+        data   = self.args['recv_data']
+        length = len(data)
+
+        if length % 2 != 0:
+            raise Exception ("Split expects even number of input bytes")
+
+        middle = length // 2
+        self.send['left'] (data[0:middle])
+        self.send['right'] (data[middle:])

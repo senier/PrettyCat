@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Data">
+        <description>
+            Data
+        </description>
+        <config bytes="foobar"/>
+        <flow sarg="const" sink="Split" darg="data"/>
+    </const>
+
+    <xform id="Split" code="split">
+        <description>
+            Split on value into two
+        </description>
+        <flow sarg="left"  sink="Check_Left" darg="data"/>
+        <flow sarg="right" sink="Check_Right" darg="data"/>
+        <arg name="data"/>
+    </xform>
+
+    <output id="Check_Left" code="check_fixed">
+        <description>
+            Check whether comparison yields first part of data
+        </description>
+        <config result="foo"/>
+        <arg name="data"/>
+    </output>
+
+    <output id="Check_Right" code="check_fixed">
+        <description>
+            Check whether comparison yields second part of data
+        </description>
+        <config result="bar"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

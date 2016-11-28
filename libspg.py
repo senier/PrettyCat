@@ -592,6 +592,12 @@ class xform_prefix (SPG_xform):
         for a in self.args:
             self.send['data'](bytes(self.args[a])[0:length])
 
+class xform_mpi (SPG_xform):
+
+    def recv_data (self, data):
+        length = (data.bit_length() // 8) + 1
+        self.send['data'] (length.to_bytes (4, byteorder='big') + data.to_bytes (length, byteorder='big'))
+
 class xform_split (SPG_xform):
 
     def finish (self):

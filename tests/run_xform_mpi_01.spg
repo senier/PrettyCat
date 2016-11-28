@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Data">
+        <description>
+            Data
+        </description>
+        <config int="543245544565454654"/>
+        <flow sarg="const" sink="Serialize" darg="data"/>
+    </const>
+
+    <xform id="Serialize" code="mpi">
+        <description>
+            Serialize integer
+        </description>
+        <flow sarg="data"  sink="Check" darg="data"/>
+        <arg name="data"/>
+    </xform>
+
+    <output id="Check" code="check_fixed">
+        <description>
+            Check whether MPI is correct
+        </description>
+        <config hexresult="000000080789fef1cda3373e"/>
+        <arg name="data"/>
+    </output>
+
+</spg>
+

@@ -30,14 +30,17 @@ class output_check_fixed (SPG_base):
 
         super().__init__ (name, config, arguments, needconfig = True)
 
-        if not 'result' in config.attrib:
+        if 'result' in config.attrib:
+            self.values = [x.strip().encode() for x in config.attrib['result'].split(',')]
+        elif 'hexresult' in config.attrib:
+            self.values = [bytearray.fromhex (x.strip()) for x in config.attrib['hexresult'].split(',')]
+        else:
             raise Exception ("No result set for output check")
 
         libspg.exitval = 1
-        self.values = [x.strip() for x in config.attrib['result'].split(',')]
 
     def recv_data (self, data):
-        value = self.values.pop().encode()
+        value = self.values.pop()
         if data == value:
             libspg.exitval = 0
         else:

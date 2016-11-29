@@ -23,9 +23,20 @@ def info (message):
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
 
+def decode_data (data):
+    length = int.from_bytes (data[0:4], byteorder='big')
+    return (data[4:4+length], data[4+length:])
+
 def decode_mpi (mpi):
-    length = int.from_bytes (mpi[0:4], byteorder='big')
-    return (int.from_bytes (mpi[4:4+length], byteorder='big'), mpi[4+length:])
+    (data, remainder) = decode_data (mpi)
+    return (int.from_bytes (data, byteorder='big'), remainder)
+
+def decode_pubkey (pubkey):
+    (p, pubkey) = decode_mpi (pubkey)
+    (q, pubkey) = decode_mpi (pubkey)
+    (g, pubkey) = decode_mpi (pubkey)
+    (y, pubkey) = decode_mpi (pubkey)
+    return (p, q, g, y, pubkey)
 
 class SPG_base:
 
@@ -425,11 +436,7 @@ class __sig_base (SPG_base):
 
     def recv_pubkey (self, pubkey):
 
-        (p, pubkey) = decode_mpi (pubkey)
-        (q, pubkey) = decode_mpi (pubkey)
-        (g, pubkey) = decode_mpi (pubkey)
-        (y, pubkey) = decode_mpi (pubkey)
-
+        (p, q, g, y, dummy) = decode_pubkey (pubkey)
         if not p or not q or not g or not y:
             raise Exception ("Invalid pubkey")
 

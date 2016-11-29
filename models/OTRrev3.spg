@@ -641,7 +641,7 @@
         </description>
         <flow sarg="data#1" sink="Calculate g^x (S)" darg="psec"/>
         <flow sarg="data#2" sink="Shared secret (R)" darg="psec"/>
-        <flow sarg="data#3" sink="Join secret key (M)" darg="initiator_psec"/>
+        <flow sarg="data#3" sink="Select secret key (M)" darg="initiator_psec"/>
     </branch>
 
     <dhpub id="Calculate g^x (S)">
@@ -660,7 +660,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^x (S)" darg="data"/>
-        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="initiator_pub_local"/>
+        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="initiator_pub_local"/>
     </branch>
 
     <xform id="Serialize g^x (S)" code="mpi">
@@ -823,7 +823,7 @@
         </description>
         <flow sarg="data#1" sink="Calculate g^y (S)" darg="psec"/>
         <flow sarg="data#2" sink="Shared secret (S)" darg="psec"/>
-        <flow sarg="data#3" sink="Join secret key (M)" darg="responder_psec"/>
+        <flow sarg="data#3" sink="Select secret key (M)" darg="responder_psec"/>
     </branch>
 
     <dhpub id="Calculate g^y (S)">
@@ -842,7 +842,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (S)" darg="data"/>
-        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="responder_pub_local"/>
+        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="responder_pub_local"/>
     </branch>
 
     <xform id="Serialize g^y (S)" code="mpi">
@@ -883,8 +883,8 @@
             Branch g^y
         </description>
         <flow sarg="g^y#1" sink="Shared secret (R)" darg="pub"/>
-        <flow sarg="g^y#2" sink="Layout M_B (S)" darg="uncontrolled"/>
-        <flow sarg="g^y#3" sink="Layout M_A (R)" darg="uncontrolled"/>
+        <flow sarg="g^y#2" sink="Concat M_B (S)" darg="g^y"/>
+        <flow sarg="g^y#3" sink="Concat M_A (R)" darg="g^y"/>
         <flow sarg="g^y#4" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
     </branch>
 
@@ -1022,7 +1022,7 @@
         </description>
         <flow sarg="M_B Input" sink="HMAC M_A (S)" darg="msg"/>
         <arg name="g^y"/>
-        <arg name="g^x"/>
+        <arg name="g^x" controlled="true"/>
         <arg name="pub"/>
         <arg name="keyid"/>
     </xform>
@@ -1165,19 +1165,12 @@
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="M_A Input" sink="Layout M_A (R)" darg="controlled"/>
+        <flow sarg="data" sink="HMAC M_A (R)" darg="msg"/>
+        <arg name="g^y" controlled="true"/>
         <arg name="g^x"/>
         <arg name="pub"/>
         <arg name="keyid"/>
     </xform>
-
-    <layout id="Layout M_A (R)" code="layout_m">
-        <description>
-            Compute the 32-byte value M_A to be the SHA256-HMAC of the following
-            data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
-        </description>
-        <flow sarg="data" sink="HMAC M_A (R)" darg="msg"/>
-    </layout>
 
     <hmac id="HMAC M_A (R)">
         <description>
@@ -1277,19 +1270,12 @@
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="controlled" sink="Layout M_B (S)" darg="controlled"/>
+        <flow sarg="data" sink="HMAC M_B (S)" darg="msg"/>
         <arg name="g^x"/>
+        <arg name="g^y" controlled="true"/>
         <arg name="pub"/>
         <arg name="keyid"/>
     </xform>
-
-    <layout id="Layout M_B (S)" code="layout_m">
-        <description>
-            Compute the 32-byte value M_B to be the SHA256-HMAC of the following
-            data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
-        </description>
-        <flow sarg="data" sink="HMAC M_B (S)" darg="msg"/>
-    </layout>
 
     <hmac id="HMAC M_B (S)">
         <description>
@@ -1541,9 +1527,9 @@
             Picks the most recent D-H encryption key received from the remote
             party, either in a Data Message or in the AKE.
         </description>
-        <flow sarg="current_key" sink="Select secret key (M)" darg="uncontrolled"/>
+        <flow sarg="current_key" sink="Select secret key (M)" darg="current_key"/>
         <flow sarg="pub#1" sink="Shared secret (M)" darg="pub"/>
-        <flow sarg="pub#2" sink="Determine end (M)" darg="uncontrolled"/>
+        <flow sarg="pub#2" sink="Determine end (M)" darg="pub_remote"/>
         <arg name="initiator_remote_pub"/>
         <arg name="responder_remote_pub"/>
         <arg name="pub_remote"/>
@@ -1583,7 +1569,7 @@
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Calculate next D-H key (M)" darg="psec"/>
-        <flow sarg="data#2" sink="Join secret key (M)" darg="data_psec"/>
+        <flow sarg="data#2" sink="Select secret key (M)" darg="data_psec"/>
     </branch>
 
     <dhpub id="Calculate next D-H key (M)">
@@ -1598,7 +1584,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (M)" darg="data"/>
-        <flow sarg="pub#2" sink="Join local pubkeys (M)" darg="pub_local"/>
+        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="pub_local"/>
     </branch>
     
     <xform id="Serialize g^y (M)" code="mpi">
@@ -1610,53 +1596,22 @@
         <arg name="data"/>
     </xform>
 
-    <xform id="Join local pubkeys (M)" code="concat">
-        <description>
-            Pass all potential local pubkeys to layout component.
-            FIXME: This component exists due to a limitation in 
-            the design of the layout comonent. It will be removed
-            as soon as composites are implemented.
-        </description>
-        <flow sarg="data" sink="Select local pubkey (M)" darg="controlled"/>
-        <arg name="pub_local"/>
-        <arg name="responder_pub_local"/>
-        <arg name="initiator_pub_local"/>
-    </xform>
-
-    <layout id="Select local pubkey (M)" code="select_local_pubkey">
+    <xform id="Select local pubkey (M)" code="select_local_pubkey">
         <description>
             Picks the most recent local D-H encryption key remote side
             has acknowledged receiving by using it in a Data Message
             or, failing that, in the AKE.
         </description>
-        <flow sarg="data" sink="Split local pubkey (M)" darg="data"/>
-    </layout>
-
-    <xform id="Split local pubkey (M)" code="split_local_pubkeys">
-        <description>
-            Split public keys and key IDs received from layout
-            component.
-            FIXME: This component exists due to a limitation in 
-            the design of the layout comonent. It will be removed
-            as soon as composites are implemented.
-        </description>
-        <flow sarg="pub" sink="Determine end (M)" darg="controlled"/>
+        <flow sarg="pub" sink="Determine end (M)" darg="pub_local"/>
         <flow sarg="sender_keyid#1" sink="Data (S)" darg="sender_keyid"/>
         <flow sarg="sender_keyid#2" sink="Concat authenticator (S)" darg="sender_keyid"/>
-        <arg name="data"/>
+        <arg name="pub_local"/>
+        <arg name="responder_pub_local"/>
+        <arg name="initiator_pub_local"/>
+        <arg name="recipient_keyid" controlled="true"/>
     </xform>
 
-    <xform id="Join secret key (M)" code="concat">
-        <description>
-            Join secret keys from AKE initiator/responder/last data message.
-        </description>
-        <flow sarg="psec" sink="Select secret key (M)" darg="controlled"/>
-        <arg name="data_psec"/>
-        <arg name="initiator_psec"/>
-        <arg name="responder_psec"/>
-    </xform>
-
-    <layout id="Select secret key (M)" code="select_secret_key">
+    <xform id="Select secret key (M)" code="select_secret_key">
         <!-- FIXME: If the "recipient keyid" in the Data message equals
          our_keyid, then he's seen the public part of our most recent DH key
          pair, so you must securely forget our_dh[our_keyid-1], increment
@@ -1668,7 +1623,11 @@
             using previous dh_y contained in a data message.
         </description>
         <flow sarg="data" sink="Shared secret (M)" darg="psec"/>
-    </layout>
+        <arg name="data_psec"/>
+        <arg name="initiator_psec"/>
+        <arg name="responder_psec"/>
+        <arg name="current_key" controlled="true"/>
+    </xform>
 
     <dhsec id="Shared secret (M)">
         <description>
@@ -1687,23 +1646,18 @@
         <arg name="s"/>
     </xform>
 
-    <layout id="Determine end (M)" code="determine_end">
+    <xform id="Determine end (M)" code="determine_end">
         <description>
             The sender determines if she is the "low" end or the "high" end
             of this Data Message. If the senders public key is numerically
             greater than the receivers public key, then she is the "high"
             end. Otherwise, she is the "low" end.
         </description>
-        <flow sarg="data" sink="Branch Determine end (M) data" darg="data"/>
-    </layout>
-
-    <branch id="Branch Determine end (M) data">
-        <description>
-            Branch output arguments
-        </description>
         <flow sarg="data#1" sink="Concat sendkey (M)" darg="b"/>
         <flow sarg="data#2" sink="Concat recvkey (M)" darg="b"/>
-    </branch>
+        <arg name="pub_local"/>
+        <arg name="pub_remote" controlled="true"/>
+    </xform>
 
     <!-- Sending a data message to the network -->
 
@@ -1982,7 +1936,7 @@
         <flow sarg="flags"                      sink="Concat authenticator (R)" darg="flags"/>
         <flow sarg="sender_keyid#1"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
         <flow sarg="sender_keyid#2"             sink="Concat authenticator (R)" darg="sender_keyid"/>
-        <flow sarg="recipient_keyid#1"          sink="Select local pubkey (M)"  darg="uncontrolled"/>
+        <flow sarg="recipient_keyid#1"          sink="Select local pubkey (M)"  darg="recipient_keyid"/>
         <flow sarg="recipient_keyid#2"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
         <flow sarg="dh_y#1"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
         <flow sarg="dh_y#2"                     sink="Concat authenticator (R)" darg="dh_y"/>

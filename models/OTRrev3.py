@@ -63,6 +63,8 @@ class xform_data_s (libspg.SPG_xform):
 
 class xform_derive_keys (not_implemented): pass
 
+class xform_determine_end (not_implemented): pass
+
 class xform_dh_commit_r (libspg.SPG_base):
 
     def recv_dhcm (self, dhcm):
@@ -134,7 +136,9 @@ class xform_reveal_signature_r (libspg.SPG_base):
         self.send['macd_signature'] (macd_signature)
 
 class xform_reveal_signature_s (not_implemented): pass
+class xform_select_local_pubkey (not_implemented): pass
 class xform_select_remote_pubkey (not_implemented): pass
+class xform_select_secret_key (not_implemented): pass
 class xform_signature_r (not_implemented): pass
 class xform_signature_s (not_implemented): pass
 class xform_split_local_pubkeys (not_implemented): pass
@@ -189,19 +193,3 @@ class xform_verify_counter (libspg.SPG_base):
         self.send['data'] (parsed['enc_data'])
         self.send['recipient_keyid#1'] (parsed['recipient_keyid'])
         self.send['recipient_keyid#2'] (parsed['recipient_keyid'])
-
-class layout_determine_end (libspg.SPG_xform):
-
-    def finish (self):
-        self.send['data'] (self.uncontrolled + self.controlled)
-
-class layout_layout_m (libspg.SPG_xform):
-
-    def finish (self):
-        (g_local, pub_and_keyid) = decode_mpi (self.controlled)
-        g_remote = self.uncontrolled
-        self.send['data'] (g_local + g_remote + pub_and_keyid)
-
-class layout_select_local_pubkey (not_implemented): pass
-
-class layout_select_secret_key (not_implemented): pass

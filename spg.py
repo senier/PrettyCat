@@ -46,6 +46,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 
 <xs:complexType name="argElement">
     <xs:attribute name="name" use="required" />
+    <xs:attribute name="controlled" type="xs:boolean"/>
 </xs:complexType>
 
 <xs:complexType name="baseElement">
@@ -126,21 +127,12 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     </xs:complexContent>
 </xs:complexType>
 
-<xs:complexType name="layoutElement">
-    <xs:complexContent>
-        <xs:extension base="forwardElement">
-            <xs:attribute name="code" type="xs:string" use="required"/>
-        </xs:extension>
-    </xs:complexContent>
-</xs:complexType>
-
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
             <xs:element name="output"          type="outputElement"/>
             <xs:element name="input"           type="inputElement"/>
             <xs:element name="xform"           type="xformElement"/>
-            <xs:element name="layout"          type="layoutElement"/>
             <xs:element name="branch"          type="forwardElement"/>
             <xs:element name="const"           type="constElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
@@ -539,7 +531,7 @@ class Graph:
             lib  = libspg
             name = kind
 
-            if kind == "input" or kind == "output" or kind == "xform" or kind == "layout":
+            if kind == "input" or kind == "output" or kind == "xform":
                 classname = G.node[node]['classname']
                 if classname != None:
                     name = kind + "_" + G.node[node]['classname']
@@ -811,12 +803,18 @@ class Primitive_xform (Primitive):
         #   any output of an xform in undetermined ways. Hence, integrity
         #   guarantees cannot be maintained for any output interface.
         #
-        #   Intg(output_if) ⇒ Intg(input_if)
+        #   Integrity can be maintained if the input interfaces is
+        #   controlled by the xform implementation, i.e. it is guaranteed
+        #   that it can influence the output only in well-defined ways
+        #   (permutation, fixed output position).
+        #
+        #   (Intg(output_if) ⇒ Intg(input_if)) ∨ Controlled (input_if)
 
         for (in_name, input_if) in self.input.guarantees().items():
+            controlled = in_name in G.graph.node[name]['controlled']
             input_if_rules = []
             for (out_name, output_if) in self.output.guarantees().items():
-                input_if_rules.append (Implies (Intg(output_if), Intg(input_if)))
+                input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if)), controlled))
             input_if.intg (And (input_if_rules))
 
         #   Input from a source demanding confidentiality guarantees can
@@ -854,98 +852,6 @@ class Primitive_branch (Primitive):
         for (out_name, out_g) in self.output.guarantees().items():
             output_conf_rules.append (Implies (Conf(self.input.data), Conf(out_g)))
         out_g.conf (And (output_conf_rules))
-
-class Primitive_layout (Primitive):
-    """
-    The layout primitive
-
-    This primitive controls the layout of an output message. Input may either
-    be controlled (i.e. with integrity guarantees) or uncontrolled. The latter
-    input has only limited influence on the output, e.g. the permutation of
-    trusted input fields or the content of specific fixed untrusted fields of
-    the output message.
-
-    This can be used to feed a MAC data that contains untrusted portions (like
-    a DH public key received over the Internet) as well as trusted portions
-    like the local DH key to authenticate a connection. It can also be used
-    to let untrusted data control the layout (but not the content) of trusted
-    data, e.g. the selection of trusted keys from an untrusted ID contained
-    in a message.
-    """
-
-    def __init__ (self, G, name):
-        super ().setup (G, name)
-
-        # Parameters
-        #   Inputs:  uncontrolled, controlled
-        #   Outputs: data
-
-        # Parameter
-        #   uncontrolled
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   uncontrolled
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Having uncontrolled data influence the layout of the output
-        #   securely is one purpose of this component.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   controlled
-        # Integrity guarantee can be dropped if:
-        #   If the output data interfaces has not security guarantees.
-        # Reason:
-        #   Otherwise, an attacker could change the content of data
-        #   by changing the controlled input data.
-        # Assertion:
-        #   controlled_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ controlled_in_i)
-        self.input.controlled.intg (Implies (Intg(self.output.data), Intg(self.input.controlled)))
-
-        # Parameter
-        #   controlled
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data
-        # Integrity guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data
-        # Confidentiality guarantee can be dropped if:
-        #   No input interface demands confidentiality
-        # Reason:
-        #   Input from an interface guaranteeing confidentiality may pass
-        #   confidential data to any output. Hence, confidentiality can
-        #   only be dropped if no input interface guarantees confidentiality
-        # Assertion:
-        #   controlled_c ∨ uncontrolled_c -> data_c
-        self.output.data.intg (Implies (Or (Conf(self.input.controlled), Conf(self.input.uncontrolled)), Conf(self.output.data)))
 
 class Primitive_const (Primitive):
     """
@@ -2026,10 +1932,13 @@ def parse_graph (inpath):
             warn ("No description for " + name)
             desc = "<No description&#10;available.>"
 
+        controlled = set()
         arguments = []
         for element in child.findall('arg'):
             argname = element.attrib['name']
             arguments.append (argname)
+            if parse_bool (element.attrib, 'controlled'):
+                controlled.add (argname)
 
         classname = child.attrib['code'] if 'code' in child.attrib else None
         config    = child.find('config')
@@ -2042,6 +1951,7 @@ def parse_graph (inpath):
              config     = config, \
              tooltip    = desc, \
              arguments  = arguments,
+             controlled = controlled,
              style      = "bold", \
              penwidth   = "2", \
              width      = "2.5", \

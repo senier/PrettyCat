@@ -318,10 +318,6 @@
             Let c be the first 128 bits of h2(0x01),
             and let c' be the second 128 bits of h2(0x01).
         </description>
-        <config>
-            <first int="128"/>
-            <second int="128"/>
-        </config>
         <flow sarg="first" sink="Branch c" darg="data"/>
         <flow sarg="second" sink="Branch c'" darg="data"/>
         <arg name="c"/>
@@ -1150,7 +1146,7 @@
             AES128-CTR with key c' and initial counter value 0.
         </description>
         <config keylen="128"/>
-        <flow sarg="plaintext" sink="Split X_A" darg="X_A"/>
+        <flow sarg="plaintext" sink="Split X_A" darg="data"/>
     </decrypt>
 
     <xform id="Split X_A" code="split_x">
@@ -1159,9 +1155,9 @@
         </description>
         <flow sarg="pub#1" sink="Verify Sig M_A (R)" darg="pubkey"/>
         <flow sarg="pub#2" sink="Concat M_A (R)" darg="pub"/>
-        <flow sarg="Signature" sink="Verify Sig M_A (R)" darg="auth"/>
+        <flow sarg="signature" sink="Verify Sig M_A (R)" darg="auth"/>
         <flow sarg="keyid" sink="Concat M_A (R)" darg="keyid"/>
-        <arg name="X_A"/>
+        <arg name="data"/>
     </xform>
 
     <xform id="Concat M_A (R)" code="concat">
@@ -1477,7 +1473,7 @@
             AES128-CTR with key c and initial counter value 0.
         </description>
         <config keylen="128"/>
-        <flow sarg="plaintext" sink="Split X_B (R)" darg="X_B"/>
+        <flow sarg="plaintext" sink="Split X_B (R)" darg="data"/>
     </decrypt>
 
     <xform id="Split X_B (R)" code="split_x">
@@ -1487,8 +1483,8 @@
         <flow sarg="pub#1" sink="Concat M_B (R)" darg="pub"/>
         <flow sarg="pub#2" sink="Verify Sig M_B" darg="pubkey"/>
         <flow sarg="keyid" sink="Concat M_B (R)" darg="keyid"/>
-        <flow sarg="Signature" sink="Verify Sig M_B" darg="auth"/>
-        <arg name="X_B"/>
+        <flow sarg="signature" sink="Verify Sig M_B" darg="auth"/>
+        <arg name="data"/>
     </xform>
 
     <xform id="Concat M_B (R)" code="concat">
@@ -1546,8 +1542,6 @@
             party, either in a Data Message or in the AKE.
         </description>
         <flow sarg="current_key" sink="Select secret key (M)" darg="uncontrolled"/>
-        <flow sarg="recipient_keyid#1" sink="Data (S)" darg="recipient_keyid"/>
-        <flow sarg="recipient_keyid#2" sink="Layout authenticator (S)" darg="uncontrolled"/>
         <flow sarg="pub#1" sink="Shared secret (M)" darg="pub"/>
         <flow sarg="pub#2" sink="Determine end (M)" darg="uncontrolled"/>
         <arg name="initiator_remote_pub"/>
@@ -1751,6 +1745,7 @@
         <flow sarg="hash" sink="Calculate authenticator (M)" darg="key"/>
     </hash>
 
+    <!-- FIXME: Where is guaranteed that this is not used for MACing message anymore -->
     <xform id="Reveal old MAC keys (M)" code="reveal_old_mac_keys">
         <description>
             Whenever you are about to forget either one of your old D-H key pairs,
@@ -1807,24 +1802,18 @@
         <description>
             Input for the authenticator to MAC outgoing messages.
         </description>
-        <flow sarg="message" sink="Layout authenticator (S)" darg="controlled"/>
+        <flow sarg="message" sink="Calculate authenticator (M)" darg="msg"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
         <arg name="receiver_instance_tag"/>
         <arg name="flags"/>
         <arg name="sender_keyid"/>
+        <arg name="recipient_keyid"/>
         <arg name="dh_y"/>
         <arg name="top_half_of_counter_init"/>
         <arg name="encrypted_message"/>
     </xform>
-
-    <layout id="Layout authenticator (S)" code="authenticator_s">
-        <description>
-            Input for the authenticator to MAC outgoing messages.
-        </description>
-        <flow sarg="data" sink="Calculate authenticator (M)" darg="msg"/>
-    </layout>
 
     <hmac id="Calculate authenticator (M)">
         <description>
@@ -1999,8 +1988,7 @@
         <flow sarg="dh_y#2"                     sink="Concat authenticator (R)" darg="dh_y"/>
         <flow sarg="top_half_of_counter_init#1" sink="Decrypt (M)"              darg="ctr"/>
         <flow sarg="top_half_of_counter_init#2" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
-        <flow sarg="encrypted_message#1"        sink="Guard MAC (M)"            darg="data"/>
-        <flow sarg="encrypted_message#2"        sink="Concat authenticator (R)" darg="encrypted_message"/>
+        <flow sarg="encrypted_message"          sink="Concat authenticator (R)" darg="encrypted_message"/>
         <flow sarg="authenticator"              sink="Verify MAC (M)"           darg="auth"/>
         <arg name="data"/>
     </xform>
@@ -2026,32 +2014,19 @@
         <description>
              Use the "receiving MAC key" to verify the MAC on the message.
         </description>
-        <flow sarg="result" sink="Guard MAC (M)" darg="cond"/>
-        <flow sarg="msg"    sink="Verify counter (M)" darg="data"/>
+        <flow sarg="msg" sink="Verify counter (M)" darg="data"/>
     </verify_hmac_out>
-
-    <guard id="Guard MAC (M)">
-        <description>
-              If the MAC does not verify, reject the message.
-        </description>
-        <flow sarg="data" sink="Guard counter (M)" darg="data"/>
-    </guard>
 
     <xform id="Verify counter (M)" code="verify_counter">
         <description>
             Check that the counter in the Data message is strictly larger
             than the last counter you saw using this pair of keys.
         </description>
-        <flow sarg="cond" sink="Guard counter (M)" darg="cond"/>
+        <flow sarg="data"              sink="Decrypt (M)" darg="ciphertext"/>
+        <flow sarg="recipient_keyid#1" sink="Data (S)" darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid#2" sink="Concat authenticator (S)" darg="recipient_keyid"/>
         <arg name="data"/>
     </xform>
-
-    <guard id="Guard counter (M)">
-        <description>
-              If the MAC does not verify, reject the message.
-        </description>
-        <flow sarg="data" sink="Decrypt (M)" darg="ciphertext"/>
-    </guard>
 
     <decrypt id="Decrypt (M)">
         <description>

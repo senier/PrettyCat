@@ -73,7 +73,7 @@
             content.
         </description>
         <config port="10004"/>
-        <arg name="ssid"/>
+        <arg name="data"/>
     </output>
 
     <!--
@@ -176,44 +176,44 @@
         <description>
             Serialize the value of shared secret s as a minimum-length MPI secbytes.
         </description>
-        <flow sarg="secbyte#1" sink="Concat ssid" darg="secbytes">
+        <flow sarg="secbytes#1" sink="Concat ssid" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <flow sarg="secbyte#2" sink="Concat c" darg="secbytes">
+        <flow sarg="secbytes#2" sink="Concat c" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <flow sarg="secbyte#3" sink="Concat m1" darg="secbytes">
+        <flow sarg="secbytes#3" sink="Concat m1" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <flow sarg="secbyte#4" sink="Concat m2" darg="secbytes">
+        <flow sarg="secbytes#4" sink="Concat m2" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <flow sarg="secbyte#5" sink="Concat m1'" darg="secbytes">
+        <flow sarg="secbytes#5" sink="Concat m1'" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <flow sarg="secbyte#6" sink="Concat m2'" darg="secbytes">
+        <flow sarg="secbytes#6" sink="Concat m2'" darg="secbytes">
             <assert confidentiality="true" integrity="true">
                 All keys can be derived from secbytes.
             </assert>
         </flow>
 
-        <arg name="Responder ssec"/>
-        <arg name="Initiator ssec"/>
+        <arg name="responder_ssec"/>
+        <arg name="initiator_ssec"/>
     </xform>
 
     <const id="Prefix ssid">
@@ -223,7 +223,7 @@
         <config hexbytes="00"/>
         <flow sarg="const" sink="Concat ssid" darg="b">
             <assert integrity="true">
-                Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
+                Attacker must not be able to choose prefix used in KDF (because attacker could e.g use a MAC key as a decryption key)
             </assert>
         </flow>
     </const>
@@ -262,7 +262,7 @@
         <config>
             <length int="64"/>
         </config>
-        <flow sarg="ssid" sink="User_Interface" darg="ssid">
+        <flow sarg="ssid" sink="User_Interface" darg="data">
             <assert integrity="true" >
                 Attacker must not choose ssid, as she could impersonate a connection
                 towards user otherwise. SSID must not be confidential as it is
@@ -280,7 +280,7 @@
         <config hexbytes="01"/>
         <flow sarg="const" sink="Concat c" darg="b">
             <assert integrity="true">
-                Attacker must not be able to choose prefix used in KDF (FIXME: Why?)
+                Attacker must not be able to choose prefix used in KDF (because attacker could e.g use a MAC key as a decryption key)
             </assert>
         </flow>
     </const>
@@ -544,7 +544,7 @@
     <!--
       ** Send D-H Commit message
       -->
-    <xform id="D-H Commit (S)" code="dh_commit_s">
+    <xform id="D-H Commit (S)" code="concat">
         <description>
             Primitive assembling the first message of the AKE,
             the D-H Commit Message.
@@ -660,7 +660,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^x (S)" darg="data"/>
-        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="initiator_pub_local"/>
+        <flow sarg="pub#2" sink="Select pubkey (M)" darg="initiator_pub_local"/>
     </branch>
 
     <xform id="Serialize g^x (S)" code="mpi">
@@ -745,7 +745,7 @@
     <!--
       ** Send D-H Key message
       -->
-    <xform id="D-H Key (S)" code="dh_key_s">
+    <xform id="D-H Key (S)" code="concat">
         <description>
             Second message of the AKE send by us in the responder case.
         </description>
@@ -842,7 +842,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (S)" darg="data"/>
-        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="responder_pub_local"/>
+        <flow sarg="pub#2" sink="Select pubkey (M)" darg="responder_pub_local"/>
     </branch>
 
     <xform id="Serialize g^y (S)" code="mpi">
@@ -885,7 +885,7 @@
         <flow sarg="g^y#1" sink="Shared secret (R)" darg="pub"/>
         <flow sarg="g^y#2" sink="Concat M_B (S)" darg="g^y"/>
         <flow sarg="g^y#3" sink="Concat M_A (R)" darg="g^y"/>
-        <flow sarg="g^y#4" sink="Select remote pubkey (M)" darg="responder_remote_pub"/>
+        <flow sarg="g^y#4" sink="Select pubkey (M)" darg="responder_pub_remote"/>
     </branch>
 
     <const id="Modulus">
@@ -933,7 +933,7 @@
             Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
             compute the Diffie-Hellman shared secret s in the intitiator case.
         </description>
-        <flow sarg="ssec" sink="Derive keys" darg="Initiator ssec">
+        <flow sarg="ssec" sink="Derive keys" darg="initiator_ssec">
             <assert confidentiality="true">
                 Shared secret.
             </assert>
@@ -943,7 +943,7 @@
     <!--
       ** Send Signature message
       -->
-    <xform id="Signature (S)" code="signature_s">
+    <xform id="Signature (S)" code="concat">
         <description>
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
@@ -1198,7 +1198,7 @@
     <!--
       ** Send Reveal Signature Message
       -->
-    <xform id="Reveal Signature (S)" code="reveal_signature_s">
+    <xform id="Reveal Signature (S)" code="concat">
         <description>
             Primitive assembling the third message of the AKE,
             the Reveal Signature Message. It reveals the D-H
@@ -1410,7 +1410,7 @@
         </description>
         <flow sarg="plaintext#1" sink="Verify g^x (R)" darg="data"/>
         <flow sarg="plaintext#2" sink="Shared secret (S)" darg="pub"/>
-        <flow sarg="plaintext#3" sink="Select remote pubkey (M)" darg="initiator_remote_pub"/>
+        <flow sarg="plaintext#3" sink="Select pubkey (M)" darg="initiator_pub_remote"/>
     </branch>
 
 
@@ -1513,7 +1513,7 @@
             Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
             compute the Diffie-Hellman shared secret s in the responder case.
         </description>
-        <flow sarg="ssec" sink="Derive keys" darg="Responder ssec"/>
+        <flow sarg="ssec" sink="Derive keys" darg="responder_ssec"/>
     </dhsec>
 
     <!--
@@ -1522,20 +1522,40 @@
 
     <!-- Key management -->
 
-    <xform id="Select remote pubkey (M)" code="select_remote_pubkey">
+    <xform id="Select pubkey (M)" code="select_pubkeys">
         <description>
             Picks the most recent D-H encryption key received from the remote
             party, either in a Data Message or in the AKE.
-        </description>
-        <flow sarg="current_key" sink="Select secret key (M)" darg="current_key"/>
-        <flow sarg="pub#1" sink="Shared secret (M)" darg="pub"/>
-        <flow sarg="pub#2" sink="Determine end (M)" darg="pub_remote"/>
-        <arg name="initiator_remote_pub"/>
-        <arg name="responder_remote_pub"/>
-        <arg name="pub_remote"/>
 
-        <!-- This is the sender_pubkey value we receive in encrypted data messages sent to us -->
-        <arg name="sender_keyid"/>
+            Picks the most recent local D-H encryption key remote side
+            has acknowledged receiving by using it in a Data Message
+            or, failing that, in the AKE.
+
+            The sender determines if she is the "low" end or the "high" end
+            of this Data Message. If the senders public key is numerically
+            greater than the receivers public key, then she is the "high"
+            end. Otherwise, she is the "low" end.
+        </description>
+
+        <flow sarg="current_pubkey" sink="Shared secret (M)" darg="pub"/>
+
+        <flow sarg="local_keyid#1" sink="Data (S)" darg="sender_keyid"/>
+        <flow sarg="local_keyid#2" sink="Concat authenticator (S)" darg="sender_keyid"/>
+        <flow sarg="local_keyid#3" sink="Select secret key (M)" darg="current_keyid"/>
+
+        <flow sarg="sendbyte" sink="Concat sendkey (M)" darg="b"/>
+        <flow sarg="recvbyte" sink="Concat recvkey (M)" darg="b"/>
+
+        <arg name="initiator_pub_local"/>
+        <arg name="responder_pub_local"/>
+        <arg name="pub_local"/>
+
+        <arg name="initiator_pub_remote" controlled="true"/>
+        <arg name="responder_pub_remote" controlled="true"/>
+        <arg name="pub_remote" controlled="true"/>
+
+        <arg name="latest_remote_keyid" controlled="true"/>
+        <arg name="latest_local_keyid" controlled="true"/>
     </xform>
 
     <const id="Length of y (M)">
@@ -1584,7 +1604,7 @@
             Branch output arguments
         </description>
         <flow sarg="pub#1" sink="Serialize g^y (M)" darg="data"/>
-        <flow sarg="pub#2" sink="Select local pubkey (M)" darg="pub_local"/>
+        <flow sarg="pub#2" sink="Select pubkey (M)" darg="pub_local"/>
     </branch>
     
     <xform id="Serialize g^y (M)" code="mpi">
@@ -1594,21 +1614,6 @@
         <flow sarg="mpi#1" sink="Data (S)" darg="dh_y"/>
         <flow sarg="mpi#2" sink="Concat authenticator (S)" darg="dh_y"/>
         <arg name="data"/>
-    </xform>
-
-    <xform id="Select local pubkey (M)" code="select_local_pubkey">
-        <description>
-            Picks the most recent local D-H encryption key remote side
-            has acknowledged receiving by using it in a Data Message
-            or, failing that, in the AKE.
-        </description>
-        <flow sarg="pub" sink="Determine end (M)" darg="pub_local"/>
-        <flow sarg="sender_keyid#1" sink="Data (S)" darg="sender_keyid"/>
-        <flow sarg="sender_keyid#2" sink="Concat authenticator (S)" darg="sender_keyid"/>
-        <arg name="pub_local"/>
-        <arg name="responder_pub_local"/>
-        <arg name="initiator_pub_local"/>
-        <arg name="recipient_keyid" controlled="true"/>
     </xform>
 
     <xform id="Select secret key (M)" code="select_secret_key">
@@ -1626,7 +1631,7 @@
         <arg name="data_psec"/>
         <arg name="initiator_psec"/>
         <arg name="responder_psec"/>
-        <arg name="current_key" controlled="true"/>
+        <arg name="current_keyid" controlled="true"/>
     </xform>
 
     <dhsec id="Shared secret (M)">
@@ -1644,19 +1649,6 @@
         <flow sarg="secbytes#1" sink="Concat sendkey (M)" darg="secbytes"/>
         <flow sarg="secbytes#2" sink="Concat recvkey (M)" darg="secbytes"/>
         <arg name="s"/>
-    </xform>
-
-    <xform id="Determine end (M)" code="determine_end">
-        <description>
-            The sender determines if she is the "low" end or the "high" end
-            of this Data Message. If the senders public key is numerically
-            greater than the receivers public key, then she is the "high"
-            end. Otherwise, she is the "low" end.
-        </description>
-        <flow sarg="data#1" sink="Concat sendkey (M)" darg="b"/>
-        <flow sarg="data#2" sink="Concat recvkey (M)" darg="b"/>
-        <arg name="pub_local"/>
-        <arg name="pub_remote" controlled="true"/>
     </xform>
 
     <!-- Sending a data message to the network -->
@@ -1858,7 +1850,7 @@
         <flow sarg="const#2" sink="Concat authenticator (S)" darg="flags"/>
     </branch>
 
-    <xform id="Data (S)" code="data_s">
+    <xform id="Data (S)" code="concat">
         <description>
             Encrypted data message sent to the network.
         </description>
@@ -1934,13 +1926,12 @@
         <flow sarg="sender_instance_tag"        sink="Concat authenticator (R)" darg="sender_instance_tag"/>
         <flow sarg="receiver_instance_tag"      sink="Concat authenticator (R)" darg="receiver_instance_tag"/>
         <flow sarg="flags"                      sink="Concat authenticator (R)" darg="flags"/>
-        <flow sarg="sender_keyid#1"             sink="Select remote pubkey (M)" darg="sender_keyid"/>
+        <flow sarg="sender_keyid#1"             sink="Select pubkey (M)"        darg="latest_remote_keyid"/>
         <flow sarg="sender_keyid#2"             sink="Concat authenticator (R)" darg="sender_keyid"/>
-        <flow sarg="recipient_keyid#1"          sink="Select local pubkey (M)"  darg="recipient_keyid"/>
+        <flow sarg="recipient_keyid#1"          sink="Select pubkey (M)"        darg="latest_local_keyid"/>
         <flow sarg="recipient_keyid#2"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
-        <flow sarg="dh_y#1"                     sink="Select remote pubkey (M)" darg="pub_remote"/>
+        <flow sarg="dh_y#1"                     sink="Select pubkey (M)"        darg="pub_remote"/>
         <flow sarg="dh_y#2"                     sink="Concat authenticator (R)" darg="dh_y"/>
-        <flow sarg="top_half_of_counter_init#1" sink="Decrypt (M)"              darg="ctr"/>
         <flow sarg="top_half_of_counter_init#2" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
         <flow sarg="encrypted_message"          sink="Concat authenticator (R)" darg="encrypted_message"/>
         <flow sarg="authenticator"              sink="Verify MAC (M)"           darg="auth"/>
@@ -1977,6 +1968,7 @@
             than the last counter you saw using this pair of keys.
         </description>
         <flow sarg="data"              sink="Decrypt (M)" darg="ciphertext"/>
+        <flow sarg="counter"           sink="Decrypt (M)" darg="ctr"/>
         <flow sarg="recipient_keyid#1" sink="Data (S)" darg="recipient_keyid"/>
         <flow sarg="recipient_keyid#2" sink="Concat authenticator (S)" darg="recipient_keyid"/>
         <arg name="data"/>

@@ -18,10 +18,16 @@ def parse_data (data):
 class not_implemented (libspg.SPG_base):
 
     def __init__ (self, name, config, arguments, needconfig = False):
-        raise libspg.NotImplemented (name)
+        raise libspg.NotImplemented (name + " (" + self.__class__.__name__ + ")")
 
 
-class xform_ake_state (not_implemented): pass
+class xform_ake_state (libspg.SPG_base):
+
+    def recv_responder_state (self, state):
+        self.send['encrypted'] (state)
+
+    def recv_initiator_state (self, state):
+        self.send['encrypted'] (state)
 
 class xform_data_r (libspg.SPG_base):
 
@@ -61,9 +67,23 @@ class xform_data_s (libspg.SPG_xform):
              self.args['authenticator'] + \
              self.args['old_mac_keys'])
 
-class xform_derive_keys (not_implemented): pass
+class xform_derive_keys (libspg.SPG_base):
 
-class xform_determine_end (not_implemented): pass
+    def _send_ssec (self, ssecmpi):
+        self.send['secbytes#1'] (ssecmpi)
+        self.send['secbytes#2'] (ssecmpi)
+        self.send['secbytes#3'] (ssecmpi)
+        self.send['secbytes#4'] (ssecmpi)
+        self.send['secbytes#5'] (ssecmpi)
+        self.send['secbytes#6'] (ssecmpi)
+
+    def recv_responder_ssec (self, ssec):
+        ssecmpi = mpi (ssec)
+        self._send_ssec (ssecmpi)
+
+    def recv_initiator_ssec (self, ssec):
+        ssecmpi = mpi (ssec)
+        self._send_ssec (ssecmpi)
 
 class xform_dh_commit_r (libspg.SPG_base):
 
@@ -73,10 +93,11 @@ class xform_dh_commit_r (libspg.SPG_base):
         self.send['encrypted_g^x'] (encrypted_gx)
         self.send['hashed_g^x'] (hashed_gx)
 
-class xform_dh_commit_s (not_implemented): pass
-class xform_dh_key_r (not_implemented): pass
-class xform_dh_key_s (not_implemented): pass
-class xform_mpi (not_implemented): pass
+class xform_dh_key_r (libspg.SPG_base):
+
+    def recv_dhkm (self, dhkm):
+        (dh_y, dummy) = decode_mpi (dhkm)
+        self.send['g^y'] (dh_y)
 
 class xform_network_input_mux (libspg.SPG_base):
 
@@ -135,13 +156,118 @@ class xform_reveal_signature_r (libspg.SPG_base):
         self.send['encrypted_signature#2'] (encrypted_signature)
         self.send['macd_signature'] (macd_signature)
 
-class xform_reveal_signature_s (not_implemented): pass
-class xform_select_local_pubkey (not_implemented): pass
-class xform_select_remote_pubkey (not_implemented): pass
-class xform_select_secret_key (not_implemented): pass
-class xform_signature_r (not_implemented): pass
-class xform_signature_s (not_implemented): pass
-class xform_split_local_pubkeys (not_implemented): pass
+class xform_select_pubkeys (libspg.SPG_base):
+
+    def __init__ (self, name, config, arguments):
+        super().__init__ (name, config, arguments)
+
+        self.current_local       = None
+        self.previous_local      = None
+        self.local_keyid         = None
+        self.current_remote      = None
+        self.remote_keyid        = None
+        self.latest_remote_keyid = None
+        self.latest_local_keyid  = None
+
+    def check_send_pubkey (self):
+
+        if not self.current_local or \
+            not self.local_keyid or \
+            not self.remote_keyid or \
+            not self.latest_remote_keyid or \
+            not self.latest_local_keyid:
+            return
+
+        if self.latest_local_keyid == self.local_keyid:
+            self.send['current_pubkey'](self.current_local)
+        elif self.latest_local_keyid == self.local_keyid - 1:
+            self.send['current_pubkey'](self.previous_local)
+        else:
+            error ("No local pubkey")
+            return
+
+        # send current local keyid
+        self.send['local_keyid#1'] (self.local_keyid)
+        self.send['local_keyid#2'] (self.local_keyid)
+        self.send['local_keyid#3'] (self.local_keyid)
+
+        # Determine end and send start respective byte
+        if self.current_local > self.current_remote:
+            # 'High' end
+            self.send['sendbyte'] (0x01)
+            self.send['recvbyte'] (0x02)
+        else:
+            # 'Low' end
+            self.send['sendbyte'] (0x02)
+            self.send['recvbyte'] (0x01)
+
+    def recv_initiator_pub_local (self, pub):
+        self.current_local = pub
+        self.local_keyid   = 1
+        self.check_send_pubkey()
+
+    def recv_responder_pub_local (self, pub):
+        self.current_local = pub
+        self.local_keyid   = 1
+        self.check_send_pubkey()
+
+    def recv_pub_local (self, pub):
+        self.local_keyid = self.local_keyid + 1
+        self.previous_local = self.current_local
+        self.current_local  = pub
+        self.check_send_pubkey()
+
+    def recv_initiator_pub_remote (self, pub):
+        self.current_remote = pub
+        self.remote_keyid   = 1
+        self.check_send_pubkey()
+
+    def recv_responder_pub_remote (self, pub):
+        self.current_remote = pub
+        self.remote_keyid   = 1
+        self.check_send_pubkey()
+
+    def recv_pub_remote (self, pub):
+        self.current_remote = pub
+        self.check_send_pubkey()
+
+    def recv_latest_local_keyid (self, keyid):
+        self.latest_local_keyid = keyid
+        self.check_send_pubkey()
+
+    def recv_latest_remote_keyid (self, keyid):
+        self.latest_remote_keyid = keyid
+        self.check_send_pubkey()
+
+class xform_select_secret_key (libspg.SPG_base):
+
+    def __init__ (self, name, config, arguments):
+        super().__init__ (name, config, arguments)
+
+        current_keyid  = None
+        current_psec   = None
+        previous_psec  = None
+
+    def recv_data_psec (self, psec):
+        self.current_psec  = psec
+
+    def recv_initiator_psec (self, psec):
+        self.current_keyid = 1
+        self.current_psec  = psec
+
+    def recv_responder_psec (self, psec):
+        self.current_keyid = 1
+        self.current_psec  = psec
+
+    def recv_current_keyid (self, keyid):
+        self.current_keyid = keyid
+
+class xform_signature_r (libspg.SPG_base):
+
+    def recv_sigm (self, sigm):
+        (encrypted_sig, macd_signature) = decode_data (sigm)
+        self.send['encrypted_signature'] (encrypted_sig)
+        self.send['macd_signature'] (macd_signature)
 
 class xform_split_x (libspg.SPG_base):
 

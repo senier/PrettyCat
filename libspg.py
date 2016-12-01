@@ -163,12 +163,12 @@ class encrypt (counter_mode):
         # IV must only be set once
         if self.ctr != None: return
 
-        self.ctr = int.from_bytes (ctr, byteorder='big')
+        self.ctr = ctr
         self.encrypt_if_valid ()
 
     def recv_key (self, key):
         if len(key) != self.keylen:
-            raise Exception ("Keylen != " + str(self.keylen))
+            raise Exception ("Keylen is " + str(len(key)) + " while " + str(self.keylen) + " is configured")
 
         self.key = bytes(key)
         self.key_changed = True
@@ -208,7 +208,7 @@ class decrypt (counter_mode):
 
     def recv_ctr (self, ctr):
 
-        self.ctr = int.from_bytes (ctr, byteorder='big')
+        self.ctr = ctr
         self.decrypt_if_valid ()
 
     def recv_key (self, key):

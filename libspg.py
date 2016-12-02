@@ -198,7 +198,7 @@ class encrypt (counter_mode):
 class encrypt_ctr (encrypt):
 
     def send_ctr(self, ctr):
-        self.send['ctr'](ctr)
+        self.send['ctr'](int.from_bytes (ctr, byteorder='big'))
 
 class decrypt (counter_mode):
 

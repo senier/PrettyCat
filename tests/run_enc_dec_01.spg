@@ -22,7 +22,7 @@
         <description>
             Initial counter
         </description>
-        <config bytes="DEADBEEFdEADC0DE"/>
+        <config hex="DEADBEEFdEADC0DE"/>
         <flow sarg="const" sink="Encrypt" darg="ctr"/>
     </const>
 

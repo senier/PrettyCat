@@ -571,28 +571,27 @@ class Graph:
 
 class Args:
 
-    def __init__ (self, graph, name):
+    def __init__ (self, name):
         raise Exception ("Abstract")
 
-    def setup (self, graph, name):
-        self._graph  = graph
+    def setup (self, name):
         self._name   = name
 
     def add_guarantee (self, name):
-        self.__dict__.update (**{name: Guarantees (self._graph, self._name + "_" + name)})
+        self.__dict__.update (**{name: Guarantees (self._name + "_" + name)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
 
 class Input_Args (Args):
 
-    def __init__ (self, graph, name):
-        super().setup (graph, name + "_input")
+    def __init__ (self, name):
+        super().setup (name + "_input")
 
 class Output_Args (Args):
 
-    def __init__ (self, graph, name):
-        super().setup (graph, name + "_output")
+    def __init__ (self, name):
+        super().setup (name + "_output")
 
 class SPG_Solver_Base:
 
@@ -648,8 +647,7 @@ class SPG_Solver (SPG_Solver_Base):
 
 class Guarantees:
 
-    def __init__ (self, graph, name):
-        self.graph = graph
+    def __init__ (self, name):
         self.name  = name
 
         # Rules defining integrity and confidentiality
@@ -719,19 +717,23 @@ class Primitive:
     def __init__ (self, G, name):
         raise Exception ("Abstract")
 
-    def setup (self, G, name):
-        self.input  = Input_Args (G, name)
-        self.output = Output_Args (G, name)
+    def setup (self, name, G=None, interfaces={ 'inputs': [], 'outputs': []}):
+
+        self.input  = Input_Args (name)
+        self.output = Output_Args (name)
         self.name   = name
-        self.node   = G.graph.node[name]
-        self.graph  = G
         self.rule   = []
 
-        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
-            self.input.add_guarantee (data['darg'])
+        for in_if in interfaces['inputs']:
+            self.input.add_guarantee (in_if)
 
-        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.output.add_guarantee (data['sarg'])
+        for out_if in interfaces['outputs']:
+            self.output.add_guarantee (out_if)
+
+        self.G = G
+
+    def guarantees (self):
+        return self.G.graph.node[self.name]['guarantees']
 
     def populate (self, solver):
         solver.assert_and_track (And (self.rule), "RULE_" + self.name)
@@ -751,10 +753,13 @@ class Primitive_output (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+        super ().setup (name, G)
+
+        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
+            self.input.add_guarantee (data['darg'])
 
         # Guarantees explicitly set in the XML
-        g = self.node['guarantees']
+        g = self.guarantees()
 
         for (name, ig) in self.input.guarantees().items():
             if g['c'] != None:
@@ -771,10 +776,13 @@ class Primitive_input (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+        super ().setup (name, G)
+
+        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
+            self.output.add_guarantee (data['sarg'])
 
         # Guarantees explicitly set in the XML
-        g = self.node['guarantees']
+        g = self.guarantees()
 
         for (name, og) in self.output.guarantees().items():
             if g['c'] != None:
@@ -791,7 +799,13 @@ class Primitive_xform (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+        super ().setup (name, G)
+
+        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
+            self.input.add_guarantee (data['darg'])
+
+        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
+            self.output.add_guarantee (data['sarg'])
 
         # Input from a source lacking integrity guarantees can influence
         # any output of an xform in undetermined ways. Hence, integrity
@@ -830,10 +844,12 @@ class Primitive_branch (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        if len(self.input.guarantees().items()) > 1:
-            raise PrimitiveInvalidAttributes (name, "branch", "More than one input parameters")
+        interfaces = { 'inputs': ['data'], 'outputs': [] }
+        super ().setup (name, G, interfaces)
+
+        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
+            self.output.add_guarantee (data['sarg'])
 
         # If integrity is guaranteed for some output, then integrity
         # must be guaranteed for the input, too.
@@ -854,10 +870,11 @@ class Primitive_const (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+        interfaces = { 'inputs': [], 'outputs': ['const'] }
+        super ().setup (name, G, interfaces)
 
         # Guarantees explicitly set in the XML
-        g = self.node['guarantees']
+        g = self.guarantees()
 
         og = self.output.guarantees()['const']
         if g['c'] != None:
@@ -874,7 +891,8 @@ class Primitive_rng (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+        interfaces = { 'inputs': ['len'], 'outputs': ['data'] }
+        super ().setup (name, G, interfaces)
 
         # input.len: If an attacker can choose the length requested from an RNG,
         # too short keys would be generated.
@@ -894,11 +912,9 @@ class Primitive_rng (Primitive):
 class Primitive_dhpub (Primitive):
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:   modulus, generator, psec
-        #   Outputs: pub
+        interfaces = { 'inputs': ['modulus', 'generator', 'psec'], 'outputs': ['pub'] }
+        super ().setup (name, G, interfaces)
 
         # Parameters are public, but an attacker may not chose a weak ones.
         # Hence, integrity must be guaranteed
@@ -919,11 +935,9 @@ class Primitive_dhpub (Primitive):
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Inputs:  modulus, generator, pub, psec
-        #   Outputs: ssec
+        interfaces = { 'inputs': ['modulus', 'generator', 'pub', 'psec'], 'outputs': ['ssec'] }
+        super ().setup (name, G, interfaces)
 
         # With knowledge of pub (g^y) and psec_in (x) an attacker can
         # calculate ssec (the shared secret g^yx ≡ g^xy)
@@ -942,11 +956,9 @@ class Primitive_dhsec (Primitive):
 
 class Primitive_encrypt (Primitive):
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Inputs:  plaintext, key, ctr
-        #   Outputs: ciphertext
+        interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext'] }
+        super ().setup (name, G, interfaces)
 
         # Counter mode encryption does not achieve integrity, hence an attacker
         # can could change plaintext_in to influence the integrity of
@@ -978,11 +990,9 @@ class Primitive_encrypt (Primitive):
 
 class Primitive_encrypt_ctr (Primitive_encrypt):
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Inputs:  plaintext, key, ctr
-        #   Outputs: ciphertext, ctr
+        interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext', 'ctr'] }
+        super ().setup (name, G, interfaces)
 
         # If integrity is guaranteed for output counter, integrity must be guaranteed for initial counter
         self.rule.append (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
@@ -992,11 +1002,9 @@ class Primitive_encrypt_ctr (Primitive_encrypt):
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  ciphertext, key, ctr
-        #   Output: plaintext
+        interfaces = { 'inputs': ['ciphertext', 'key', 'ctr'], 'outputs': ['plaintext'] }
+        super ().setup (name, G, interfaces)
 
         # If the plaintext is confidential, the key must be confidential, too.
         # FIXME: What happens when an attacker can chose a key for decryption?
@@ -1004,11 +1012,9 @@ class Primitive_decrypt (Primitive):
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data
-        #   Output: hash
+        interfaces = { 'inputs': ['data'], 'outputs': ['hash'] }
+        super ().setup (name, G, interfaces)
 
         # Using a cryptographically secure hash makes no sense with non-integer data.
         self.rule.append (Intg(self.input.data))
@@ -1025,11 +1031,9 @@ class Primitive_hash (Primitive):
 class Primitive_hmac (Primitive):
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  key, msg
-        #   Output: auth
+        interfaces = { 'inputs': ['key', 'msg'], 'outputs': ['auth'] }
+        super ().setup (name, G, interfaces)
 
         # If integrity is not guaranteed for the input data, HMAC cannot
         # protect anything. Hence, it does not harm if the key is released
@@ -1044,11 +1048,9 @@ class Primitive_hmac (Primitive):
 class Primitive_hmac_out (Primitive_hmac):
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  key, msg
-        #   Output: auth, msg
+        interfaces = { 'inputs': ['key', 'msg'], 'outputs': ['auth', 'msg'] }
+        super ().setup (name, G, interfaces)
 
         # HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
@@ -1063,11 +1065,9 @@ class Primitive_sign (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  msg, pubkey, privkey, rand
-        #   Output: auth
+        interfaces = { 'inputs': ['msg', 'pubkey', 'privkey', 'rand'], 'outputs': ['auth'] }
+        super ().setup (name, G, interfaces)
 
         # The private key must stay confidential
         self.rule.append (Conf (self.input.privkey))
@@ -1097,11 +1097,9 @@ class Primitive_verify_sig (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  msg, auth, pubkey
-        #   Output: result
+        interfaces = { 'inputs': ['msg', 'auth', 'pubkey'], 'outputs': ['result'] }
+        super ().setup (name, G, interfaces)
 
         # If an attacker can modify the result of a verify operation, she could
         # as well chose an own public key for which she has the secret key available
@@ -1121,11 +1119,9 @@ class Primitive_verify_hmac (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  msg, auth, key
-        #   Output: result
+        interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result'] }
+        super ().setup (name, G, interfaces)
 
         # If an attacker can modify the result of a verify operation, she could
         # as well chose an own key and use it to create a valid signature yielding
@@ -1139,7 +1135,9 @@ class Primitive_verify_hmac (Primitive):
 class Primitive_verify_hmac_out (Primitive_verify_hmac):
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+
+        interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result', 'msg'] }
+        super ().setup (name, G, interfaces)
 
         #   The HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
@@ -1155,11 +1153,9 @@ class Primitive_guard (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data, cond
-        #   Output: data
+        interfaces = { 'inputs': ['data', 'cond'], 'outputs': ['data'] }
+        super ().setup (name, G, interfaces)
 
         # Guard does nothing to integrity.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1183,11 +1179,9 @@ class Primitive_release (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data
-        #   Output: data
+        interfaces = { 'inputs': ['data'], 'outputs': ['data'] }
+        super ().setup (name, G, interfaces)
 
         self.rule.append (True)
 
@@ -1201,7 +1195,9 @@ class Primitive_comp (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
+
+        interfaces = { 'inputs': ['data1', 'data2'], 'outputs': ['result'] }
+        super ().setup (name, G, interfaces)
 
         # If an attacker can chose data1_in, she can influence the integrity
         # of result_out (at least, make result_out false with a very high
@@ -1228,11 +1224,9 @@ class Primitive_verify_commit (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data, hash
-        #   Output: data
+        interfaces = { 'inputs': ['data', 'hash'], 'outputs': ['data'] }
+        super ().setup (name, G, interfaces)
 
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1254,11 +1248,9 @@ class Primitive_latch (Primitive):
     """
 
     def __init__ (self, G, name):
-        super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data
-        #   Output: data, trigger
+        interfaces = { 'inputs': ['data'], 'outputs': ['data', 'trigger'] }
+        super ().setup (name, G, interfaces)
 
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1448,18 +1440,88 @@ def set_style (o, c, i):
 
     o['fillcolor'] = o['color']
 
-def dump_primitive_rules():
-    for primitive_class in Primitive.__subclasses__():
+def latex_expression (prefix, exp):
 
-        name = primitive_class.__name__[10:]
+    result = ""
+    na = exp.num_args()
 
-        # FIXME: This does not work as long as the primitive
-        # structure is constructed from the config file.
-        mdg = nx.DiGraph()
-        mdg.add_node (name, guarantees = None, kind = name)
+    if is_and (exp):
+        for idx in range (0, na):
+            if idx != 0:
+                result += "\land{}"
+            result += latex_expression (prefix, exp.arg(idx))
+    elif is_or (exp):
+        if na > 1: result += "("
+        for idx in range (0, na):
+            if idx != 0:
+                result += "\lor{}"
+            result += latex_expression (prefix, exp.arg(idx))
+        if na > 1: result += ")"
+    elif is_eq(exp):
+        result += latex_expression (prefix, exp.arg(0))
+        result += " ≡ "
+        result += latex_expression (prefix, exp.arg(1))
+    elif is_not(exp):
+        result += latex_expression (prefix, exp.arg(0))
+    elif is_const(exp):
 
-        G = Graph (mdg, "dump", False)
-        P = primitive_class (G, name)
+        var = str(exp)
+
+        if var == "True" or var == "False":
+            result += var
+        else:
+            # demangle variable name
+            intg   = False
+            conf   = False
+            invar  = False
+            outvar = False
+
+            if not var.startswith (prefix + "_"):
+                raise Exception ("Invalid variable " + var + ": does not start with prefix " + prefix)
+            var = var[len(prefix)+1:]
+
+            if var.endswith ("_intg"):
+                intg = True
+            elif var.endswith ("_conf"):
+                conf = True
+            else:
+                raise Exception ("Invalid variable " + var + ": neither integrity nor confidentiality")
+            var = var[:-5]
+
+            if var.startswith ("input_"):
+                invar = True
+                var = var[6:]
+            elif var.startswith ("output_"):
+                outvar = True
+                var = var[7:]
+            else:
+                raise Exception ("Invalid variable " + var + ": neither input nor output")
+
+            if invar:  var = "\\invar{" + var + "}"
+            if outvar: var = "\\outvar{" + var + "}"
+
+            if intg: var = "\\intg{" + var + "}"
+            if conf: var = "\\conf{" + var + "}"
+
+            result += var
+
+    elif exp == None:
+        result += "\Downarrow"
+    else:
+        raise Exception ("Unhandled expression: " + str(exp))
+
+    return result
+
+def dump_primitive_rules (filename):
+
+    with open (filename, 'w') as outfile:
+        for primitive_class in Primitive.__subclasses__():
+            name = primitive_class.__name__[10:]
+            if not name in ['output', 'input', 'xform', 'const', 'branch']:
+                p = primitive_class (None, name)
+                n = name.replace ("_", '') 
+                outfile.write ("\\newcommand{\\" + n + "rule}{\\text{rule}_{\\text{" + n + "}} = " + \
+                    latex_expression(name, simplify (And (p.rule))) + "}" + "\n")
 
 def main():
 
@@ -1477,8 +1539,8 @@ def main():
     solved = G.analyze(args.dump_rules)
     G.label()
 
-    #if args.dump_rules:
-    #    dump_primitive_rules()
+    if args.dump_latex:
+        dump_primitive_rules(args.dump_latex[0])
 
     libspg.exitval = 0
     if solved:
@@ -1495,6 +1557,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
     parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
+    parser.add_argument('--latex', action='store', nargs=1, required=False, help='Store rules as latex file', dest='dump_latex');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
     parser.add_argument('--cluster', action='store_true', help='Cluster graph output', dest='cluster');
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');

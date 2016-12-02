@@ -7,7 +7,7 @@ clean:
 RUNS  = $(wildcard tests/run_*.spg)
 TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
 
-#SPG_ARGS = --dump
+SPG_ARGS = --latex ../../Papers/PETS_2017/rules.tex
 
 otr.svg: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@

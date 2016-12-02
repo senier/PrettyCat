@@ -179,17 +179,17 @@ class MissingIncomingEdge (Exception):
     def __init__ (self, name, arg):
         Exception.__init__(self, "Node '" + name + "' has no incoming edge for argument '" + arg + "'")
 
-class PrimitiveDuplicateConfRule (Exception):
+class PrimitiveDuplicateRule (Exception):
     def __init__ (self, name):
-        Exception.__init__(self, "Duplicate confidentiality rule for '" + name + "'")
+        Exception.__init__(self, "Duplicate rule for '" + name + "'")
 
-class PrimitiveDuplicateIntgRule (Exception):
+class PrimitiveMissingRule (Exception):
     def __init__ (self, name):
-        Exception.__init__(self, "Duplicate integrity rule for '" + name + "'")
+        Exception.__init__(self, "Primitive '" + name + "' has not rule")
 
-class PrimitiveInvalidRules (Exception):
+class PrimitiveInvalidRule (Exception):
     def __init__ (self, kind, name):
-        Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has contradicting rules")
+        Exception.__init__(self, "Primitive '" + name + "' (" + kind + ") has contradicting rule")
 
 class PrimitiveMissing (Exception):
     def __init__ (self, kind, name):
@@ -725,6 +725,7 @@ class Primitive:
         self.name   = name
         self.node   = G.graph.node[name]
         self.graph  = G
+        self.rule   = []
 
         for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
             self.input.add_guarantee (data['darg'])
@@ -733,19 +734,12 @@ class Primitive:
             self.output.add_guarantee (data['sarg'])
 
     def populate (self, solver):
-        ig = self.input.guarantees()
-        for g in ig:
-            solver.assert_and_track (ig[g].get_conf(), "RULE_" + self.name + "_" + g + "_input_conf")
-            solver.assert_and_track (ig[g].get_intg(), "RULE_" + self.name + "_" + g + "_input_intg")
-        og = self.output.guarantees()
-        for g in og:
-            solver.assert_and_track (og[g].get_conf(), "RULE_" + self.name + "_" + g + "_output_conf")
-            solver.assert_and_track (og[g].get_intg(), "RULE_" + self.name + "_" + g + "_output_intg")
+        solver.assert_and_track (And (self.rule), "RULE_" + self.name)
 
     def prove (self, solver):
         self.populate (solver)
         if solver.check() != sat:
-            raise PrimitiveInvalidRules (self.__class__.__name__, self.name)
+            raise PrimitiveInvalidRule (self.__class__.__name__, self.name)
         del solver
 
 class Primitive_output (Primitive):
@@ -764,9 +758,9 @@ class Primitive_output (Primitive):
 
         for (name, ig) in self.input.guarantees().items():
             if g['c'] != None:
-                ig.conf (Conf (ig) == g['c'])
+                self.rule.append (Conf (ig) == g['c'])
             if g['i'] != None:
-                ig.intg (Intg (ig) == g['i'])
+                self.rule.append (Intg (ig) == g['i'])
 
 class Primitive_input (Primitive):
     """
@@ -784,9 +778,9 @@ class Primitive_input (Primitive):
 
         for (name, og) in self.output.guarantees().items():
             if g['c'] != None:
-                og.conf (Conf (og) == g['c'])
+                self.rule.append (Conf (og) == g['c'])
             if g['i'] != None:
-                og.intg (Intg (og) == g['i'])
+                self.rule.append (Intg (og) == g['i'])
 
 class Primitive_xform (Primitive):
     """
@@ -799,34 +793,34 @@ class Primitive_xform (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        #   Input from a source lacking integrity guarantees can influence
-        #   any output of an xform in undetermined ways. Hence, integrity
-        #   guarantees cannot be maintained for any output interface.
+        # Input from a source lacking integrity guarantees can influence
+        # any output of an xform in undetermined ways. Hence, integrity
+        # guarantees cannot be maintained for any output interface.
         #
-        #   Integrity can be maintained if the input interfaces is
-        #   controlled by the xform implementation, i.e. it is guaranteed
-        #   that it can influence the output only in well-defined ways
-        #   (permutation, fixed output position).
+        # Integrity can be maintained if the input interfaces is
+        # controlled by the xform implementation, i.e. it is guaranteed
+        # that it can influence the output only in well-defined ways
+        # (permutation, fixed output position).
         #
-        #   (Intg(output_if) ⇒ Intg(input_if)) ∨ Controlled (input_if)
+        # (Intg(output_if) ⇒ Intg(input_if)) ∨ Controlled (input_if)
 
         for (in_name, input_if) in self.input.guarantees().items():
             controlled = in_name in G.graph.node[name]['controlled']
             input_if_rules = []
             for (out_name, output_if) in self.output.guarantees().items():
                 input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if)), controlled))
-            input_if.intg (And (input_if_rules))
+            self.rule.append (And (input_if_rules))
 
-        #   Input from a source demanding confidentiality guarantees can
-        #   influence any output of an xform in undetermined ways. Hence,
-        #   confidentiality must be guaranteed by all output interfaces.
+        # Input from a source demanding confidentiality guarantees can
+        # influence any output of an xform in undetermined ways. Hence,
+        # confidentiality must be guaranteed by all output interfaces.
         #
         #   Conf(input_if) -> Conf(output_if)
         for (out_name, output_if) in self.output.guarantees().items():
             output_if_rules = []
             for (in_name, input_if) in self.input.guarantees().items():
                 output_if_rules.append (Implies (Conf(input_if), Conf(output_if)))
-            output_if.conf (And (output_if_rules))
+            self.rule.append (And (output_if_rules))
 
 class Primitive_branch (Primitive):
     """
@@ -844,14 +838,15 @@ class Primitive_branch (Primitive):
         # If integrity is guaranteed for some output, then integrity
         # must be guaranteed for the input, too.
         for (out_name, out_g) in self.output.guarantees().items():
-            out_g.intg (Implies (Intg(out_g), Intg(self.input.data)))
+            self.rule.append (Implies (Intg(out_g), Intg(self.input.data)))
 
         # If confidentiality is guaranteed for the input, then integrity
         # must be guaranteed for all outputs, too.
         output_conf_rules = []
         for (out_name, out_g) in self.output.guarantees().items():
             output_conf_rules.append (Implies (Conf(self.input.data), Conf(out_g)))
-        out_g.conf (And (output_conf_rules))
+
+        self.rule.append (And (output_conf_rules))
 
 class Primitive_const (Primitive):
     """
@@ -866,9 +861,9 @@ class Primitive_const (Primitive):
 
         og = self.output.guarantees()['const']
         if g['c'] != None:
-            og.conf (Conf (og) == g['c'])
+            self.rule.append (Conf (og) == g['c'])
         else:
-            self.output.const.conf (Conf(self.output.const))
+            self.rule.append (Conf(self.output.const))
 
 class Primitive_rng (Primitive):
     """
@@ -881,56 +876,20 @@ class Primitive_rng (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        # Parameters
-        #   Input:  len
-        #   Output: data
+        # input.len: If an attacker can choose the length requested from an RNG,
+        # too short keys would be generated.
+        self.rule.append (Intg(self.input.len))
 
-        # Parameter
-        #   len_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        #   FIXME: This does not hold if we consider meta-confidentiality (e.g. the length out output data)
-        # Assertion:
-        #   None
+        # output.data: We assume that this RNG is always used to produce keys which
+        # need to be confidential.
+        self.rule.append (Conf (self.output.data))
 
-        # Parameter
-        #   len_in
-        # Integrity guarantees can be dropped if:
-        #   Always
-        # Reason:
-        #   An attacker could change or reorder len_in creating
-        #   data_out messages of chosen, invalid length.
-        # Assertion:
-        #   len_in_i
-        self.input.len.intg (Intg(self.input.len))
-
-        # Parameter
-        #   data_out
-        # Confidentiality guarantee can be dropped if:
-        #   Never
-        # Reason:
-        #   We assume that this RNG is always used to produce keys which need to
-        #   be confidential. If required, we can introduce a nonce generator later
-        #   which does not imply confidentiality guarantees for its output. The RNG
-        #   should be safe, as the worst thing that may happen is that confidentiality
-        #   is required unnecessarily. Most likely this will result in a conflict in
-        #   nonce case, as those are typically passed to domains without
-        #   confidentiality guarantees.
-        self.output.data.conf (Conf (self.output.data))
-
-        # Parameter
-        #   data_out
-        # Integrity guarantees can be dropped if:
-        #   Anytime
-        # Reason:
-        #   FIXME
-        # Assertion:
-        #   None
+        # Discussion:
+        # If required, we can introduce a nonce generator later which does not imply
+        # confidentiality guarantees for its output. The RNG # should be safe, as the
+        # worst thing that may happen is that confidentiality is required unnecessarily.
+        # Most likely this will result in a conflict in nonce case, as those are
+        # typically passed to domains without confidentiality guarantees.
 
 class Primitive_dhpub (Primitive):
 
@@ -943,21 +902,20 @@ class Primitive_dhpub (Primitive):
 
         # Parameters are public, but an attacker may not chose a weak ones.
         # Hence, integrity must be guaranteed
-        self.input.modulus.intg (Intg(self.input.modulus))
-        self.input.generator.intg (Intg(self.input.generator))
+        self.rule.append (And (Intg(self.input.modulus), Intg(self.input.generator)))
 
-        #   With knowledge of g^y and psec_in (x in DH terms) an attacker can
-        #   calculate the shared secret g^y^x
-        self.input.psec.conf (Conf(self.input.psec))
+        # With knowledge of g^y and psec_in (x in DH terms) an attacker can
+        # calculate the shared secret g^y^x
+        self.rule.append (Conf(self.input.psec))
 
-        #   If an attacker can choose psec_in (x in DH terms) and knows g^y,
-        #   she can calculate the shared secret g^yx
-        self.input.psec.intg (Intg(self.input.psec))
+        # If an attacker can choose psec_in (x in DH terms) and knows g^y,
+        # she can calculate the shared secret g^yx
+        self.rule.append (Intg(self.input.psec))
 
-        #   Being able to transmit g^x over an non-confidential channel is the
-        #   sole purpose of the DH key exchange, given that x has
-        #   confidentiality and integrity guarantees
-        self.output.pub.conf (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
+        # Being able to transmit g^x over an non-confidential channel is the
+        # sole purpose of the DH key exchange, given that x has
+        # confidentiality and integrity guarantees
+        self.rule.append (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
 
 class Primitive_dhsec (Primitive):
     def __init__ (self, G, name):
@@ -969,18 +927,18 @@ class Primitive_dhsec (Primitive):
 
         # With knowledge of pub (g^y) and psec_in (x) an attacker can
         # calculate ssec (the shared secret g^yx ≡ g^xy)
-        self.input.psec.conf (Conf(self.input.psec))
+        self.rule.append (Conf(self.input.psec))
 
         # If the shared secret shall be confidential, then psec must not be chosen
         # by an attacker
-        self.input.psec.intg (Intg(self.input.psec))
+        self.rule.append (Intg(self.input.psec))
 
         # No weak parameters must be chosen by an attacker
-        self.input.modulus.intg (Intg(self.input.modulus))
-        self.input.generator.intg (Intg (self.input.generator))
+        self.rule.append (Intg(self.input.modulus))
+        self.rule.append (Intg (self.input.generator))
 
         # Confidentiality must be guaranteed for shared secret
-        self.output.ssec.conf (Conf(self.output.ssec))
+        self.rule.append (Conf(self.output.ssec))
 
 class Primitive_encrypt (Primitive):
     def __init__ (self, G, name):
@@ -994,29 +952,29 @@ class Primitive_encrypt (Primitive):
         # can could change plaintext_in to influence the integrity of
         # ciphertext_out. If integrity must be guaranteed for ciphertext_out,
         # it also must be guaranteed for plaintext_in.
-        self.input.plaintext.intg (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
+        self.rule.append (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
 
         # If plaintext_in is known to an attacker (i.e. not confidential), it
         # is superfluous to guarantee confidentiality for key_in.
         # If ciphertext_out requires confidentiality, the confidentiality of
         # pt_in is guaranteed even if key_in is known to an attacker.
-        self.input.key.conf (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
+        self.rule.append (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
         # Integrity of input key must always be guaranteed
-        self.input.key.intg (Intg (self.input.key))
+        self.rule.append (Intg (self.input.key))
 
         # If no confidentiality is guaranteed for plaintext_in in the first
         # place, it is superfluous to encrypt (and hence chose unique counter
         # values). If confidentiality is guaranteed for ciphertext_out,
         # encryption is not necessary. Hence, a ctr_in chose by an attacker
         # does no harm.
-        self.input.ctr.intg (Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
+        self.rule.append (Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
 
         # If confidentiality and integrity is guaranteed for the key and
         # integrity is guaranteed for ctr (to avoid using the same key/ctr
         # combination twice), an attacker cannot decrypt the ciphertext and
         # thus no confidentiality needs to be guaranteed by the environment.
-        self.output.ciphertext.conf (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
+        self.rule.append (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
 
 class Primitive_encrypt_ctr (Primitive_encrypt):
     def __init__ (self, G, name):
@@ -1027,10 +985,10 @@ class Primitive_encrypt_ctr (Primitive_encrypt):
         #   Outputs: ciphertext, ctr
 
         # If integrity is guaranteed for output counter, integrity must be guaranteed for initial counter
-        self.output.ctr.intg (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
+        self.rule.append (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
 
         # If confidentiality is guaranteed for initial counter, confidentiality must be guaranteed for output counter
-        self.output.ctr.conf (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))
+        self.rule.append (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))
 
 class Primitive_decrypt (Primitive):
     def __init__ (self, G, name):
@@ -1040,93 +998,9 @@ class Primitive_decrypt (Primitive):
         #   Input:  ciphertext, key, ctr
         #   Output: plaintext
 
-        # Parameter
-        #   ciphertext_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        #   FIXME: I thought of only dropping confidentiality if confidentiality
-        #   is guaranteed for key_in. However, this would preclude commitment
-        #   schemes where a party sends the key over a non-confidential channel.
-        # Reason:
-        #   This is the purpose of (symmetric) encryption.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   ciphertext_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   Data flow is directed. Integrity of an input parameter cannot be
-        #   influenced by an output parameter or other input parameters.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   key_in
-        # Confidentiality guarantee can be dropped if:
-        #   If no confidentiality is guaranteed for plaintext_out
-        # Reason:
-        #   If confidentiality is not guaranteed for the decryption
-        #   result, keeping the cipher key secret is superfluous.
-        # Assertion:
-        #   key_in_c ∨ ¬plaintext_out_c (equiv: plaintext_out_c ⇒ key_in_c)
-        self.input.key.conf (Implies (Conf(self.output.plaintext), Conf(self.input.key)))
-
-        # Parameter
-        #   key_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime.
-        #   FIXME: What happens when an attacker can chose a key for decryption? My
-        #   feeling is that this does not harm to confidentiality. It may enable oracle
-        #   attacks, however.
-        # Reason:
-        #   An attacker cannot derive the plaintext by providing an own key to
-        #   the decryption. The output will be wrong, but integrity is not achieved by
-        #   counter mode encryption anyway.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   ctr_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The counter is public as per counter mode definition.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   ctr_in
-        # Integrity guarantee can be dropped if:
-        #   If no confidentiality is guaranteed for plaintext_out
-        # Reason:
-        #   If confidentiality is not guaranteed for the decryption
-        #   result, ensuring proper encryption (the freshness of the
-        #   key/ctr combination in this case) is superfluous.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   plaintext_out
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The guarantees required only depend on the primitives using
-        #   the decryption result (i.e. encrypting data that has no
-        #   confidentiality requirements is perfectly fine)
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   plaintext_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity guarantees are required is only determined by the
-        #   primitive using the decryption result.
-        # Assertion:
-        #   None
+        # If the plaintext is confidential, the key must be confidential, too.
+        # FIXME: What happens when an attacker can chose a key for decryption?
+        self.rule.append (Implies (Conf(self.output.plaintext), Conf(self.input.key)))
 
 class Primitive_hash (Primitive):
     def __init__ (self, G, name):
@@ -1136,32 +1010,9 @@ class Primitive_hash (Primitive):
         #   Input:  data
         #   Output: hash
 
-        # Parameter
-        #   data_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
+        # Using a cryptographically secure hash makes no sense with non-integer data.
+        self.rule.append (Intg(self.input.data))
 
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
-        #   Using a cryptographically secure hash makes no sense with non-integer data.
-        # Assertion:
-        #   data_in_i
-        self.input.data.intg (Intg(self.input.data))
-
-        # Parameter
-        #   hash_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for data_in
-        # Reason:
         #   Even with a cryptographically secure hash function, an attacker
         #   may be able to recover data_in from hash_out, depending on the
         #   resource available and the structure of data_in. As we don't want
@@ -1169,20 +1020,7 @@ class Primitive_hash (Primitive):
         #   FIXME: It may become hard to cope with protocols where the
         #   infeasibility of reversing the hash is used, e.g. password
         #   authentication.
-        # Truth table:
-        #   hash_out_i data_in_i result
-        #   0          0         1
-        #   0          1         0
-        # Assertion:
-        #   hash_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ hash_out_c)
-        self.output.hash.conf (Implies (Conf(self.input.data), Conf(self.output.hash)))
-
-        # Parameter
-        #   hash_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   FIXME
+        self.rule.append (Implies (Conf(self.input.data), Conf(self.output.hash)))
 
 class Primitive_hmac (Primitive):
 
@@ -1193,74 +1031,15 @@ class Primitive_hmac (Primitive):
         #   Input:  key, msg
         #   Output: auth
 
-        # Parameter
-        #   key_in
-        # Confidentiality guarantee can be dropped if:
-        #   Integrity is not guaranteed for msg_in
-        # Reason:
-        #   If integrity is not guaranteed for the input data, HMAC cannot
-        #   protect anything. Hence, it does not harm if the key is released
-        #   to an attacker.
-        # Assertion:
-        #   key_in_c ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_c)
-        self.input.key.conf (Implies (Intg(self.input.msg), Conf(self.input.key)))
+        # If integrity is not guaranteed for the input data, HMAC cannot
+        # protect anything. Hence, it does not harm if the key is released
+        # to or chosen by an attacker.
+        self.rule.append (Conf(self.input.key))
+        self.rule.append (Intg(self.input.key))
 
-        # Parameter
-        #   key_in
-        # Integrity guarantee can be dropped if:
-        #   Integrity is not guaranteed for msg_in
-        # Reason:
-        #   If integrity is not guaranteed for the input data and attacker can
-        #   chose a key and HMAC cannot protect anything. Hence, it does not
-        #   harm if the key is chosen by an attacker.
-        # Assertion:
-        #   key_in_i ∨ ¬msg_in_i (equiv: msg_in_i ⇒ key_in_i)
-        self.input.key.intg (Implies (Intg(self.input.msg), Intg(self.input.key)))
-
-        # Parameter
-        #   msg_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   HMAC does not achieve nor assume confidentiality
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   msg_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
-        #   We assume that an HMAC component is only used when integrity must
-        #   be guaranteed for the msg_in.
-        #   FIXME: Are there scenarios where it makes sense to HMAC data that
-        #   has not integrity requirements?
-        # Assertion:
-        #   msg_in_i
-        self.input.msg.intg (Intg (self.input.msg))
-
-        # Parameter
-        #   auth_out
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Without knowing the secret key, an attacker cannot create a msg/auth
-        #   pair which authenticates using that key. Hence, neither for the message
-        #   nor for the auth value the environment has to maintain confidentiality.
-        # Assertion:
-        #   None
-        self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
-
-        # Parameter
-        #   auth_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Without knowing the secret key, an attacker cannot create a msg/auth
-        #   pair which authenticates using that key. Hence, neither for the message
-        #   nor for the auth value the environment has to maintain integrity.
-        # Assertion:
-        #   None
+        # We assume that an HMAC component is only used when integrity must
+        # be guaranteed for the msg_in.
+        self.rule.append (Intg (self.input.msg))
 
 class Primitive_hmac_out (Primitive_hmac):
 
@@ -1271,24 +1050,8 @@ class Primitive_hmac_out (Primitive_hmac):
         #   Input:  key, msg
         #   Output: auth, msg
 
-        # Parameter
-        #   msg_out
-        # Confidentiality guarantee can be dropped if:
-        #   msg_in requires no confidentiality
-        # Reason:
-        #   The HMAC does not achieve confidentiality.
-        # Assertion:
-        #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.output.msg.conf (Implies (Conf(self.input.msg), Conf(self.output.msg)))
-
-        # Parameter
-        #   msg_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   This is the purpose of HMAC.
-        # Assertion:
-        #   None
+        # HMAC does not achieve confidentiality.
+        self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
 
 class Primitive_sign (Primitive):
 
@@ -1307,23 +1070,23 @@ class Primitive_sign (Primitive):
         #   Output: auth
 
         # The private key must stay confidential
-        self.input.privkey.conf (Conf (self.input.privkey))
+        self.rule.append (Conf (self.input.privkey))
 
         # An attacker must not chose the private key
-        self.input.privkey.intg (Intg (self.input.privkey))
+        self.rule.append (Intg (self.input.privkey))
 
         # An attacker must not chose the public key
-        self.input.pubkey.intg (Intg (self.input.pubkey))
+        self.rule.append (Intg (self.input.pubkey))
 
         # Random number x must be confidential and not chosen by attacker
-        self.input.rand.intg (Intg (self.input.rand))
-        self.input.rand.conf (Conf (self.input.rand))
+        self.rule.append (Intg (self.input.rand))
+        self.rule.append (Conf (self.input.rand))
 
         # Even with a cryptographically secure hash function, an attacker
         # may be able to recover data_in from auth_out, depending on the
         # resource available and the structure of msg_in. As we don't want
         # to get probabilistic here, we just assume this is always possible.
-        self.output.auth.conf (Implies (Conf(self.input.msg), Conf(self.output.auth)))
+        self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.auth)))
 
 class Primitive_verify_sig (Primitive):
 
@@ -1343,11 +1106,11 @@ class Primitive_verify_sig (Primitive):
         # If an attacker can modify the result of a verify operation, she could
         # as well chose an own public key for which she has the secret key available
         # (and thus can create a valid signature yielding a positive result)
-        self.input.pubkey.intg (Intg(self.input.pubkey))
+        self.rule.append (Intg(self.input.pubkey))
 
         # If confidentiality is to be guaranteed for msg, this may also apply for
         # the fact whether it was signed with pubkey.
-        self.output.result.conf (Implies (Conf(self.input.msg), Conf(self.output.result)))
+        self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.result)))
 
 class Primitive_verify_hmac (Primitive):
 
@@ -1364,117 +1127,22 @@ class Primitive_verify_hmac (Primitive):
         #   Input:  msg, auth, key
         #   Output: result
 
-        # Parameter
-        #   msg_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   HMAC verification does not assume confidentiality for the input
-        #   message.
-        # Assertion:
-        #   None
+        # If an attacker can modify the result of a verify operation, she could
+        # as well chose an own key and use it to create a valid signature yielding
+        # a positive result
+        self.rule.append (Implies (Intg(self.output.result), And (Conf(self.input.key), Intg(self.input.key))))
 
-        # Parameter
-        #   msg_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Achieving integrity (in addition to authentication) cryptographically
-        #   is the purpose of a signature operation.
-        # Assertion:
-        #   None
 
-        # Parameter
-        #   auth_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Signature verification does not assume confidentiality for signature.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   auth_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Achieving integrity (in addition to authentication) cryptographically
-        #   is the purpose of a signature operation.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   key_in
-        # Confidentiality guarantee can be dropped if:
-        #   If no integrity is guaranteed for result
-        # Reason:
-        #   If an attacker can modify the result of a verify operation, she could
-        #   as well chose an own key and use it to create a valid signature yielding
-        #   a positive result
-        # Assertion:
-        #   pkey_in_c ∨ ¬result_out_i (equiv: result_out_i ⇒ pkey_in_c)
-        self.input.key.conf (Implies (Intg(self.output.result), Conf(self.input.key)))
-
-        # Parameter
-        #   key_in
-        # Integrity guarantee can be dropped if:
-        #   If no integrity is guaranteed for result
-        # Reason:
-        #   If an attacker can modify the result of a verify operation, she could
-        #   as well chose an own public key for which she has the secret key available
-        #   (and thus can create a valid signature yielding a positive result)
-        # Assertion:
-        #   key_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ key_in_i)
-        self.input.key.intg (Implies (Intg(self.output.result), Intg(self.input.key)))
-
-        # Parameter
-        #   result_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is guaranteed for msg_in
-        # Reason:
-        #   FIXME: Does the value of result really allow for gaining knowledge about msg?
-        # Assertion:
-        #   result_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ result_out_c)
-        self.output.result.conf (Implies (Conf(self.input.msg), Conf(self.output.result)))
-
-        # Parameter
-        #   result_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        # If the input message is confidential, the result is confidential, too.
+        self.rule.append  (Implies (Conf(self.input.msg), Conf(self.output.result)))
 
 class Primitive_verify_hmac_out (Primitive_verify_hmac):
 
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        # Parameters
-        #   Input:  msg, auth, key
-        #   Output: result, msg
-
-        # Parameter
-        #   msg_out
-        # Confidentiality guarantee can be dropped if:
-        #   msg_in requires no confidentiality
-        # Reason:
         #   The HMAC does not achieve confidentiality.
-        # Assertion:
-        #   msg_out_c ∨ ¬msg_in_c (equiv: msg_in_c ⇒ msg_out_c)
-        self.output.msg.conf (Implies (Conf(self.input.msg), Conf(self.output.msg)))
-
-        # Parameter
-        #   msg_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
 
 class Primitive_guard (Primitive):
 
@@ -1493,74 +1161,18 @@ class Primitive_guard (Primitive):
         #   Input:  data, cond
         #   Output: data
 
-        # Parameter
-        #   data_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
+        # Guard does nothing to integrity.
+        self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
 
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity is to be guaranteed for data_out
-        # Reason:
-        #   If data_out requires no integrity, it is OK for data_in to be altered
-        #   by an attacker.
-        # Assertion:
-        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
-
-        # Parameter
-        #   cond_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   cond_in
-        # Integrity guarantee can be dropped if:
-        #   Never
-        # Reason:
         #   Guard can be used to coordinate protocol steps, e.g. to send a reply
         #   only if the signature of a previous message was OK. Hence, the
         #   integrity requirements are at protocol level and cannot be derived
         #   from the primitive (or other primitives)
-        #   FIXME: Is it true we cannot derive it from primitives? Should we
-        #   make this configurable then?
-        # Assertion:
-        #   cond_in_i
-        self.input.cond.intg (Intg (self.input.cond))
+        #   FIXME: Is it true we cannot derive it from primitives? Should we make this configurable then?
+        self.rule.append (Intg (self.input.cond))
 
-        # Parameter
-        #   data_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is to be guaranteed for data_in
-        # Reason:
-        #   If data_in has no confidentiality guarantees, it
-        #   makes no sense to keep data_out confidential.
-        # Assertion:
-        #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
-
-        # Parameter
-        #   data_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        # Guard does nothing to confidentiality.
+        self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
 
 class Primitive_release (Primitive):
 
@@ -1577,44 +1189,7 @@ class Primitive_release (Primitive):
         #   Input:  data
         #   Output: data
 
-        # Parameter
-        #   data_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   This is the purpose of the component
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data_out
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   This is the purpose of the component
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        self.rule.append (True)
 
 class Primitive_comp (Primitive):
 
@@ -1628,76 +1203,20 @@ class Primitive_comp (Primitive):
     def __init__ (self, G, name):
         super ().setup (G, name)
 
-        # Parameters
-        #   Input:  data1, data2
-        #   Output: result
+        # If an attacker can chose data1_in, she can influence the integrity
+        # of result_out (at least, make result_out false with a very high
+        # likelihood by choosing a random value for data1_in)
+        self.rule.append (Implies (Intg(self.output.result), Intg(self.input.data1)))
 
-        # Parameter
-        #   data1_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
+        # If an attacker can chose data2_in, she can influence the integrity
+        # of result_out (at least, make result_out false with a very high
+        # likelihood by choosing a random value for data2_in)
+        self.rule.append (Implies (Intg(self.output.result), Intg(self.input.data2)))
 
-        # Parameter
-        #   data1_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity guarantee is demanded for result_out
-        # Reason:
-        #   If an attacker can chose data1_in, she can influence the integrity
-        #   of result_out (at least, make result_out false with a very high
-        #   likelihood by choosing a random value for data1_in)
-        # Assertion:
-        #   data1_in_i ∨ ¬result_out_i (equiv: result_out_i ⇒ data1_in_i)
-        self.input.data1.intg (Implies (Intg(self.output.result), Intg(self.input.data1)))
-
-        # Parameter
-        #   data2_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   As data flow is directed, confidentiality guarantees for an input
-        #   interface only depend on the primitive providing the data for that
-        #   interface.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data2_in
-        # Integrity guarantee can be dropped if:
-        #   No integrity guarantee is demanded for result_out
-        # Reason:
-        #   If an attacker can chose data2_in, she can influence the integrity
-        #   of result_out (at least, make result_out false with a very high
-        #   likelihood by choosing a random value for data2_in)
-        # Assertion:
-        #   data2_in_i ∨ ¬result_out_c (equiv: result_out_c ⇒ data2_in_i)
-        self.input.data2.intg (Implies (Intg(self.output.result), Intg(self.input.data2)))
-
-        # Parameter
-        #   result_out
-        # Confidentiality guarantee can be dropped if:
-        #   If confidentiality is not guaranteed for both, data1 and data2
-        # Reason:
-        #   If an attacker knows data1 and data2 she can derive result_out
-        #   by comparing both values
-        # Assertion:
-        #   result_out_c ∨ ¬(data1_in_c ∧ data2_in_c)
-        self.output.result.conf (Or (Conf(self.output.result), Not (And (Conf (self.input.data1), Conf (self.input.data2)))))
-
-        # Parameter
-        #   result_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        # If an attacker knows data1 and data2 she can derive result_out by comparing both values
+        # FIXME: Need both input values be confidential or is confidentiality for on input sufficient
+        # (we assume the latter right now)
+        self.rule.append (Implies (Conf(self.output.result), Or (Conf (self.input.data1), Conf (self.input.data2))))
 
 class Primitive_verify_commit (Primitive):
     """
@@ -1715,74 +1234,11 @@ class Primitive_verify_commit (Primitive):
         #   Input:  data, hash
         #   Output: data
 
-        # Parameter
-        #   data
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
+        # If an attacker can chose input data, she may change the output data.
+        self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
 
-        # Parameter
-        #   data_in
-        # Integrity guarantees can be dropped if:
-        #   No integrity is guaranteed for data_out
-        # Reason:
-        #   If an attacker can chose data, she may change the output data.
-        # Truth table
-        #   data_in_i data_out_i result
-        #   0         0          1
-        #   0         1          0
-        # Assertion:
-        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
-
-        # Parameter
-        #   hash
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   hash
-        # Integrity guarantees can be dropped if:
-        #   Anytime
-        #   FIXME: Really?
-        # Reason:
-        #   Output data is not influenced by hash input parameter.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   data_out
-        # Confidentiality guarantee can be dropped if:
-        #   No confidentiality is to be guaranteed for data_in
-        # Reason:
-        #   If data_in has no confidentiality guarantees, it
-        #   makes no sense to keep data_out confidential.
-        # Assertion:
-        #   data_out_c ∨ ¬data_in_c (equiv: data_in_c ⇒ data_out_c)
-        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
-
-        # Parameter
-        #   data_out
-        # Integrity guarantees can be dropped if:
-        #   Anytime
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
+        # If input data is confidential, confidentiality must be guaranteed for output data
+        self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
 
 class Primitive_latch (Primitive):
 
@@ -1804,71 +1260,16 @@ class Primitive_latch (Primitive):
         #   Input:  data
         #   Output: data, trigger
 
-        # Parameter
-        #   data_in
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   The confidentiality of an input parameter is not influenced by an
-        #   output parameters or other input parameters as the data flow is
-        #   directed. Hence, the demand for confidentiality guarantees is
-        #   solely determined by the source of an input interface
-        # Assertion:
-        #   None
+        # If an attacker can chose input data, she may change the output data.
+        self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
 
-        # Parameter
-        #   data_in
-        # Integrity guarantee can be dropped if:
-        #   data_out has no integrity guaranteed
-        # Reason:
-        #   Otherwise, an attacker could change the content of data_out
-        #   by changing data_in
-        # Assertion:
-        #   data_in_i ∨ ¬data_out_i (equiv: data_out_i ⇒ data_in_i)
-        self.input.data.intg (Implies (Intg(self.output.data), Intg(self.input.data)))
+        # If input data is confidential, confidentiality must be guaranteed for output data
+        self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
 
-        # Parameter
-        #   data_out
-        # Confidentiality guarantee can be dropped if:
-        #   data_in demands no confidentiality
-        # Reason:
-        #   Confidential data from data_in is passed on to data_out. Hence,
-        #   confidentiality can only be dropped if data_in guarantees no
-        #   confidentiality
-        # Assertion:
-        #   data_in_c -> data_out_c
-        self.output.data.conf (Implies (Conf(self.input.data), Conf(self.output.data)))
-
-        # Parameter
-        #   data_out
-        # Integrity guarantee can be dropped if:
-        #   Anytime.
-        # Reason:
-        #   Whether integrity needs to be guaranteed only depends on the primitive using
-        #   the result.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   trigger_out
-        # Confidentiality guarantee can be dropped if:
-        #   Anytime
-        # Reason:
-        #   No confidential information is passed on to trigger.
-        # Assertion:
-        #   None
-
-        # Parameter
-        #   trigger_out
-        # Integrity guarantee can be dropped if:
-        #   Never.
-        # Reason:
-        #   The purpose of the latch primitive is to open a commitment. If it triggers
-        #   too early, this may happen before the peer has committed to a value. Hence,
-        #   the trigger value requires integrity guarantees.
-        # Assertion:
-        #   trigger_out_i
-        self.output.trigger.intg (Intg (self.output.trigger))
+        # The purpose of the latch primitive is to open a commitment. If it triggers too early,
+        # this may happen before the peer has committed to a value. Hence, the trigger value
+        # requires integrity guarantees.
+        self.rule.append (Intg (self.output.trigger))
 
 ####################################################################################################
 

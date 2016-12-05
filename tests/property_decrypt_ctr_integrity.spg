@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <spg>
-    <input id="Input" integrity="false" confidentiality="false">
+    <env id="Input" integrity="false" confidentiality="false">
         <description>
             Ciphertext input
         </description>
         <flow sarg="data" sink="Decrypt" darg="ciphertext"/>
-    </input>
+    </env>
 
-    <input id="Key_Input" integrity="true" confidentiality="true">
+    <env id="Key_Input" integrity="true" confidentiality="true">
         <description>
             Key input
         </description>
         <flow sarg="key" sink="Decrypt" darg="key"/>
-    </input>
+    </env>
 
-    <input id="IV">
+    <env id="IV">
         <description>
             Static IV
         </description>
@@ -23,7 +23,7 @@
                 The IV for decryption is public and does not cause harm when chosen by attacker.
             </assert>
         </flow>
-    </input>
+    </env>
 
     <decrypt id="Decrypt">
         <description>
@@ -36,12 +36,12 @@
         </flow>
     </decrypt>
 
-    <output id="Output" integrity="false" confidentiality="true">
+    <env id="Output" integrity="false" confidentiality="true">
         <description>
             Send out decrypted message
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 </spg>
 
 

@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <spg>
-    <input id="Msg" confidentiality="false" integrity="true">
+    <env id="Msg" confidentiality="false" integrity="true">
         <description>
             Message
         </description>
         <flow sarg="data" sink="Sign" darg="msg"/>
-    </input>
+    </env>
 
     <const id="Public key">
         <description>
@@ -55,11 +55,11 @@
         <flow sarg="auth" sink="Output" darg="auth"/>
     </sign>
 
-    <output id="Output" confidentiality="false" integrity="false">
+    <env id="Output" confidentiality="false" integrity="false">
         <description>
             Output guaranteeing integrity
         </description>
         <arg name="auth"/>
-    </output>
+    </env>
 </spg>
 

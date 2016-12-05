@@ -69,27 +69,13 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     </xs:complexContent>
 </xs:complexType>
 
-<xs:complexType name="outputElement">
+<xs:complexType name="envElement">
     <xs:complexContent>
         <xs:extension base="baseElement">
-            <xs:sequence minOccurs="1" maxOccurs="1">
-                <xs:choice>
-                    <xs:element name="arg"  type="argElement"/>
-                </xs:choice>
-            </xs:sequence>
-            <xs:attribute name="code" type="xs:string"/>
-            <xs:attribute name="confidentiality" type="xs:boolean"/>
-            <xs:attribute name="integrity" type="xs:boolean"/>
-        </xs:extension>
-    </xs:complexContent>
-</xs:complexType>
-
-<xs:complexType name="inputElement">
-    <xs:complexContent>
-        <xs:extension base="baseElement">
-            <xs:sequence minOccurs="1" maxOccurs="1">
+            <xs:sequence minOccurs="1" maxOccurs="unbounded">
                 <xs:choice>
                     <xs:element name="flow" type="flowElement"/>
+                    <xs:element name="arg" type="argElement"/>
                 </xs:choice>
             </xs:sequence>
             <xs:attribute name="code" type="xs:string"/>
@@ -128,8 +114,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
-            <xs:element name="output"          type="outputElement"/>
-            <xs:element name="input"           type="inputElement"/>
+            <xs:element name="env"             type="envElement"/>
             <xs:element name="xform"           type="xformElement"/>
             <xs:element name="branch"          type="forwardElement"/>
             <xs:element name="const"           type="constElement"/>
@@ -403,11 +388,8 @@ class Graph:
         G = self.graph
         for node in G.node:
 
-            if G.node[node]['kind'] == "output":
+            if G.node[node]['kind'] == "env":
                 G.node[node]['shape'] = "invhouse"
-                G.node[node]['style'] = "filled"
-            elif G.node[node]['kind'] == "input":
-                G.node[node]['shape'] = "cds"
                 G.node[node]['style'] = "filled"
             else:
                 G.node[node]['shape'] = "rectangle"
@@ -558,7 +540,7 @@ class Graph:
             lib  = libspg
             name = kind
 
-            if kind == "input" or kind == "output" or kind == "xform":
+            if kind == "env" or kind == "output" or kind == "xform":
                 classname = G.node[node]['classname']
                 if classname != None:
                     name = kind + "_" + G.node[node]['classname']
@@ -789,16 +771,18 @@ class Primitive:
             raise PrimitiveInvalidRule (self.__class__.__name__, self.name)
         del solver
 
-class Primitive_output (Primitive):
+class Primitive_env (Primitive):
     """
-    The output primitive
+    The env primitive
 
-    Denotes one sink outside the model. Fixed guarantees according to the
-    XML definition are used only here.
+    Denotes one source/sink outside the model. Fixed guarantees are defined here.
     """
 
     def __init__ (self, G, name, attributes):
         super ().setup (name, G, attributes)
+
+        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
+            self.output.add_guarantee (data['sarg'])
 
         for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
             self.input.add_guarantee (data['darg'])
@@ -808,20 +792,6 @@ class Primitive_output (Primitive):
                 self.rule.append (Conf (ig) == self.guarantees['c'])
             if self.guarantees['i'] != None:
                 self.rule.append (Intg (ig) == self.guarantees['i'])
-
-class Primitive_input (Primitive):
-    """
-    The input primitive
-
-    Denotes one source outside the model. Fixed guarantees according to the
-    XML definition are used only here.
-    """
-
-    def __init__ (self, G, name, attributes):
-        super ().setup (name, G, attributes)
-
-        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.output.add_guarantee (data['sarg'])
 
         for (name, og) in self.output.guarantees().items():
             if self.guarantees['c'] != None:
@@ -1509,7 +1479,7 @@ def dump_primitive_rules (filename):
     with open (filename, 'w') as outfile:
         for primitive_class in Primitive.__subclasses__():
             name = primitive_class.__name__[10:]
-            if not name in ['output', 'input', 'xform', 'const', 'branch']:
+            if not name in ['env', 'xform', 'const', 'branch']:
                 p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
                 n = name.replace ("_", '') 
                 outfile.write ("\\newcommand{\\" + n + "rule}{\\text{rule}_{\\text{" + n + "}} = " + \

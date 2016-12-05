@@ -59,17 +59,17 @@
         <arg name="c"/>
     </xform>
 
-    <output id="Key_Output1" integrity="false" confidentiality="true">
+    <env id="Key_Output1" integrity="false" confidentiality="true">
         <description>
             Send to key store 1
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 
-    <output id="Key_Output2" integrity="false" confidentiality="true">
+    <env id="Key_Output2" integrity="false" confidentiality="true">
         <description>
             Send to key store 2
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 </spg>

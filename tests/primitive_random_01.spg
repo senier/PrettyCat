@@ -25,11 +25,11 @@
         </flow>
     </rng>
 
-    <output id="Output" confidentiality="true">
+    <env id="Output" confidentiality="true">
         <description>
             Environment with confidentiality guarantees, e.g. key store
         </description>
         <arg name="random"/>
-    </output>
+    </env>
 
 </spg>

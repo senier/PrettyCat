@@ -4,21 +4,14 @@
     <!--
       ** Environment
       -->
-    <input id="Network_Input" confidentiality="false" integrity="false">
+    <env id="Network" confidentiality="false" integrity="false">
         <description>
             Network environment source without confidentiality or integrity guarantees.
         </description>
-        <config port="10000"/>
+        <config port="10000" mode="server"/>
         <flow sarg="data" sink="Network_Input_Mux" darg="msg"/>
-    </input>
-
-    <output id="Network_Output" confidentiality="false" integrity="false">
-        <description>
-            Network environment sink without confidentiality or integrity guarantees.
-        </description>
-        <config port="10001"/>
         <arg name="data"/>
-    </output>
+    </env>
 
     <xform id="Network_Input_Mux" code="network_input_mux">
         <description>
@@ -36,7 +29,7 @@
         <description>
             Compile outgoing OTR messages
         </description>
-        <flow sarg="msg" sink="Network_Output" darg="data"/>
+        <flow sarg="msg" sink="Network" darg="data"/>
         <arg name="dhkm"/>
         <arg name="dhcm"/>
         <arg name="rvsm"/>
@@ -45,21 +38,14 @@
     </xform>
 
 
-    <input id="User_Input" confidentiality="true" integrity="true">
+    <env id="User" confidentiality="true" integrity="true">
         <description>
             User data environment guaranteeing confidentiality and integrity.
         </description>
-        <config port="10002"/>
+        <config port="10001" mode="server"/>
         <flow sarg="data" sink="Encrypt (M)" darg="plaintext"/>
-    </input>
-
-    <output id="User_Output" confidentiality="true" integrity="true">
-        <description>
-            User data environment guaranteeing confidentiality and integrity.
-        </description>
-        <config port="10003"/>
         <arg name="data"/>
-    </output>
+    </env>
 
     <!-- FIXME: User_Interface should not require confidentiality (after all,
          displaying SSID is not confidential). However, if we require no
@@ -67,14 +53,14 @@
          to create SSID do not remove confidentialty from the output. This is
          right for key derivation, but wrong in this case. How do we distinguish
          these cases? -->
-    <output id="User_Interface" confidentiality="true" integrity="true">
+    <env id="User_Interface" confidentiality="true" integrity="true">
         <description>
             User interface environment guaranteeing integrity for displayed
             content.
         </description>
-        <config port="10004"/>
+        <config port="10002" mode="server"/>
         <arg name="data"/>
-    </output>
+    </env>
 
     <!--
       ** AKE
@@ -1979,7 +1965,7 @@
             Decrypt the message using the receiving encryption key.
         </description>
         <config keylen="128"/>
-        <flow sarg="plaintext" sink="User_Output" darg="data"/>
+        <flow sarg="plaintext" sink="User" darg="data"/>
     </decrypt>
 
 </spg>

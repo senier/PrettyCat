@@ -13,6 +13,10 @@ class NotImplemented (Exception):
     def __init__ (self, text):
         Exception.__init__(self, "Not implemented: " + text)
 
+class InvalidConfiguration (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Invalid configuration: " + text)
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
@@ -232,45 +236,44 @@ class decrypt (counter_mode):
             self.send['plaintext'](cipher.decrypt (self.ct))
             self.ctr = None
 
-class output (SPG_base):
-
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments, needconfig = True)
-
-        self.port    = int(config.attrib['port'])
-        self.host    = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
-        self.bufsize = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
-
-        print ("   Output init: " + self.host + ":" + str(self.port))
-
-        self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.connect ((self.host, self.port))
-
-    def recv_data (self, data):
-        self.socket.send (data)
-    
-class input (SPG_thread):
+class env (SPG_thread):
 
     def __init__ (self, name, config, arguments, needconfig = True):
+
+        if not 'mode' in config.attrib:
+            raise InvalidConfiguration ("'mode' not configured for env")
 
         super().__init__ (name, config, arguments, needconfig)
         self.port        = int(config.attrib['port'])
         self.host        = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
         self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
+        self.mode        = config.attrib['mode']
 
-        self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind ((self.host, self.port))
-        self.socket.listen (1)
+        print ("   Env init: " + self.host + ":" + str(self.port))
 
-        print ("   Waiting: TCP for " + name + " on " + self.host + ": " + str(self.port))
-        (self.conn, addr) = self.socket.accept()
-        print ("   Connect: " + str(addr[0]) + ":" + str(addr[1]))
-        message = name + ": ";
-        self.conn.send (message.encode())
-
+    def recv_data (self, data):
+        self.socket.send (data)
+    
     def run (self):
+
+        if self.mode == 'server':
+            self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.bind ((self.host, self.port))
+            self.socket.listen (1)
+
+            print ("   Waiting: TCP for " + self.name + " on " + self.host + ": " + str(self.port))
+            (self.conn, addr) = self.socket.accept()
+            print ("   Connect: " + str(addr[0]) + ":" + str(addr[1]))
+            message = self.name + ": ";
+            self.conn.send (message.encode())
+
+        elif mode == 'client':
+
+            self.socket  = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
+            self.socket.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            self.socket.connect ((self.host, self.port))
+
 
         while True:
             if 'data' in self.send:

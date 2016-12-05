@@ -27,13 +27,13 @@
         <arg name="right"/>
     </xform>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether comparison yields true
         </description>
         <config result="foobarbaz"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>
 

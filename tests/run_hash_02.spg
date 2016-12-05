@@ -32,12 +32,12 @@
         <flow sarg="result" sink="Check" darg="data"/>
     </comp>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether comparison yields false
         </description>
         <config result="False"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>

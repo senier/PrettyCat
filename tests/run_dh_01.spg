@@ -104,12 +104,12 @@
         <flow sarg="result" sink="Result" darg="data"/>
     </comp>
 
-    <output id="Result" code="check_fixed">
+    <env id="Result" code="check_fixed">
         <description>
             Output result
         </description>
         <config result="True"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>

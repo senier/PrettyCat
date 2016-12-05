@@ -28,12 +28,12 @@
         <flow sarg="data" sink="Check" darg="data"/>
     </guard>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether comparison yields true
         </description>
         <config result="foobar"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>

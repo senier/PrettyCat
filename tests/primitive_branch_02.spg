@@ -6,12 +6,12 @@
       ** but Input hasn't
       ** -->
 
-    <input id="Input" integrity="false" confidentiality="false">
+    <env id="Input" integrity="false" confidentiality="false">
         <description>
             Confidential input
         </description>
         <flow sarg="data" sink="Branch" darg="data"/>
-    </input>
+    </env>
 
     <branch id="Branch">
         <description>
@@ -25,17 +25,17 @@
         </flow>
     </branch>
 
-    <output id="Output_Intg" integrity="true" confidentiality="false">
+    <env id="Output_Intg" integrity="true" confidentiality="false">
         <description>
             Integrity output
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 
-    <output id="Output_Nonintg" integrity="false" confidentiality="false">
+    <env id="Output_Nonintg" integrity="false" confidentiality="false">
         <description>
             Non-integrity output
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 </spg>

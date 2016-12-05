@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <spg code="testlib">
 
-    <input id="Plaintext" code="list">
+    <env id="Plaintext" code="list">
         <description>
             Plaintext
         </description>
         <config data="This is my plain,Another plaintxt,A 3 rd plaintext" delay="0.1"/>
         <flow sarg="data" sink="Branch Plaintext" darg="data"/>
-    </input>
+    </env>
 
     <branch id="Branch Plaintext">
         <description>
@@ -66,12 +66,12 @@
         <flow sarg="result" sink="Check" darg="data"/>
     </comp>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether comparison yields true
         </description>
         <config result="True,True,True"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>

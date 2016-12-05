@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <spg assert_fail="true">
 
-    <input id="Input" integrity="false" confidentiality="true">
+    <env id="Input" integrity="false" confidentiality="true">
         <description>
             Confidential input
         </description>
         <flow sarg="data" sink="Encrypt" darg="plaintext"/>
-    </input>
+    </env>
 
     <const id="IV">
         <description>
@@ -56,11 +56,11 @@
         <arg name="key"/>
     </xform>
 
-    <output id="Output" integrity="false" confidentiality="false">
+    <env id="Output" integrity="false" confidentiality="false">
         <description>
             Send out encrypted protected message
         </description>
         <arg name="data"/>
-    </output>
+    </env>
 </spg>
 

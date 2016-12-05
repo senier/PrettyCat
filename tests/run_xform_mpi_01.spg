@@ -17,13 +17,13 @@
         <arg name="data"/>
     </xform>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether MPI is correct
         </description>
         <config hexresult="000000080789fef1cda3373e"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>
 

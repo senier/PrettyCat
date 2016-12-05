@@ -3,7 +3,7 @@ from libspg import info, warn, err, SPG_base
 import libspg
 import time
 
-class input_list (libspg.SPG_thread):
+class env_list (libspg.SPG_thread):
 
     def __init__ (self, name, config, arguments):
 
@@ -24,7 +24,7 @@ class input_list (libspg.SPG_thread):
         for v in self.values:
             self.send['data'](v.encode())
 
-class output_check_fixed (SPG_base):
+class env_check_fixed (SPG_base):
 
     def __init__ (self, name, config, arguments):
 

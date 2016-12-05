@@ -47,13 +47,13 @@
         <flow sarg="result" sink="Check" darg="data"/>
     </verify_hmac>
 
-    <output id="Check" code="check_fixed">
+    <env id="Check" code="check_fixed">
         <description>
             Check whether comparison yields true
         </description>
         <config result="True"/>
         <arg name="data"/>
-    </output>
+    </env>
 
 </spg>
 

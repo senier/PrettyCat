@@ -21,8 +21,6 @@ from z3 import *
 import networkx as nx
 from networkx.readwrite import json_graph
 
-# TODO: Check for excess output parameters in fixed primitives
-
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
 
@@ -175,9 +173,17 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 
 args = ()
 
-class MissingIncomingEdge (Exception):
-    def __init__ (self, name, arg):
-        Exception.__init__(self, "Node '" + name + "' has no incoming edge for argument '" + arg + "'")
+class MissingIncomingEdges (Exception):
+    def __init__ (self, name, edges):
+        Exception.__init__(self, "Node '" + name + "' has missing incoming edges: " + str(edges))
+
+class ExcessIncomingEdges (Exception):
+    def __init__ (self, name, edges):
+        Exception.__init__(self, "Node '" + name + "' has excess incoming edges: " + str(edges))
+
+class MissingAndExcessIncomingEdges (Exception):
+    def __init__ (self, name, missing, excess):
+        Exception.__init__(self, "Node '" + name + "' has missing incoming edges " + str(missing) + " and excess edges " + str(excess))
 
 class PrimitiveDuplicateRule (Exception):
     def __init__ (self, name):
@@ -217,14 +223,14 @@ def mark_partition (G, node, partition):
 
     # Partition towards parents
     for (parent, child) in G.in_edges (nbunch=node):
-        if G.node[parent]['guarantees']['c'] == G.node[node]['guarantees']['c'] and \
-           G.node[parent]['guarantees']['i'] == G.node[node]['guarantees']['i']:
+        if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+           G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
             mark_partition (G, parent, partition)
 
     # Partition towards children
     for (parent, child) in G.out_edges (nbunch=node):
-        if G.node[child]['guarantees']['c'] == G.node[node]['guarantees']['c'] and \
-           G.node[child]['guarantees']['i'] == G.node[node]['guarantees']['i']:
+        if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+           G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
             mark_partition (G, child, partition)
 
     return True
@@ -239,6 +245,27 @@ class Graph:
         self.fail     = fail
         self.code     = code 
         self.pd       = None
+
+        # Create primitive objects
+        for node in graph.nodes():
+
+            attrs = { \
+               'inputs'     : [ data['darg'] for (unused1, unused2, data) in graph.in_edges (nbunch = node, data = True) ], \
+               'arguments'  : graph.node[node]['arguments'], \
+               'outputs'    : graph.node[node]['outputs'], \
+               'controlled' : graph.node[node]['controlled'], \
+               'config'     : graph.node[node]['config'], \
+               'guarantees' : graph.node[node]['guarantees'] }
+
+            objname = "Primitive_" + graph.node[node]['kind']
+
+            try:
+                primitive = globals()[objname](self, node, attrs)
+                primitive.prove(SPG_Solver())
+            except AttributeError as e:
+                raise PrimitiveInvalidAttributes (node, kind, str(e))
+
+            graph.node[node]['primitive'] = primitive
 
     def graph (self):
         return self.graph
@@ -388,9 +415,9 @@ class Graph:
             val_c = False
             val_i = False
 
-            if 'guarantees' in G.node[node]:
-                val_c = G.node[node]['guarantees']['c']
-                val_i = G.node[node]['guarantees']['i']
+            if G.node[node]['primitive'].guarantees != None:
+                val_c = G.node[node]['primitive'].guarantees['c']
+                val_i = G.node[node]['primitive'].guarantees['i']
 
             for (parent, current, data) in G.in_edges (nbunch=node, data=True):
                 darg = data['darg']
@@ -405,8 +432,8 @@ class Graph:
             set_style (G.node[node], val_c, val_i)
 
             # Store node guarantees
-            G.node[node]['guarantees']['c'] = val_c
-            G.node[node]['guarantees']['i'] = val_i
+            G.node[node]['primitive'].guarantees['c'] = val_c
+            G.node[node]['primitive'].guarantees['i'] = val_i
 
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
@@ -544,7 +571,7 @@ class Graph:
                 except AttributeError:
                     raise PrimitiveNotImplemented (name)
 
-            classobj = libclass (node, G.node[node]['config'], G.node[node]['arguments'])
+            classobj = libclass (node, G.node[node]['primitive'].config, G.node[node]['primitive'].inputs)
             G.node[node]['class'] = classobj
 
         for node in G.node:
@@ -717,23 +744,41 @@ class Primitive:
     def __init__ (self, G, name):
         raise Exception ("Abstract")
 
-    def setup (self, name, G=None, interfaces={ 'inputs': [], 'outputs': []}):
+    def setup (self, name, G, attributes, interfaces = { 'inputs': None, 'outputs': None} ):
 
         self.input  = Input_Args (name)
         self.output = Output_Args (name)
         self.name   = name
         self.rule   = []
-
-        for in_if in interfaces['inputs']:
-            self.input.add_guarantee (in_if)
-
-        for out_if in interfaces['outputs']:
-            self.output.add_guarantee (out_if)
-
         self.G = G
 
-    def guarantees (self):
-        return self.G.graph.node[self.name]['guarantees']
+        self.guarantees = attributes['guarantees']
+        self.config     = attributes['config']
+        self.inputs     = attributes['inputs']
+        self.outputs    = attributes['outputs']
+        self.arguments  = attributes['arguments']
+
+        if interfaces['inputs'] == None:
+            for arg in self.inputs:
+                self.input.add_guarantee (arg)
+        else:
+            for in_if in interfaces['inputs']:
+                self.input.add_guarantee (in_if)
+
+            if self.inputs:
+                missing_args = set(interfaces['inputs']) - set(self.inputs)
+                excess_args = set(self.inputs) - set(interfaces['inputs'])
+
+                if missing_args and excess_args: raise MissingAndExcessIncomingEdges (name, missing_args, excess_args)
+                if missing_args:                 raise MissingIncomingEdges (name, missing_args)
+                if excess_args:                  raise ExcessIncomingEdges (name, excess_args)
+
+        if interfaces['outputs'] == None:
+            for arg in self.outputs:
+                self.output.add_guarantee (arg)
+        else:
+            for out_if in interfaces['outputs']:
+                self.output.add_guarantee (out_if)
 
     def populate (self, solver):
         solver.assert_and_track (And (self.rule), "RULE_" + self.name)
@@ -752,20 +797,17 @@ class Primitive_output (Primitive):
     XML definition are used only here.
     """
 
-    def __init__ (self, G, name):
-        super ().setup (name, G)
+    def __init__ (self, G, name, attributes):
+        super ().setup (name, G, attributes)
 
         for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
             self.input.add_guarantee (data['darg'])
 
-        # Guarantees explicitly set in the XML
-        g = self.guarantees()
-
         for (name, ig) in self.input.guarantees().items():
-            if g['c'] != None:
-                self.rule.append (Conf (ig) == g['c'])
-            if g['i'] != None:
-                self.rule.append (Intg (ig) == g['i'])
+            if self.guarantees['c'] != None:
+                self.rule.append (Conf (ig) == self.guarantees['c'])
+            if self.guarantees['i'] != None:
+                self.rule.append (Intg (ig) == self.guarantees['i'])
 
 class Primitive_input (Primitive):
     """
@@ -775,20 +817,17 @@ class Primitive_input (Primitive):
     XML definition are used only here.
     """
 
-    def __init__ (self, G, name):
-        super ().setup (name, G)
+    def __init__ (self, G, name, attributes):
+        super ().setup (name, G, attributes)
 
         for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
             self.output.add_guarantee (data['sarg'])
 
-        # Guarantees explicitly set in the XML
-        g = self.guarantees()
-
         for (name, og) in self.output.guarantees().items():
-            if g['c'] != None:
-                self.rule.append (Conf (og) == g['c'])
-            if g['i'] != None:
-                self.rule.append (Intg (og) == g['i'])
+            if self.guarantees['c'] != None:
+                self.rule.append (Conf (og) == self.guarantees['c'])
+            if self.guarantees['i'] != None:
+                self.rule.append (Intg (og) == self.guarantees['i'])
 
 class Primitive_xform (Primitive):
     """
@@ -798,8 +837,8 @@ class Primitive_xform (Primitive):
     guarantees according to the XML definition.
     """
 
-    def __init__ (self, G, name):
-        super ().setup (name, G)
+    def __init__ (self, G, name, attributes):
+        super ().setup (name, G, attributes)
 
         for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
             self.input.add_guarantee (data['darg'])
@@ -819,10 +858,9 @@ class Primitive_xform (Primitive):
         # (Intg(output_if) ⇒ Intg(input_if)) ∨ Controlled (input_if)
 
         for (in_name, input_if) in self.input.guarantees().items():
-            controlled = in_name in G.graph.node[name]['controlled']
             input_if_rules = []
             for (out_name, output_if) in self.output.guarantees().items():
-                input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if)), controlled))
+                input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if)), in_name in attributes['controlled']))
             self.rule.append (And (input_if_rules))
 
         # Input from a source demanding confidentiality guarantees can
@@ -843,10 +881,10 @@ class Primitive_branch (Primitive):
     Copy the input parameter into all output parameters.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
-        interfaces = { 'inputs': ['data'], 'outputs': [] }
-        super ().setup (name, G, interfaces)
+        interfaces = { 'inputs': ['data'], 'outputs': None }
+        super ().setup (name, G, attributes, interfaces)
 
         for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
             self.output.add_guarantee (data['sarg'])
@@ -869,16 +907,14 @@ class Primitive_const (Primitive):
     The const primitive
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
         interfaces = { 'inputs': [], 'outputs': ['const'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # Guarantees explicitly set in the XML
-        g = self.guarantees()
-
         og = self.output.guarantees()['const']
-        if g['c'] != None:
-            self.rule.append (Conf (og) == g['c'])
+        if self.guarantees['c'] != None:
+            self.rule.append (Conf (og) == self.guarantees['c'])
         else:
             self.rule.append (Conf(self.output.const))
 
@@ -890,9 +926,9 @@ class Primitive_rng (Primitive):
     many bits we request from it.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
         interfaces = { 'inputs': ['len'], 'outputs': ['data'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # input.len: If an attacker can choose the length requested from an RNG,
         # too short keys would be generated.
@@ -911,10 +947,10 @@ class Primitive_rng (Primitive):
 
 class Primitive_dhpub (Primitive):
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['modulus', 'generator', 'psec'], 'outputs': ['pub'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # Parameters are public, but an attacker may not chose a weak ones.
         # Hence, integrity must be guaranteed
@@ -934,10 +970,11 @@ class Primitive_dhpub (Primitive):
         self.rule.append (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
 
 class Primitive_dhsec (Primitive):
-    def __init__ (self, G, name):
+
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['modulus', 'generator', 'pub', 'psec'], 'outputs': ['ssec'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # With knowledge of pub (g^y) and psec_in (x) an attacker can
         # calculate ssec (the shared secret g^yx ≡ g^xy)
@@ -955,10 +992,11 @@ class Primitive_dhsec (Primitive):
         self.rule.append (Conf(self.output.ssec))
 
 class Primitive_encrypt (Primitive):
-    def __init__ (self, G, name):
+
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # Counter mode encryption does not achieve integrity, hence an attacker
         # can could change plaintext_in to influence the integrity of
@@ -989,10 +1027,11 @@ class Primitive_encrypt (Primitive):
         self.rule.append (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
 
 class Primitive_encrypt_ctr (Primitive_encrypt):
-    def __init__ (self, G, name):
+
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext', 'ctr'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If integrity is guaranteed for output counter, integrity must be guaranteed for initial counter
         self.rule.append (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
@@ -1001,20 +1040,22 @@ class Primitive_encrypt_ctr (Primitive_encrypt):
         self.rule.append (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))
 
 class Primitive_decrypt (Primitive):
-    def __init__ (self, G, name):
+
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['ciphertext', 'key', 'ctr'], 'outputs': ['plaintext'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If the plaintext is confidential, the key must be confidential, too.
         # FIXME: What happens when an attacker can chose a key for decryption?
         self.rule.append (Implies (Conf(self.output.plaintext), Conf(self.input.key)))
 
 class Primitive_hash (Primitive):
-    def __init__ (self, G, name):
+
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data'], 'outputs': ['hash'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # Using a cryptographically secure hash makes no sense with non-integer data.
         self.rule.append (Intg(self.input.data))
@@ -1030,10 +1071,10 @@ class Primitive_hash (Primitive):
 
 class Primitive_hmac (Primitive):
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['key', 'msg'], 'outputs': ['auth'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If integrity is not guaranteed for the input data, HMAC cannot
         # protect anything. Hence, it does not harm if the key is released
@@ -1047,10 +1088,10 @@ class Primitive_hmac (Primitive):
 
 class Primitive_hmac_out (Primitive_hmac):
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['key', 'msg'], 'outputs': ['auth', 'msg'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
@@ -1064,10 +1105,10 @@ class Primitive_sign (Primitive):
     public and secret keys.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['msg', 'pubkey', 'privkey', 'rand'], 'outputs': ['auth'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # The private key must stay confidential
         self.rule.append (Conf (self.input.privkey))
@@ -1096,10 +1137,10 @@ class Primitive_verify_sig (Primitive):
     Checks whether an auth value represents a valid message signature by a given public key.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['msg', 'auth', 'pubkey'], 'outputs': ['result'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If an attacker can modify the result of a verify operation, she could
         # as well chose an own public key for which she has the secret key available
@@ -1118,10 +1159,10 @@ class Primitive_verify_hmac (Primitive):
     Checks whether a given pair (msg, auth) was MAC'ed with key.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If an attacker can modify the result of a verify operation, she could
         # as well chose an own key and use it to create a valid signature yielding
@@ -1134,10 +1175,10 @@ class Primitive_verify_hmac (Primitive):
 
 class Primitive_verify_hmac_out (Primitive_verify_hmac):
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result', 'msg'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         #   The HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
@@ -1152,10 +1193,10 @@ class Primitive_guard (Primitive):
     true.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data', 'cond'], 'outputs': ['data'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # Guard does nothing to integrity.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1178,10 +1219,10 @@ class Primitive_release (Primitive):
     This primitive allows to drop all security guarantees.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data'], 'outputs': ['data'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         self.rule.append (True)
 
@@ -1194,10 +1235,10 @@ class Primitive_comp (Primitive):
     indicating whether both inputs were identical or not.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data1', 'data2'], 'outputs': ['result'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If an attacker can chose data1_in, she can influence the integrity
         # of result_out (at least, make result_out false with a very high
@@ -1223,10 +1264,10 @@ class Primitive_verify_commit (Primitive):
     the data value and the hash(d) == h, then the primitive outputs d.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data', 'hash'], 'outputs': ['data'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1247,10 +1288,10 @@ class Primitive_latch (Primitive):
     we received a peers (immutable) value.
     """
 
-    def __init__ (self, G, name):
+    def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['data'], 'outputs': ['data', 'trigger'] }
-        super ().setup (name, G, interfaces)
+        super ().setup (name, G, attributes, interfaces)
 
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
@@ -1311,7 +1352,6 @@ def parse_graph (inpath):
         code = os.path.splitext(os.path.basename (inpath))[0]
 
     mdg  = nx.MultiDiGraph()
-    G    = Graph (mdg, code, assert_fail)
 
     # read in graph
     for child in root.iterchildren(tag = etree.Element):
@@ -1325,34 +1365,30 @@ def parse_graph (inpath):
             warn ("No description for " + name)
             desc = "<No description&#10;available.>"
 
-        controlled = set()
-        arguments = []
-        for element in child.findall('arg'):
-            argname = element.attrib['name']
-            arguments.append (argname)
-            if parse_bool (element.attrib, 'controlled'):
-                controlled.add (argname)
+        kind       = child.tag
+        classname  = child.attrib['code'] if 'code' in child.attrib else None
 
-        classname = child.attrib['code'] if 'code' in child.attrib else None
-        config    = child.find('config')
+        config     = child.find('config')
+        guarantees = parse_guarantees (child.attrib)
 
         mdg.add_node \
             (name, \
-             guarantees = parse_guarantees (child.attrib), \
-             kind       = child.tag, \
+             kind       = kind, \
              classname  = classname, \
              config     = config, \
+             guarantees = guarantees, \
+             arguments  = [ arg.attrib['name'] for arg in child.findall('arg')],
+             controlled = [ arg.attrib['name'] for arg in child.findall('arg') if 'controlled' in arg],
+             outputs    = [ arg.attrib['sarg'] for arg in child.findall('flow')],
              tooltip    = desc, \
-             arguments  = arguments,
-             controlled = controlled,
              style      = "bold", \
              penwidth   = "2", \
              width      = "2.5", \
              height     = "0.6")
 
         for element in child.findall('flow'):
-            sarg = element.attrib['sarg']
-            darg = element.attrib['darg']
+            sarg       = element.attrib['sarg']
+            darg       = element.attrib['darg']
 
             assert_c = None
             assert_i = None
@@ -1373,54 +1409,8 @@ def parse_graph (inpath):
                 labeljust="r", \
                 penwidth="2")
 
-    # Initialize all objects
-    for node in mdg.node:
-
-        for arg in mdg.node[node]['arguments']:
-            found = False
-            for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
-                if arg == data['darg']:
-                    found = True
-                    break
-            if not found:
-                raise MissingIncomingEdge (node, arg)
-
-        if mdg.node[node]['kind'] == "xform":
-            if not mdg.in_edges (nbunch=node):
-                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No inputs")
-            if not mdg.out_edges (nbunch=node):
-                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "No outputs")
-
-        objname = "Primitive_" + mdg.node[node]['kind']
-        try:
-            mdg.node[node]['primitive'] = globals()[objname](G, node)
-            mdg.node[node]['primitive'].prove(SPG_Solver())
-        except KeyError:
-            raise PrimitiveMissing (mdg.node[node]['kind'], node)
-        except AttributeError as e:
-            raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], str(e))
-
-    # Check arguments
-    for node in mdg.node:
-        iargs = set(())
-        for (parent, child, data) in mdg.in_edges (nbunch=node, data=True):
-            if data['darg'] in iargs:
-                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "Duplicate input argument '" + data['darg'] + "'")
-            iargs.add (data['darg'])
-        oargs = set(())
-        for (parent, child, data) in mdg.out_edges (nbunch=node, data=True):
-            if data['sarg'] in oargs:
-                raise PrimitiveInvalidAttributes (node, mdg.node[node]['kind'], "Duplicate output argument '" + data['sarg'] + "'")
-            oargs.add (data['sarg'])
-
-    for (parent, child, data) in mdg.edges (data=True):
-        darg = data['darg']
-        if mdg.node[child]['kind'] == "xform":
-            if not darg in mdg.node[child]['arguments']:
-                raise PrimitiveInvalidAttributes (child, mdg.node[child]['kind'], "Non-existing interface '" + darg + "' referenced by '" + parent + "'")
-
     info (str(len(mdg.node)) + " nodes.")
-    return G
+    return Graph (mdg, code, assert_fail)
 
 def set_style (o, c, i):
 
@@ -1518,7 +1508,7 @@ def dump_primitive_rules (filename):
         for primitive_class in Primitive.__subclasses__():
             name = primitive_class.__name__[10:]
             if not name in ['output', 'input', 'xform', 'const', 'branch']:
-                p = primitive_class (None, name)
+                p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
                 n = name.replace ("_", '') 
                 outfile.write ("\\newcommand{\\" + n + "rule}{\\text{rule}_{\\text{" + n + "}} = " + \
                     latex_expression(name, simplify (And (p.rule))) + "}" + "\n")

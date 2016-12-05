@@ -1378,7 +1378,7 @@ def parse_graph (inpath):
              config     = config, \
              guarantees = guarantees, \
              arguments  = [ arg.attrib['name'] for arg in child.findall('arg')],
-             controlled = [ arg.attrib['name'] for arg in child.findall('arg') if 'controlled' in arg],
+             controlled = [ arg.attrib['name'] for arg in child.findall('arg') if 'controlled' in arg.attrib],
              outputs    = [ arg.attrib['sarg'] for arg in child.findall('flow')],
              tooltip    = desc, \
              style      = "bold", \

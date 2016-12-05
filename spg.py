@@ -1487,6 +1487,8 @@ def latex_expression (prefix, exp):
             else:
                 raise Exception ("Invalid variable " + var + ": neither input nor output")
 
+            var = "\\text{" + var + "}"
+
             if invar:  var = "\\invar{" + var + "}"
             if outvar: var = "\\outvar{" + var + "}"
 

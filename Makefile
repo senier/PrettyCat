@@ -9,6 +9,8 @@ TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
 
 SPG_ARGS = --latex ../../Papers/PETS_2017/rules.tex
 
+export MALLOC_CHECK_=0
+
 otr.svg: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@

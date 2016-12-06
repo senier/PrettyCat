@@ -115,7 +115,7 @@ class xform_network_input_mux (libspg.SPG_base):
             output = 'data'
         else:
             # Ignore invalid message types
-            warn ("Invalid message type " + str(message_type))
+            libspg.warn ("Invalid message type " + str(message_type))
             return
 
         self.send[output] (msg[12:])
@@ -163,7 +163,7 @@ class xform_select_pubkeys (libspg.SPG_base):
 
         self.current_local       = None
         self.previous_local      = None
-        self.local_keyid         = None
+        self.local_keyid         = 0
         self.current_remote      = None
         self.remote_keyid        = None
         self.latest_remote_keyid = None

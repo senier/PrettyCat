@@ -611,9 +611,9 @@ class xform_prefix (SPG_xform):
 class xform_mpi (SPG_xform):
 
     def recv_data (self, data):
-        print ("Outputs: " + str(self.attributes['outputs']))
         length = (data.bit_length() // 8) + 1
-        self.send['data'] (length.to_bytes (4, byteorder='big') + data.to_bytes (length, byteorder='big'))
+        for output in self.attributes['outputs']:
+            self.send[output] (length.to_bytes (4, byteorder='big') + data.to_bytes (length, byteorder='big'))
 
 class xform_split (SPG_xform):
 

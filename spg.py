@@ -158,6 +158,18 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 
 args = ()
 
+class MissingOutgoingEdges (Exception):
+    def __init__ (self, name, edges):
+        Exception.__init__(self, "Node '" + name + "' has missing outgoing edges: " + str(edges))
+
+class ExcessOutgoingEdges (Exception):
+    def __init__ (self, name, edges):
+        Exception.__init__(self, "Node '" + name + "' has excess outgoing edges: " + str(edges))
+
+class MissingAndExcessOutgoingEdges (Exception):
+    def __init__ (self, name, missing, excess):
+        Exception.__init__(self, "Node '" + name + "' has missing outgoing edges " + str(missing) + " and excess edges " + str(excess))
+
 class MissingIncomingEdges (Exception):
     def __init__ (self, name, edges):
         Exception.__init__(self, "Node '" + name + "' has missing incoming edges: " + str(edges))
@@ -761,6 +773,15 @@ class Primitive:
         else:
             for out_if in interfaces['outputs']:
                 self.output.add_guarantee (out_if)
+
+            if self.outputs:
+                missing_args = set(interfaces['outputs']) - set(self.outputs)
+                excess_args = set(self.outputs) - set(interfaces['outputs'])
+
+                if missing_args and excess_args: raise MissingAndExcessIncomingEdges (name, missing_args, excess_args)
+                if missing_args:                 raise MissingIncomingEdges (name, missing_args)
+                if excess_args:                  raise ExcessIncomingEdges (name, excess_args)
+
 
     def populate (self, solver):
         solver.assert_and_track (And (self.rule), "RULE_" + self.name)

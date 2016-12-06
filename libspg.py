@@ -336,18 +336,22 @@ class dh (SPG_base):
         self.calculate_if_valid ()
 
     def recv_modulus (self, modulus):
-        self.modulus = int.from_bytes (modulus, byteorder='big')
+        self.modulus = modulus
         self.calculate_if_valid ()
 
     def recv_psec (self, psec):
-        self.psec = int.from_bytes (psec, byteorder='big')
+        self.psec = psec
         self.calculate_if_valid ()
 
 class dhpub (dh):
 
     def calculate_if_valid (self):
         if self.generator and self.modulus and self.psec:
-            self.send['pub'] (pow(self.generator, self.psec, self.modulus))
+            try:
+                self.send['pub'] (pow(self.generator, int.from_bytes (self.psec, byteorder='big'), self.modulus))
+            except TypeError:
+                err ("Type error in " + self.name)
+                raise
 
 class dhsec (dh):
 

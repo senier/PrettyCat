@@ -185,9 +185,6 @@ class encrypt (counter_mode):
 
     def recv_plaintext (self, pt):
 
-        if len(pt) != AES.block_size:
-            raise Exception ("Encryption with invalid blocksize (expected " + str (AES.block_size) + ")")
-
         self.pt = bytes(pt)
         self.encrypt_if_valid ()
 

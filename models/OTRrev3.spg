@@ -123,7 +123,7 @@
     </branch>
 
     <!-- AKE -->
-    <const id="State encrypted">
+    <const id="State encrypted" confidentiality="false">
         <description>
             Constant signaling successful key exchange.
         </description>
@@ -202,7 +202,7 @@
         <arg name="initiator_ssec"/>
     </xform>
 
-    <const id="Prefix ssid">
+    <const id="Prefix ssid" confidentiality="false">
         <description>
             Prefix b to calculate ssid, value 0x00
         </description>
@@ -259,7 +259,7 @@
         <arg name="ssid"/>
     </xform>
 
-    <const id="Prefix c">
+    <const id="Prefix c" confidentiality="false">
         <description>
             Prefix b to calculate c and c', value 0x01
         </description>
@@ -343,7 +343,7 @@
         </flow>
     </branch>
 
-    <const id="Prefix m1">
+    <const id="Prefix m1" confidentiality="false">
         <description>
             Prefix b to calculate m1, value 0x02
         </description>
@@ -397,7 +397,7 @@
         </flow>
     </branch>
 
-    <const id="Prefix m2">
+    <const id="Prefix m2" confidentiality="false">
         <description>
             Prefix b to calculate m2, value 0x03
         </description>
@@ -451,7 +451,7 @@
         </flow>
     </branch>
 
-    <const id="Prefix m1'">
+    <const id="Prefix m1'" confidentiality="false">
         <description>
             Prefix b to calculate m1', value 0x04
         </description>
@@ -489,7 +489,7 @@
         <flow sarg="hash#2" sink="HMAC M_A (S)" darg="key"/>
     </branch>
 
-    <const id="Prefix m2'">
+    <const id="Prefix m2'" confidentiality="false">
         <description>
             Prefix b to calculate m2', value 0x05
         </description>
@@ -578,7 +578,7 @@
         <flow sarg="const" sink="D-H Commit (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="Counter for g^x (S)">
+    <const id="Counter for g^x (S)" confidentiality="false">
         <description>
             Counter for encrypting g^x. As the x is random, this is
             always zero.
@@ -596,7 +596,7 @@
         <flow sarg="ciphertext" sink="D-H Commit (S)" darg="encrypted_g^x"/>
     </encrypt>
 
-    <const id="Length of x (S)">
+    <const id="Length of x (S)" confidentiality="false">
         <description>
             Length of the Diffie-Hellman exponent x.
             At least 320 bits for OTR v3.
@@ -662,7 +662,7 @@
         <arg name="data"/>
     </xform>
 
-    <const id="Length of r (S)">
+    <const id="Length of r (S)" confidentiality="false">
         <description>
             Length of the commitment key r. For OTR v3 this is 128 bit.
         </description>
@@ -778,7 +778,7 @@
         <flow sarg="const" sink="D-H Key (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="Length of y (S)">
+    <const id="Length of y (S)" confidentiality="false">
         <description>
             Length of the Diffie-Hellman exponent y.
             At least 320 bits for OTR v3.
@@ -874,7 +874,7 @@
         <flow sarg="g^y#4" sink="Select pubkey (M)" darg="responder_pub_remote"/>
     </branch>
 
-    <const id="Modulus">
+    <const id="Modulus" confidentiality="false">
         <description>
             Modulus for D-H operations
         </description>
@@ -894,7 +894,7 @@
         <flow sarg="modulus#6" sink="Calculate g^y (S)" darg="modulus"/>
     </branch>
 
-    <const id="Generator">
+    <const id="Generator" confidentiality="false">
         <description>
             Generator for D-H operations
         </description>
@@ -984,7 +984,7 @@
         <flow sarg="const" sink="Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="keyid A">
+    <const id="keyid A" confidentiality="false">
         <description>
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
@@ -1046,7 +1046,7 @@
         <arg name="Signed M_A"/>
     </xform>
 
-    <const id="Counter for X_A">
+    <const id="Counter for X_A" confidentiality="false">
         <description>
             Counter for encrypting X_A. Initial counter value 0.
         </description>
@@ -1118,7 +1118,7 @@
         <flow sarg="data" sink="Guard Signed M_A" darg="data"/>
     </guard>
 
-    <const id="Counter for X_A Decryption">
+    <const id="Counter for X_A Decryption" confidentiality="false">
         <description>
             Counter for decrypting X_A. Initial value is 0.
         </description>
@@ -1234,7 +1234,7 @@
         <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
-    <const id="keyid B">
+    <const id="keyid B" confidentiality="false">
         <description>
             Select keyid, a serial number for the D-H key computed earlier.
             It is an INT, and must be greater than 0.
@@ -1271,7 +1271,7 @@
         <flow sarg="auth" sink="Sign M_B" darg="msg"/>
     </hmac>
 
-    <const id="DSA keylen">
+    <const id="DSA keylen" confidentiality="false">
         <description>
             Length of DSA per-message keys
         </description>
@@ -1312,7 +1312,7 @@
         <arg name="Signed M_B"/>
     </xform>
 
-    <const id="Counter for X_B">
+    <const id="Counter for X_B" confidentiality="false">
         <description>
             Counter for encrypting X_B. Initial counter value 0.
         </description>
@@ -1373,7 +1373,7 @@
         <arg name="rvsm"/>
     </xform>
 
-    <const id="Counter for g^x (R)">
+    <const id="Counter for g^x (R)" confidentiality="false">
         <description>
             Counter for decrypting g^x. This is always zero.
         </description>
@@ -1431,7 +1431,7 @@
         <flow sarg="data" sink="Guard Signed M_B" darg="data"/>
     </guard>
 
-    <const id="Counter for X_B Decryption">
+    <const id="Counter for X_B Decryption" confidentiality="false">
         <description>
             Counter for decrypting X_B. Initial value is 0.
         </description>
@@ -1544,7 +1544,7 @@
         <arg name="latest_local_keyid" controlled="true"/>
     </xform>
 
-    <const id="Length of y (M)">
+    <const id="Length of y (M)" confidentiality="false">
         <description>
             Lenght of the Diffie-Hellmen exponent y.
             At least 320 bits for OTR v3.

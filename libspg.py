@@ -17,6 +17,10 @@ class InvalidConfiguration (Exception):
     def __init__ (self, text):
         Exception.__init__(self, "Invalid configuration: " + text)
 
+class InvalidArgument (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Invalid argument: " + text)
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
@@ -97,7 +101,7 @@ class SPG_xform (SPG_base):
 
     def __getattr__ (self, name):
         if not name in [("recv_" + a) for a in self.arguments]:
-            raise ArgumentError ("Invalid argument '" + name + "'")
+            raise InvalidArgument (name)
         return lambda value: (self.__update_arg(name, value))
 
 class comp (SPG_base):
@@ -172,7 +176,7 @@ class encrypt (counter_mode):
 
     def recv_key (self, key):
         if len(key) != self.keylen:
-            raise Exception ("Keylen is " + str(len(key)) + " while " + str(self.keylen) + " is configured")
+            raise Exception ("Keylen is " + str(len(key)*8) + " while " + str(self.keylen*8) + " is configured for " + self.name)
 
         self.key = bytes(key)
         self.key_changed = True
@@ -334,11 +338,11 @@ class dh (SPG_base):
         self.calculate_if_valid ()
 
     def recv_modulus (self, modulus):
-        self.modulus = modulus
+        self.modulus = int.from_bytes (modulus, byteorder='big')
         self.calculate_if_valid ()
 
     def recv_psec (self, psec):
-        self.psec = psec
+        self.psec = int.from_bytes (psec, byteorder='big')
         self.calculate_if_valid ()
 
 class dhpub (dh):
@@ -605,6 +609,7 @@ class xform_prefix (SPG_xform):
 class xform_mpi (SPG_xform):
 
     def recv_data (self, data):
+        print ("Outputs: " + str(self.attributes['outputs']))
         length = (data.bit_length() // 8) + 1
         self.send['data'] (length.to_bytes (4, byteorder='big') + data.to_bytes (length, byteorder='big'))
 

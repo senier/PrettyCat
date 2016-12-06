@@ -553,7 +553,7 @@ class Graph:
                 except AttributeError:
                     raise PrimitiveNotImplemented (name)
 
-            classobj = libclass (node, G.node[node]['primitive'].config, G.node[node]['primitive'].inputs)
+            classobj = libclass (node, G.node[node]['primitive'].config, G.node[node]['primitive'].attributes)
             G.node[node]['class'] = classobj
 
         for node in G.node:

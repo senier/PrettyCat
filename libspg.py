@@ -48,14 +48,15 @@ def decode_pubkey (pubkey):
 
 class SPG_base:
 
-    def __init__ (self, name, config, arguments, needconfig = False):
+    def __init__ (self, name, config, attributes, needconfig = False):
 
         if needconfig and config == None:
             raise Exception ("Missing config for " + name)
 
-        self.name      = name
-        self.config    = config
-        self.arguments = arguments
+        self.name       = name
+        self.config     = config
+        self.attributes = attributes
+        self.arguments  = attributes['inputs']
 
     def recvmethods (self, recvmethods):
         self.recv = recvmethods
@@ -69,7 +70,7 @@ class SPG_base:
 
 class SPG_thread (threading.Thread):
 
-    def __init__ (self, name, config, arguments, needconfig = False):
+    def __init__ (self, name, config, attributes, needconfig = False):
 
         if needconfig and config == None:
             raise Exception ("Missing config for " + name)
@@ -77,7 +78,7 @@ class SPG_thread (threading.Thread):
         super().__init__ ()
         self.name      = name
         self.config    = config
-        self.arguments = arguments
+        self.arguments = attributes['inputs']
 
     def recvmethods (self, recvmethods):
         self.recv = recvmethods
@@ -87,11 +88,11 @@ class SPG_thread (threading.Thread):
 
 class SPG_xform (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.args = {}
-        for a in arguments:
+        for a in self.arguments:
             self.args["recv_" + a] = None
 
     def __update_arg (self, name, value):
@@ -106,8 +107,8 @@ class SPG_xform (SPG_base):
 
 class comp (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.data1 = None
         self.data2 = None
 
@@ -135,8 +136,8 @@ class comp (SPG_base):
 
 class counter_mode (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         if config == None:
             raise Exception ("Counter mode encryption not configured for '" + name + "'")
@@ -160,8 +161,8 @@ class counter_mode (SPG_base):
 
 class encrypt (counter_mode):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.pt          = None
         self.key_changed = False
@@ -210,8 +211,8 @@ class encrypt_ctr (encrypt):
 
 class decrypt (counter_mode):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.ct = None
 
     def recv_ctr (self, ctr):
@@ -242,12 +243,12 @@ class decrypt (counter_mode):
 
 class env (SPG_thread):
 
-    def __init__ (self, name, config, arguments, needconfig = True):
+    def __init__ (self, name, config, attributes, needconfig = True):
 
         if not 'mode' in config.attrib:
             raise InvalidConfiguration ("'mode' not configured for env")
 
-        super().__init__ (name, config, arguments, needconfig)
+        super().__init__ (name, config, attributes, needconfig)
         self.port        = int(config.attrib['port'])
         self.host        = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
         self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
@@ -286,8 +287,8 @@ class env (SPG_thread):
 
 class const (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments, needconfig = True)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes, needconfig = True)
 
         if 'string' in config.attrib:
             self.value = self.config.attrib['string']
@@ -319,16 +320,16 @@ class const (SPG_base):
 
 class branch (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
     def recv_data (self, data):
         for send_data in self.send:
             self.send[send_data] (data)
 
 class dh (SPG_base):
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.generator = None
         self.modulus   = None
         self.psec      = None
@@ -353,8 +354,8 @@ class dhpub (dh):
 
 class dhsec (dh):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.pub = None
 
     def calculate_if_valid (self):
@@ -372,8 +373,8 @@ class dhsec (dh):
 
 class hmac (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.key = None
         self.msg = None
@@ -403,8 +404,8 @@ class hmac_out (hmac):
 
 class verify_hmac (hmac):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.auth = None
 
@@ -431,8 +432,8 @@ class verify_hmac_out (verify_hmac):
 
 class __sig_base (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.pubkey = None
         self.msg    = None
@@ -451,8 +452,8 @@ class __sig_base (SPG_base):
 
 class sign (__sig_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.privkey = None
         self.rand    = None
@@ -483,8 +484,8 @@ class sign (__sig_base):
 
 class verify_sig (__sig_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.auth = None
 
     def verify_if_valid (self):
@@ -509,8 +510,8 @@ class verify_sig (__sig_base):
 
 class hash (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments, needconfig=True)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes, needconfig=True)
 
         if not 'algo' in config.attrib:
             raise Exception ("No hash algorithm configured")
@@ -527,8 +528,8 @@ class hash (SPG_base):
 
 class guard (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.cond = None
         self.data = None
@@ -550,8 +551,8 @@ class release (SPG_base):
 
 class latch (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
         self.data = None
 
@@ -563,16 +564,16 @@ class latch (SPG_base):
 
 class rng (SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
 
     def recv_len (self, length):
         self.send['data'](Random.get_random_bytes(int(length)))
 
 class verify_commit (hash):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
         self.hash = None
 
     def recv_hash (self, data):

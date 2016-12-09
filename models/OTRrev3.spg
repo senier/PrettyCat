@@ -535,7 +535,7 @@
             Primitive assembling the first message of the AKE,
             the D-H Commit Message.
         </description>
-        <flow sarg="dhcm" sink="Network_Output_Mux" darg="dhcm"/>
+        <flow sarg="result" sink="Network_Output_Mux" darg="dhcm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -748,7 +748,7 @@
         <description>
             Second message of the AKE send by us in the responder case.
         </description>
-        <flow sarg="dhkm" sink="Network_Output_Mux" darg="dhkm"/>
+        <flow sarg="result" sink="Network_Output_Mux" darg="dhkm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -947,7 +947,7 @@
             This is the final message of the AKE. Alice sends it to Bob,
             authenticating herself and the channel parameters to him.
         </description>
-        <flow sarg="sigm" sink="Guard Signature (S)" darg="data"/>
+        <flow sarg="result" sink="Guard Signature (S)" darg="data"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1019,7 +1019,7 @@
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="M_B Input" sink="HMAC M_A (S)" darg="msg"/>
+        <flow sarg="result" sink="HMAC M_A (S)" darg="msg"/>
         <arg name="g^y"/>
         <arg name="g^x" controlled="true"/>
         <arg name="pub"/>
@@ -1053,7 +1053,7 @@
         <description>
             Let X_A be the following structure: pub (PUBKEY), keyid (INT), sig_A(M_A) (SIG)
         </description>
-        <flow sarg="X_A" sink="Encrypt X_A" darg="plaintext"/>
+        <flow sarg="result" sink="Encrypt X_A" darg="plaintext"/>
         <arg name="pub"/>
         <arg name="keyid"/>
         <arg name="Signed M_A"/>
@@ -1164,7 +1164,7 @@
             Compute the 32-byte value M_A to be the SHA256-HMAC of the following
             data, using the key m1': g^y (MPI), g^x (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="data" sink="HMAC M_A (R)" darg="msg"/>
+        <flow sarg="result" sink="HMAC M_A (R)" darg="msg"/>
         <arg name="g^y" controlled="true"/>
         <arg name="g^x"/>
         <arg name="pub"/>
@@ -1204,7 +1204,7 @@
             encryption key, thuse establishing and authenticating
             the encrypted channel.
         </description>
-        <flow sarg="rvsm" sink="Network_Output_Mux" darg="rvsm"/>
+        <flow sarg="result" sink="Network_Output_Mux" darg="rvsm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1269,7 +1269,7 @@
             Compute the 32-byte value M_B to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="data" sink="HMAC M_B (S)" darg="msg"/>
+        <flow sarg="result" sink="HMAC M_B (S)" darg="msg"/>
         <arg name="g^x"/>
         <arg name="g^y" controlled="true"/>
         <arg name="pub"/>
@@ -1319,7 +1319,7 @@
         <description>
             Let X_B be the following structure: pub (PUBKEY), keyid (INT), sig_B(M_B) (SIG)
         </description>
-        <flow sarg="X_B" sink="Encrypt X_B" darg="plaintext"/>
+        <flow sarg="result" sink="Encrypt X_B" darg="plaintext"/>
         <arg name="pub"/>
         <arg name="keyid"/>
         <arg name="Signed M_B"/>
@@ -1477,7 +1477,7 @@
             Compute the 32-byte value MB to be the SHA256-HMAC of the following
             data, using the key m1: g^x (MPI), g^y (MPI), pub (PUBKEY), keyid (INT)
         </description>
-        <flow sarg="M_B Input" sink="HMAC M_B (R)" darg="msg"/>
+        <flow sarg="result" sink="HMAC M_B (R)" darg="msg"/>
         <arg name="g^x"/>
         <arg name="g^y"/>
         <arg name="pub"/>
@@ -1656,7 +1656,7 @@
         <description>
             Byte b, followed by secbytes.
         </description>
-        <flow sarg="b|secbyte" sink="Derive sending enc key (M)" darg="data"/>
+        <flow sarg="result" sink="Derive sending enc key (M)" darg="data"/>
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -1747,7 +1747,7 @@
         <description>
             Input for the authenticator to MAC outgoing messages.
         </description>
-        <flow sarg="message" sink="Calculate authenticator (M)" darg="msg"/>
+        <flow sarg="result" sink="Calculate authenticator (M)" darg="msg"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1853,7 +1853,7 @@
         <description>
             Encrypted data message sent to the network.
         </description>
-        <flow sarg="data" sink="Network_Output_Mux" darg="data"/>
+        <flow sarg="result" sink="Network_Output_Mux" darg="data"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1874,7 +1874,7 @@
         <description>
             Byte b, followed by secbytes.
         </description>
-        <flow sarg="b|secbytes" sink="Derive receiving enc key (M)" darg="data"/>
+        <flow sarg="result" sink="Derive receiving enc key (M)" darg="data"/>
         <arg name="b"/>
         <arg name="secbytes"/>
     </xform>
@@ -1941,7 +1941,7 @@
         <description>
             Input for the authenticator for checking received messages.
         </description>
-        <flow sarg="message" sink="Verify MAC (M)" darg="msg"/>
+        <flow sarg="result" sink="Verify MAC (M)" darg="msg"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>

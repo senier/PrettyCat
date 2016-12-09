@@ -98,7 +98,7 @@ class SPG_xform (SPG_base):
 
     def __update_arg (self, name, value):
         self.args[name] = value
-        if not {k: v for k, v in self.args.items() if not v}:
+        if not {k: v for k, v in self.args.items() if not v != None}:
             self.finish()
 
     def __getattr__ (self, name):
@@ -613,11 +613,18 @@ class verify_commit (hash):
 
 class xform_concat (SPG_xform):
 
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes)
+
+        if len(self.attributes['outputs']) != 1 or not 'result' in self.attributes['outputs']:
+            raise InvalidConfiguration ("Single flow with source argument 'result' expected for " + self.name)
+
     def finish (self):
+        print ("Concat finished")
         result = bytearray()
         for a in self.arguments:
             result.extend(bytearray(self.args["recv_" + a]))
-        self.send['data'](result)
+        self.send['result'](result)
 
 class xform_prefix (SPG_xform):
     def finish (self):

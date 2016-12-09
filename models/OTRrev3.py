@@ -1,5 +1,7 @@
 import libspg
+from libspg import info, warn, err
 import base64
+import re
 
 def parse_data (data):
     result['protocol_version']     = int.form_bytes(data[0:2],   byteorder='big')
@@ -101,7 +103,29 @@ class xform_dh_key_r (libspg.SPG_base):
 
 class xform_network_input_mux (libspg.SPG_base):
 
-    def recv_msg (self, msg):
+
+    def __init__ (self, name, config, arguments):
+        super().__init__ (name, config, arguments)
+
+        self.match_query = re.compile ("\?OTR\??([^\?]*)\?")
+        self.match_v3    = re.compile ("^v.*2.*$")
+
+    def recv_msg (self, data):
+
+        msg = data.decode ()
+        print ("Got message: " + msg)
+
+        # Check for OTR message types
+        query_match = self.match_query.match (msg)
+        if query_match:
+            version = query_match.group (1)
+            version_match = self.match_v3.match (version)
+
+            if version_match:
+                info ("OTR version " + version + " requested")
+                self.send['query'] (True)
+                return
+
         message_type = int.from_bytes (msg[2:3], byteorder='big')
         if (message_type == 0x02):
             output = 'dhcm'
@@ -123,6 +147,7 @@ class xform_network_input_mux (libspg.SPG_base):
 class xform_network_output_mux (libspg.SPG_base):
 
     def _encode (raw):
+        print ("Encoding OTR message")
         return ("?OTR:" + base64.b64encode(raw) + ".")
 
     def recv_dhkm (self, dhkm):
@@ -319,3 +344,8 @@ class xform_verify_counter (libspg.SPG_base):
         self.send['data'] (parsed['enc_data'])
         self.send['recipient_keyid#1'] (parsed['recipient_keyid'])
         self.send['recipient_keyid#2'] (parsed['recipient_keyid'])
+
+class xform_handle_query (libspg.SPG_xform):
+
+    def finish (self):
+        self.send['len'] (self.args['recv_len'])

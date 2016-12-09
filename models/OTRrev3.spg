@@ -22,6 +22,7 @@
         <flow sarg="rvsm" sink="Reveal Signature (R)" darg="rvsm"/>
         <flow sarg="sigm" sink="Signature (R)" darg="sigm"/>
         <flow sarg="data" sink="Data (R)" darg="data"/>
+        <flow sarg="query" sink="Handle Query" darg="query"/>
         <arg name="msg"/>
     </xform>
 
@@ -36,7 +37,6 @@
         <arg name="sigm"/>
         <arg name="data"/>
     </xform>
-
 
     <env id="User" confidentiality="true" integrity="true">
         <description>
@@ -667,7 +667,7 @@
             Length of the commitment key r. For OTR v3 this is 128 bit (16 bytes).
         </description>
         <config int="16"/>
-        <flow sarg="const" sink="Random r (S)" darg="len">
+        <flow sarg="const" sink="Handle Query" darg="len">
             <assert integrity="true">
                 Secret may be too short if length of key is chosen by attacker
             </assert>
@@ -684,6 +684,19 @@
             </assert>
         </flow>
     </rng>
+
+    <xform id="Handle Query" code="handle_query">
+        <description>
+            Start AKE if a query was received
+        </description>
+        <flow sarg="len" sink="Random r (S)" darg="len">
+            <assert integrity="true">
+                If an attacker can choose the length of r, she can enforce a weak key.
+            </assert>
+        </flow>
+        <arg name="query" controlled="true"/>
+        <arg name="len" />
+    </xform>
 
     <branch id="Branch Random r (S) data">
         <description>

@@ -45,7 +45,6 @@
         <description>
             Check the auth value for msg
         </description>
-        <flow sarg="result" sink="Check hash" darg="data"/>
         <flow sarg="msg" sink="Comp" darg="data1"/>
     </verify_hmac_out>
 
@@ -56,14 +55,6 @@
         <flow sarg="result" sink="Check message" darg="data"/>
     </comp>
     
-    <env id="Check hash" code="check_fixed">
-        <description>
-            Check whether hash was OK
-        </description>
-        <config result="True"/>
-        <arg name="data"/>
-    </env>
-
     <env id="Check message" code="check_fixed">
         <description>
             Check whether messages are equal

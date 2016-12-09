@@ -41,7 +41,7 @@
         <description>
             Secret of initiator
         </description>
-        <config hex="51425579546a745766656474486169674d504e566a6a536b5057525637597239667170584a636346000a"/>
+        <config hexbytes="51425579546a745766656474486169674d504e566a6a536b5057525637597239667170584a636346000a"/>
         <flow sarg="const" sink="Branch sec (I)" darg="data"/>
     </const>
 
@@ -71,7 +71,7 @@
         <description>
             Secret of responder
         </description>
-        <config hex="69765763595358726354346a4234767468424f3231344962704f79346c4d436d447a71354f624e35000a"/>
+        <config hexbytes="69765763595358726354346a4234767468424f3231344962704f79346c4d436d447a71354f624e35000a"/>
         <flow sarg="const" sink="Branch sec (R)" darg="data"/>
     </const>
 

@@ -44,7 +44,7 @@ class env_check_fixed (SPG_base):
         if data == value:
             libspg.exitval = 0
         else:
-            warn ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
+            info ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
 
 class xform_get_random (SPG_base):
 

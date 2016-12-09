@@ -160,6 +160,9 @@ class counter_mode (SPG_base):
         self.ctr = None
         self.key = None
 
+def pad (data, blocksize):
+    return data + (blocksize - len (data) % blocksize) * b'0'
+
 class encrypt (counter_mode):
 
     def __init__ (self, name, config, attributes):
@@ -199,7 +202,7 @@ class encrypt (counter_mode):
             ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
             cipher = AES.new (self.key, AES.MODE_CBC, ctr)
             self.key_changed = False
-            self.send['ciphertext'](cipher.encrypt (self.pt))
+            self.send['ciphertext'](cipher.encrypt (pad (self.pt, AES.block_size)))
             self.send_ctr(ctr)
             self.pt = None
 

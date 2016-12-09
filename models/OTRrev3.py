@@ -146,24 +146,24 @@ class xform_network_input_mux (libspg.SPG_base):
 
 class xform_network_output_mux (libspg.SPG_base):
 
-    def _encode (raw):
-        print ("Encoding OTR message")
-        return ("?OTR:" + base64.b64encode(raw) + ".")
+    def _encode (self, raw):
+        warn ("Encoding OTR message")
+        return ("?OTR:" + base64.b64encode(raw).decode ("utf-8") + ".").encode ("utf-8")
 
     def recv_dhkm (self, dhkm):
-        self.send['msg'] (_encode(dhkm))
+        self.send['msg'] (self._encode(dhkm))
 
     def recv_dhcm (self, dhcm):
-        self.send['msg'] (_encode(dhcm))
+        self.send['msg'] (self._encode(dhcm))
 
     def recv_rvsm (self, rvsm):
-        self.send['msg'] (_encode(rvsm))
+        self.send['msg'] (self._encode(rvsm))
 
     def recv_sigm (self, sigm):
-        self.send['msg'] (_encode(sigm))
+        self.send['msg'] (self._encode(sigm))
 
     def recv_data (self, data):
-        self.send['msg'] (_encode(data))
+        self.send['msg'] (self._encode(data))
 
 class xform_reveal_old_mac_keys (libspg.SPG_xform):
 

@@ -746,6 +746,7 @@ class Primitive:
         self.rule   = []
         self.G = G
 
+        self.attributes = attributes
         self.guarantees = attributes['guarantees']
         self.config     = attributes['config']
         self.inputs     = attributes['inputs']
@@ -1168,7 +1169,7 @@ class Primitive_verify_hmac_out (Primitive_verify_hmac):
 
     def __init__ (self, G, name, attributes):
 
-        interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result', 'msg'] }
+        interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['msg'] }
         super ().setup (name, G, attributes, interfaces)
 
         #   The HMAC does not achieve confidentiality.

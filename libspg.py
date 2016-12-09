@@ -76,9 +76,10 @@ class SPG_thread (threading.Thread):
             raise Exception ("Missing config for " + name)
 
         super().__init__ ()
-        self.name      = name
-        self.config    = config
-        self.arguments = attributes['inputs']
+        self.name       = name
+        self.config     = config
+        self.attributes = attributes
+        self.arguments  = attributes['inputs']
 
     def recvmethods (self, recvmethods):
         self.recv = recvmethods
@@ -192,7 +193,7 @@ class encrypt (counter_mode):
 
     def encrypt_if_valid (self):
 
-        if self.ctr and self.key and self.pt:
+        if self.ctr != None and self.key != None and self.pt != None: 
             if not self.key_changed:
                 self.ctr = self.ctr + 1
             ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
@@ -200,6 +201,7 @@ class encrypt (counter_mode):
             self.key_changed = False
             self.send['ciphertext'](cipher.encrypt (self.pt))
             self.send_ctr(ctr)
+            self.pt = None
 
 class encrypt_ctr (encrypt):
 
@@ -233,10 +235,10 @@ class decrypt (counter_mode):
         self.decrypt_if_valid()
 
     def decrypt_if_valid (self):
-        if self.ctr and self.key and self.ct:
+        if self.ctr != None and self.key != None and self.ct != None:
             cipher = AES.new (self.key, AES.MODE_CBC, self.ctr.to_bytes (AES.block_size, byteorder='big'))
             self.send['plaintext'](cipher.decrypt (self.ct))
-            self.ctr = None
+            self.ct = None
 
 class env (SPG_thread):
 
@@ -346,12 +348,14 @@ class dh (SPG_base):
 class dhpub (dh):
 
     def calculate_if_valid (self):
-        if self.generator and self.modulus and self.psec:
+        if self.generator != None and self.modulus != None and self.psec != None:
             try:
                 self.send['pub'] (pow(self.generator, int.from_bytes (self.psec, byteorder='big'), self.modulus))
             except TypeError:
                 err ("Type error in " + self.name)
                 raise
+            finally:
+                self.psec = None
 
 class dhsec (dh):
 
@@ -360,13 +364,14 @@ class dhsec (dh):
         self.pub = None
 
     def calculate_if_valid (self):
-        if self.generator and self.modulus and self.pub and self.psec:
+        if self.generator != None and self.modulus != None and self.pub != None and self.psec != None:
             # Checks as per NIST Special Publication 800-56A, rev 2
             # (1) 2 <= pub <= (modulus-1)
             # (2) 1 == pub^q mod modulus for q = (modulus-1)/2
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
-                    self.send['ssec'] (pow(self.pub, self.psec, self.modulus))
+                    self.send['ssec'] (pow(self.pub, int.from_bytes (self.psec, byteorder='big'), self.modulus))
+            self.psec = None
 
     def recv_pub (self, pub):
         self.pub = pub
@@ -382,9 +387,10 @@ class hmac (SPG_base):
 
     def calculate_if_valid (self):
 
-        if self.key and self.msg:
+        if self.key != None and self.msg != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             self.send['auth'](hmac.digest())
+            self.msg = None
 
     def recv_msg (self, msg):
         self.msg = bytes(msg)
@@ -398,10 +404,11 @@ class hmac_out (hmac):
 
     def calculate_if_valid (self):
 
-        if self.key and self.msg:
+        if self.key != None and self.msg != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             self.send['auth'](hmac.digest())
             self.send['msg'](self.msg)
+            self.msg = None
 
 class verify_hmac (hmac):
 
@@ -412,10 +419,12 @@ class verify_hmac (hmac):
 
     def calculate_if_valid (self):
 
-        if self.key and self.msg and self.auth:
+        if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             result = 'True' if hmac.digest() == self.auth else 'False'
             self.send['result'](result.encode())
+            self.msg  = None
+            self.auth = None
 
     def recv_auth (self, auth):
         self.auth = auth
@@ -425,11 +434,12 @@ class verify_hmac_out (verify_hmac):
 
     def calculate_if_valid (self):
 
-        if self.key and self.msg and self.auth:
+        if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            result = 'True' if hmac.digest() == self.auth else 'False'
-            self.send['result'](result.encode())
-            self.send['msg'](self.msg)
+            if hmac.digest() == self.auth:
+                self.send['msg'](self.msg)
+            self.msg  = None
+            self.auth = None
 
 class __sig_base (SPG_base):
 
@@ -457,15 +467,18 @@ class sign (__sig_base):
         super().__init__ (name, config, attributes)
 
         self.privkey = None
+        self.pubkey  = None
         self.rand    = None
 
     def sign_if_valid (self):
-        if self.privkey and self.pubkey and self.msg and self.rand:
+        if self.privkey != None and self.pubkey and self.msg != None and self.rand != None:
             key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
             signature = key.sign (self.msg, self.rand)
             r = signature[0].to_bytes(20, byteorder='big')
             s = signature[1].to_bytes(20, byteorder='big')
             self.send['auth'](r + s)
+            self.msg  = None
+            self.rand = None
 
     def recv_privkey (self, privkey):
         self.privkey = int.from_bytes (privkey, byteorder='big')
@@ -487,12 +500,15 @@ class verify_sig (__sig_base):
 
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes)
+
         self.auth = None
 
     def verify_if_valid (self):
-        if self.pubkey and self.auth and self.msg:
+        if self.pubkey and self.auth != None and self.msg != None:
             result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
             self.send['result'](result.encode())
+            self.auth = None
+            self.msg  = None
 
     def recv_msg (self, msg):
         super().recv_msg (msg)
@@ -539,11 +555,15 @@ class guard (SPG_base):
         self.data = data
         if self.cond:
             self.send['data'](self.data)
+            self.cond = None
+            self.data = None
 
     def recv_cond (self, cond):
         self.cond = cond
         if self.data:
             self.send['data'](self.data)
+            self.cond = None
+            self.data = None
 
 class release (SPG_base):
 
@@ -581,11 +601,12 @@ class verify_commit (hash):
         self.hash = data
 
     def recv_data (self, data):
-        if self.hash:
+        if self.hash != None:
             h = self.hashalgo.new(data)
             if h.digest() == self.hash:
                 self.send['data'](data)
             self.hash = None
+            self.data = None
 
 class xform_concat (SPG_xform):
 

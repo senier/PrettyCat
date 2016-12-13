@@ -11,7 +11,7 @@ def parse_data (data):
     result['flags']                = data[11:12]
     result['sender_keyid']         = int.form_bytes(data[12:16], byteorder='big')
     result['recipient_keyid']      = int.form_bytes(data[16:20], byteorder='big')
-    (result['dh_y'], rest)         = decode_mpi (data[20:])
+    (result['dh_y'], rest)         = libspg.decode_mpi (data[20:])
     result['counter']              = int.from_byates(rest[0:8], byteorder='big')
     (result['enc_data'], rest)     = decode_data (rest[8:])
     result['mac']                  = rest[0:20]
@@ -80,11 +80,11 @@ class xform_derive_keys (libspg.SPG_base):
         self.send['secbytes#6'] (ssecmpi)
 
     def recv_responder_ssec (self, ssec):
-        ssecmpi = mpi (ssec)
+        ssecmpi = libspg.encode_mpi (ssec)
         self._send_ssec (ssecmpi)
 
     def recv_initiator_ssec (self, ssec):
-        ssecmpi = mpi (ssec)
+        ssecmpi = libspg.encode_mpi (ssec)
         self._send_ssec (ssecmpi)
 
 class xform_dh_commit_r (libspg.SPG_base):
@@ -98,22 +98,27 @@ class xform_dh_commit_r (libspg.SPG_base):
 class xform_dh_key_r (libspg.SPG_base):
 
     def recv_dhkm (self, dhkm):
-        (dh_y, dummy) = decode_mpi (dhkm)
+        (dh_y, dummy) = libspg.decode_data (dhkm)
         self.send['g^y'] (dh_y)
 
-class xform_network_input_mux (libspg.SPG_base):
+class xform_network_mux (libspg.SPG_base):
 
 
     def __init__ (self, name, config, arguments):
         super().__init__ (name, config, arguments)
 
-        self.match_query = re.compile ("\?OTR\??([^\?]*)\?")
-        self.match_v3    = re.compile ("^v.*2.*$")
+        self.match_query    = re.compile ("\?OTR\??([^\?]*)\?")
+        self.match_otr      = re.compile ("\?OTR:(.*)$")
+        self.match_v3       = re.compile ("^v.*3.*$")
+        self.dhcm_received  = False
+        self.query_received = False
+
+    def _encode (self, raw):
+        return ("?OTR:" + base64.b64encode(raw).decode ("utf-8") + ".").encode ("utf-8")
 
     def recv_msg (self, data):
 
         msg = data.decode ()
-        print ("Got message: " + msg)
 
         # Check for OTR message types
         query_match = self.match_query.match (msg)
@@ -121,14 +126,38 @@ class xform_network_input_mux (libspg.SPG_base):
             version = query_match.group (1)
             version_match = self.match_v3.match (version)
 
-            if version_match:
-                info ("OTR version " + version + " requested")
-                self.send['query'] (True)
+            if not version_match:
+                warn ("Invalid version: " + version)
                 return
 
-        message_type = int.from_bytes (msg[2:3], byteorder='big')
+            self.query_received = True
+            if self.dhcm:
+                self.send['msg'] (self.dhcm)
+                self.query_received = False
+                self.dhcm = None
+            return
+
+        otr_match = self.match_otr.match (msg)
+        if not otr_match:
+            warn ("Not an OTR message: " + msg)
+            return
+
+        payload = otr_match.group(1).encode ("utf-8")
+        try:
+            data = base64.b64decode(payload)
+        except:
+            warn ("Invalid base64 encoding: " + msg)
+            return
+
+        message_type = int.from_bytes (data[2:3], byteorder='big')
         if (message_type == 0x02):
             output = 'dhcm'
+            if self.dhkm != None:
+                self.send['msg'] (self.dhkm)
+                self.dhkm = None
+                self.dhcm_received = False
+            else:
+                self.dhcm_received = True
         elif (message_type == 0x0a):
             output = 'dhkm'
         elif (message_type == 0x11):
@@ -142,19 +171,21 @@ class xform_network_input_mux (libspg.SPG_base):
             libspg.warn ("Invalid message type " + str(message_type))
             return
 
-        self.send[output] (msg[12:])
-
-class xform_network_output_mux (libspg.SPG_base):
-
-    def _encode (self, raw):
-        warn ("Encoding OTR message")
-        return ("?OTR:" + base64.b64encode(raw).decode ("utf-8") + ".").encode ("utf-8")
+        self.send[output] (data[12:])
 
     def recv_dhkm (self, dhkm):
-        self.send['msg'] (self._encode(dhkm))
+        if self.dhcm_received:
+            self.send['msg'] (self.dhkm)
+            self.dhkm = None
+        else:
+            self.dhkm = self._encode (dhkm)
 
     def recv_dhcm (self, dhcm):
-        self.send['msg'] (self._encode(dhcm))
+        if self.query_received:
+            self.send['msg'] (self._encode(dhcm))
+            self.query_received = False
+        else:
+            self.dhcm = self._encode(dhcm)
 
     def recv_rvsm (self, rvsm):
         self.send['msg'] (self._encode(rvsm))

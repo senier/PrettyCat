@@ -9,28 +9,21 @@
             Network environment source without confidentiality or integrity guarantees.
         </description>
         <config port="10000" mode="server"/>
-        <flow sarg="data" sink="Network_Input_Mux" darg="msg"/>
+        <flow sarg="data" sink="Network Mux" darg="msg"/>
         <arg name="data"/>
     </env>
 
-    <xform id="Network_Input_Mux" code="network_input_mux">
+    <xform id="Network Mux" code="network_mux">
         <description>
-            Disassemble incoming OTR messages
+            Disassemble incoming OTR messages and compile outgoing OTR messages
         </description>
+        <flow sarg="msg" sink="Network" darg="data"/>
         <flow sarg="dhcm" sink="D-H Commit (R)" darg="dhcm"/>
         <flow sarg="dhkm" sink="D-H Key (R)" darg="dhkm"/>
         <flow sarg="rvsm" sink="Reveal Signature (R)" darg="rvsm"/>
         <flow sarg="sigm" sink="Signature (R)" darg="sigm"/>
         <flow sarg="data" sink="Data (R)" darg="data"/>
-        <flow sarg="query" sink="Handle Query" darg="query"/>
         <arg name="msg"/>
-    </xform>
-
-    <xform id="Network_Output_Mux" code="network_output_mux">
-        <description>
-            Compile outgoing OTR messages
-        </description>
-        <flow sarg="msg" sink="Network" darg="data"/>
         <arg name="dhkm"/>
         <arg name="dhcm"/>
         <arg name="rvsm"/>
@@ -233,7 +226,7 @@
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
         <config algo="SHA256"/>
-        <flow sarg="hash" sink="Trim ssid" darg="ssid">
+        <flow sarg="hash" sink="Trim ssid" darg="data">
             <assert integrity="true">
                 Attacker must not choose ssid, as she could impersonate a connection
                 towards user otherwise.
@@ -245,9 +238,7 @@
         <description>
             Let ssid be the first 64 bits of h2(0x00).
         </description>
-        <config>
-            <length int="64"/>
-        </config>
+        <config length="64"/>
         <flow sarg="ssid" sink="User_Interface" darg="data">
             <assert integrity="true" >
                 Attacker must not choose ssid, as she could impersonate a connection
@@ -256,7 +247,7 @@
                 see comment at User_Interface component.
             </assert>
         </flow>
-        <arg name="ssid"/>
+        <arg name="data"/>
     </xform>
 
     <const id="Prefix c" confidentiality="false">
@@ -292,7 +283,7 @@
             hash of the (5+len) bytes consisting of the byte b followed by secbytes.
         </description>
         <config algo="SHA256"/>
-        <flow sarg="hash" sink="Split c" darg="c">
+        <flow sarg="hash" sink="Split c" darg="data">
             <assert confidentiality="true" integrity="true">
                 Encryption key must not be chosen or known by an attacker. 
             </assert>
@@ -304,9 +295,9 @@
             Let c be the first 128 bits of h2(0x01),
             and let c' be the second 128 bits of h2(0x01).
         </description>
-        <flow sarg="first" sink="Branch c" darg="data"/>
-        <flow sarg="second" sink="Branch c'" darg="data"/>
-        <arg name="c"/>
+        <flow sarg="left" sink="Branch c" darg="data"/>
+        <flow sarg="right" sink="Branch c'" darg="data"/>
+        <arg name="data"/>
     </xform>
 
     <branch id="Branch c">
@@ -535,20 +526,20 @@
             Primitive assembling the first message of the AKE,
             the D-H Commit Message.
         </description>
-        <flow sarg="result" sink="Network_Output_Mux" darg="dhcm"/>
+        <flow sarg="result" sink="Network Mux" darg="dhcm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
         <arg name="receiver_instance_tag"/>
-        <arg name="encrypted_g^x"/>
-        <arg name="hashed_g^x"/>
+        <arg name="encrypted_g^x_data"/>
+        <arg name="hashed_g^x_data"/>
     </xform>
 
     <const id="DHCM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
-        <config int="3"/>
+        <config uint16="3"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="protocol_version"/>
     </const>
 
@@ -556,7 +547,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
-        <config int="2"/>
+        <config uint8="2"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="message_type"/>
     </const>
 
@@ -565,7 +556,7 @@
             The instance tag of the person sending this message.
         </description>
         <!-- FIXME: This should be dynamic in the future -->
-        <config int="42"/>
+        <config uint32="512"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -574,7 +565,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <config int="0"/>
+        <config uint32="0"/>
         <flow sarg="const" sink="D-H Commit (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -593,8 +584,16 @@
             Diffie-Hellman value g^x with a random key r.
         </description>
         <config keylen="128"/>
-        <flow sarg="ciphertext" sink="D-H Commit (S)" darg="encrypted_g^x"/>
+        <flow sarg="ciphertext" sink="Serialize Encrypted g^x" darg="data"/>
     </encrypt>
+
+    <xform id="Serialize Encrypted g^x" code="data">
+        <description>
+            Encode encrypted g^x as DATA
+        </description>
+        <flow sarg="ciphertext" sink="D-H Commit (S)" darg="encrypted_g^x_data"/>
+        <arg name="data"/>
+    </xform>
 
     <const id="Length of x (S)" confidentiality="false">
         <description>
@@ -667,9 +666,9 @@
             Length of the commitment key r. For OTR v3 this is 128 bit (16 bytes).
         </description>
         <config int="16"/>
-        <flow sarg="const" sink="Handle Query" darg="len">
+        <flow sarg="const" sink="Random r (S)" darg="len">
             <assert integrity="true">
-                Secret may be too short if length of key is chosen by attacker
+                If an attacker can choose the length of r, she can enforce a weak key.
             </assert>
         </flow>
     </const>
@@ -684,19 +683,6 @@
             </assert>
         </flow>
     </rng>
-
-    <xform id="Handle Query" code="handle_query">
-        <description>
-            Start AKE if a query was received
-        </description>
-        <flow sarg="len" sink="Random r (S)" darg="len">
-            <assert integrity="true">
-                If an attacker can choose the length of r, she can enforce a weak key.
-            </assert>
-        </flow>
-        <arg name="query" controlled="true"/>
-        <arg name="len" />
-    </xform>
 
     <branch id="Branch Random r (S) data">
         <description>
@@ -726,8 +712,16 @@
             SHA256 hash of the encoded gxmpi value.
         </description>
         <config algo="SHA256"/>
-        <flow sarg="hash" sink="D-H Commit (S)" darg="hashed_g^x"/>
+        <flow sarg="hash" sink="Serialize hashed g^x" darg="data"/>
     </hash>
+
+    <xform id="Serialize hashed g^x" code="data">
+        <description>
+            Encode hashed g^x as DATA.
+        </description>
+        <flow sarg="hash" sink="D-H Commit (S)" darg="hashed_g^x_data"/>
+        <arg name="data"/>
+    </xform>
 
     <!--
       ** Receive D-H Commit message
@@ -748,7 +742,7 @@
         <description>
             Second message of the AKE send by us in the responder case.
         </description>
-        <flow sarg="result" sink="Network_Output_Mux" darg="dhkm"/>
+        <flow sarg="result" sink="Network Mux" darg="dhkm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -760,7 +754,7 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
-        <config int="3"/>
+        <config uint16="3"/>
         <flow sarg="const" sink="D-H Key (S)" darg="protocol_version"/>
     </const>
 
@@ -768,7 +762,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
-        <config int="2"/>
+        <config uint8="2"/>
         <flow sarg="const" sink="D-H Key (S)" darg="message_type"/>
     </const>
 
@@ -777,7 +771,7 @@
             The instance tag of the person sending this message.
         </description>
         <!-- FIXME: This should be dynamic in the future! -->
-        <config int="42"/>
+        <config uint32="512"/>
         <flow sarg="const" sink="D-H Key (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -787,7 +781,7 @@
             the other party may not have identified their instance tag, yet.
         </description>
         <!-- FIXME: This should be dynamic in the future! -->
-        <config int="0"/>
+        <config uint32="0"/>
         <flow sarg="const" sink="D-H Key (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -881,11 +875,19 @@
         <description>
             Branch g^y
         </description>
-        <flow sarg="g^y#1" sink="Shared secret (R)" darg="pub"/>
+        <flow sarg="g^y#1" sink="Unserialize g^y (R)" darg="data"/>
         <flow sarg="g^y#2" sink="Concat M_B (S)" darg="g^y"/>
         <flow sarg="g^y#3" sink="Concat M_A (R)" darg="g^y"/>
         <flow sarg="g^y#4" sink="Select pubkey (M)" darg="responder_pub_remote"/>
     </branch>
+
+    <xform id="Unserialize g^y (R)" code="unserialize">
+        <description>
+            Convert MPI to long integer.
+        </description>
+        <flow sarg="data" sink="Shared secret (R)" darg="pub"/>
+        <arg name="data"/>
+    </xform>
 
     <const id="Modulus" confidentiality="false">
         <description>
@@ -961,14 +963,14 @@
             Only send a Signature message once the reveal signature message
             was verified correctly.
         </description>
-        <flow sarg="data" sink="Network_Output_Mux" darg="sigm"/>
+        <flow sarg="data" sink="Network Mux" darg="sigm"/>
     </guard>
 
     <const id="SIGM Protocol Version (S)" confidentiality="false">
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
-        <config int="3"/>
+        <config uint16="3"/>
         <flow sarg="const" sink="Signature (S)" darg="protocol_version"/>
     </const>
 
@@ -976,7 +978,7 @@
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
-        <config hex="0x12"/>
+        <config uint8="18"/>
         <flow sarg="const" sink="Signature (S)" darg="message_type"/>
     </const>
 
@@ -984,7 +986,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
-        <config int="42"/>
+        <config uint32="512"/>
         <flow sarg="const" sink="Signature (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -993,7 +995,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <config int="0"/>
+        <config uint32="0"/>
         <flow sarg="const" sink="Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -1096,11 +1098,9 @@
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
-        <config>
-            <length int="160"/>
-        </config>
+        <config length="160"/>
         <flow sarg="macd_signature" sink="Signature (S)" darg="macd_signature"/>
-        <arg name="macd_signature"/>
+        <arg name="data"/>
     </xform>
 
     <!--
@@ -1204,7 +1204,7 @@
             encryption key, thuse establishing and authenticating
             the encrypted channel.
         </description>
-        <flow sarg="result" sink="Network_Output_Mux" darg="rvsm"/>
+        <flow sarg="result" sink="Network Mux" darg="rvsm"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1218,7 +1218,7 @@
         <description>
             The version number of the OTR protocol for outgoing Reveal Signature messages.
         </description>
-        <config int="3"/>
+        <config uint16="3"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="protocol_version"/>
     </const>
 
@@ -1226,7 +1226,7 @@
         <description>
             The message type of the outgoing Reveal Signature messages.
         </description>
-        <config hex="0x11"/>
+        <config uint8="17"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="message_type"/>
     </const>
 
@@ -1234,7 +1234,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
-        <config int="42"/>
+        <config uint32="512"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="sender_instance_tag"/>
     </const>
 
@@ -1243,7 +1243,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <config int="0"/>
+        <config uint32="0"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
@@ -1354,7 +1354,7 @@
         <description>
             The SHA256-HMAC of the encrypted signature field, using the key m2.
         </description>
-        <flow sarg="auth" sink="Trim X_B" darg="macd_signature"/>
+        <flow sarg="auth" sink="Trim X_B" darg="data"/>
     </hmac>
 
     <xform id="Trim X_B" code="prefix">
@@ -1362,11 +1362,9 @@
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
-        <config>
-            <length int="160"/>
-        </config>
+        <config length="160"/>
         <flow sarg="macd_signature" sink="Reveal Signature (S)" darg="macd_signature"/>
-        <arg name="macd_signature"/>
+        <arg name="data"/>
     </xform>
 
     <!--
@@ -1638,7 +1636,7 @@
             Check that g^x is a legal value, i.e. 2 \le g^x \le modulus-2, then
             calculate DH shared secret s for data message.
         </description>
-        <flow sarg="ssec" sink="Serialize s (M)" darg="s"/>
+        <flow sarg="ssec" sink="Serialize s (M)" darg="data"/>
     </dhsec>
 
     <xform id="Serialize s (M)" code="mpi">
@@ -1647,7 +1645,7 @@
         </description>
         <flow sarg="secbytes#1" sink="Concat sendkey (M)" darg="secbytes"/>
         <flow sarg="secbytes#2" sink="Concat recvkey (M)" darg="secbytes"/>
-        <arg name="s"/>
+        <arg name="data"/>
     </xform>
 
     <!-- Sending a data message to the network -->
@@ -1674,9 +1672,7 @@
         <description>
             The first 16 bytes of h1(sendbyte)
         </description>
-        <config>
-            <length int="128"/>
-        </config>
+        <config length="128"/>
         <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
         <arg name="data"/>
@@ -1772,7 +1768,7 @@
         <description>
             The version number of the OTR protocol for outgoing D-H Commit messages.
         </description>
-        <config int="3"/>
+        <config uint16="3"/>
         <flow sarg="const" sink="Branch Data Protocol Version (M) const" darg="data"/>
     </const>
 
@@ -1788,7 +1784,7 @@
         <description>
             The message type of the outgoing D-H Commit messages.
         </description>
-        <config hex="0x03"/>
+        <config uint8="3"/>
         <flow sarg="const" sink="Branch Data Message Type (M) const" darg="data"/>
     </const>
 
@@ -1804,7 +1800,7 @@
         <description>
             The instance tag of the person sending this message.
         </description>
-        <config int="42"/>
+        <config uint32="42"/>
         <flow sarg="const" sink="Branch Data Sender Instance Tag (M) const" darg="data"/>
     </const>
 
@@ -1821,7 +1817,7 @@
             The instance tag of the intended recipient. Most likely 0 as
             the other party may not have identified their instance tag, yet.
         </description>
-        <config int="0"/>
+        <config uint32="0"/>
         <flow sarg="const" sink="Branch Data Receiver Instance Tag (M) const" darg="data"/>
     </const>
 
@@ -1837,7 +1833,7 @@
         <description>
             The bitwise-OR of the flags for this message.
         </description>
-        <config int="0"/>
+        <config uint8="0"/>
         <flow sarg="const" sink="Branch Data Flags (M) const" darg="data"/>
     </const>
 
@@ -1853,7 +1849,7 @@
         <description>
             Encrypted data message sent to the network.
         </description>
-        <flow sarg="result" sink="Network_Output_Mux" darg="data"/>
+        <flow sarg="result" sink="Network Mux" darg="data"/>
         <arg name="protocol_version"/>
         <arg name="message_type"/>
         <arg name="sender_instance_tag"/>
@@ -1892,9 +1888,7 @@
         <description>
             The first 16 bytes of h1(recvbyte)
         </description>
-        <config>
-            <length int="128"/>
-        </config>
+        <config length="128"/>
         <flow sarg="data#1" sink="Derive receiving MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Decrypt (M)" darg="key"/>
         <arg name="data"/>

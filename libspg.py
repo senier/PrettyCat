@@ -39,6 +39,10 @@ def decode_mpi (mpi):
     (data, remainder) = decode_data (mpi)
     return (int.from_bytes (data, byteorder='big'), remainder)
 
+def encode_mpi (num):
+    length = (num.bit_length() // 8) + 1
+    return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
+
 def decode_pubkey (pubkey):
     (p, pubkey) = decode_mpi (pubkey)
     (q, pubkey) = decode_mpi (pubkey)
@@ -302,6 +306,12 @@ class const (SPG_base):
             except ValueError:
                 warn ("Invalid hex value for " + name)
                 raise
+        elif 'uint8' in config.attrib:
+            self.value = int(self.config.attrib['uint8']).to_bytes(1, byteorder='big')
+        elif 'uint16' in config.attrib:
+            self.value = int(self.config.attrib['uint16']).to_bytes(2, byteorder='big')
+        elif 'uint32' in config.attrib:
+            self.value = int(self.config.attrib['uint32']).to_bytes(4, byteorder='big')
         elif 'int' in config.attrib:
             self.value = int(self.config.attrib['int'])
         elif 'hex' in config.attrib:
@@ -620,9 +630,8 @@ class xform_concat (SPG_xform):
             raise InvalidConfiguration ("Single flow with source argument 'result' expected for " + self.name)
 
     def finish (self):
-        print ("Concat finished")
         result = bytearray()
-        for a in self.arguments:
+        for a in self.attributes['arguments']:
             result.extend(bytearray(self.args["recv_" + a]))
         self.send['result'](result)
 
@@ -631,20 +640,26 @@ class xform_prefix (SPG_xform):
         if len(self.args) != 1:
             raise Exception ("Prefix must only have one input argument")
 
-        if not 'len' in self.config.attrib:
+        if not 'length' in self.config.attrib:
             raise Exception ("No length configured for " + self.name)
 
-        length = int(self.config.attrib['len'])
+        length = int(self.config.attrib['length'])
 
-        for a in self.args:
-            self.send['data'](bytes(self.args[a])[0:length])
+        for send_data in self.send:
+            self.send[send_data] (bytes(self.args['recv_data'])[0:length])
 
-class xform_mpi (SPG_xform):
+class xform_mpi (SPG_base):
 
     def recv_data (self, data):
-        length = (data.bit_length() // 8) + 1
         for output in self.attributes['outputs']:
-            self.send[output] (length.to_bytes (4, byteorder='big') + data.to_bytes (length, byteorder='big'))
+            self.send[output] (encode_mpi (data))
+
+class xform_data (SPG_base):
+
+    def recv_data (self, data):
+        length = len(data)
+        for output in self.attributes['outputs']:
+            self.send[output] (length.to_bytes (4, byteorder='big') + data)
 
 class xform_split (SPG_xform):
 
@@ -662,3 +677,9 @@ class xform_split (SPG_xform):
         middle = length // 2
         self.send['left'] (data[0:middle])
         self.send['right'] (data[middle:])
+
+class xform_unserialize (SPG_base):
+
+    def recv_data (self, data):
+        (mpi, unused) = decode_mpi (data)
+        self.send['data'] (mpi)

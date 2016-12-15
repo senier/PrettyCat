@@ -23,6 +23,7 @@
         <flow sarg="rvsm" sink="Reveal Signature (R)" darg="rvsm"/>
         <flow sarg="sigm" sink="Signature (R)" darg="sigm"/>
         <flow sarg="data" sink="Data (R)" darg="data"/>
+        <flow sarg="rit" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
         <arg name="msg"/>
         <arg name="dhkm"/>
         <arg name="dhcm"/>
@@ -1236,15 +1237,6 @@
         </description>
         <config uint32="512"/>
         <flow sarg="const" sink="Reveal Signature (S)" darg="sender_instance_tag"/>
-    </const>
-
-    <const id="RVSM Receiver Instance Tag (S)" confidentiality="false">
-        <description>
-            The instance tag of the intended recipient. Most likely 0 as
-            the other party may not have identified their instance tag, yet.
-        </description>
-        <config uint32="0"/>
-        <flow sarg="const" sink="Reveal Signature (S)" darg="receiver_instance_tag"/>
     </const>
 
     <const id="keyid B" confidentiality="false">

@@ -283,7 +283,7 @@ class env (SPG_thread):
 
             print ("   Waiting: TCP for " + self.name + " on " + self.host + ": " + str(self.port))
             (self.conn, addr) = self.socket.accept()
-            print ("   Connect: " + str(addr[0]) + ":" + str(addr[1]))
+            print ("   Connect from: " + str(addr[0]) + ":" + str(addr[1]))
 
             self.ready.notify()
 
@@ -293,6 +293,7 @@ class env (SPG_thread):
             self.conn.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.conn.connect ((self.host, self.port))
 
+            print ("   Connected to: " + self.host + ":" + str(self.port))
             self.ready.notify()
 
         self.ready.release()

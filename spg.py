@@ -367,7 +367,7 @@ class Graph:
         info ("Created " + str(partition_no - 1) + " partitions")
 
         for node in G.node:
-            label = "<<b>" + node + "</b><font point-size=\"6\"><sub> (" + G.node[node]['kind'] + ")</sub></font> PART=" + str(G.node[node]['partition']) + ">"
+            label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub> (" + str(G.node[node]['partition']) + ")</sub></font>>"
             G.node[node]['label'] = label
 
         for node in nx.drawing.nx_pydot.to_pydot(G).get_nodes():
@@ -402,10 +402,10 @@ class Graph:
 
             if G.node[node]['kind'] == "env":
                 G.node[node]['shape'] = "invhouse"
-                G.node[node]['style'] = "filled"
             else:
                 G.node[node]['shape'] = "rectangle"
 
+            G.node[node]['label'] = "<<b>" + G.node[node]['kind'] + ": </b>" + node + ">"
             val_c = False
             val_i = False
 

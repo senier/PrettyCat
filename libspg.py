@@ -692,7 +692,7 @@ class xform_split (SPG_xform):
         self.send['left'] (data[0:middle])
         self.send['right'] (data[middle:])
 
-class xform_unserialize (SPG_base):
+class xform_unmpi (SPG_base):
 
     def recv_data (self, data):
         (mpi, unused) = decode_mpi (data)

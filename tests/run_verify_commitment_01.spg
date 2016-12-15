@@ -14,15 +14,8 @@
             Branch input message
         </description>
         <flow sarg="data#1" sink="Hash" darg="data"/>
-        <flow sarg="data#2" sink="Branch message 2" darg="data"/>
+        <flow sarg="data#2" sink="Order" darg="data"/>
         <flow sarg="data#3" sink="Compare" darg="data1"/>
-    </branch>
-
-    <branch id="Branch message 2">
-        <description>
-            Branch input message to delay it
-        </description>
-        <flow sarg="data" sink="Verify" darg="data"/>
     </branch>
 
     <hash id="Hash">
@@ -30,8 +23,18 @@
             SHA1 Hash
         </description>
         <config algo="SHA"/>
-        <flow sarg="hash" sink="Verify" darg="hash"/>
+        <flow sarg="hash" sink="Order" darg="hash"/>
     </hash>
+
+    <xform id="Order" code="order">
+        <description>
+            Order input message, such that hash is output first
+        </description>
+        <flow sarg="data" sink="Verify" darg="data"/>
+        <flow sarg="hash" sink="Verify" darg="hash"/>
+        <arg name="data"/>
+        <arg name="hash"/>
+    </xform>
 
     <verify_commit id="Verify">
         <description>

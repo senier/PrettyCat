@@ -22,7 +22,7 @@
             Branch same value into comparator
         </description>
         <config string="baz"/>
-        <flow sarg="data" sink="Check" darg="data"/>
+        <flow sarg="result" sink="Check" darg="data"/>
         <arg name="left"/>
         <arg name="right"/>
     </xform>

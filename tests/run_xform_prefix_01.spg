@@ -13,7 +13,7 @@
         <description>
             Get first 128bit of input data
         </description>
-        <config len="16"/>
+        <config length="16"/>
         <flow sarg="data" sink="Check" darg="data"/>
         <arg name="data"/>
     </xform>

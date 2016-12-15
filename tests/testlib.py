@@ -1,5 +1,6 @@
+from Crypto.Cipher import AES
 import sys
-from libspg import info, warn, err, SPG_base
+from libspg import info, warn, err, SPG_base, SPG_xform
 import libspg
 import time
 
@@ -56,3 +57,14 @@ class xform_get_random (SPG_base):
         recvlen = len(data)
         if (recvlen != self.request_length):
             libspg.exitval = 1
+
+class xform_aes_pad (SPG_base):
+
+    def recv_data (self, data):
+        self.send['data'] (libspg.pad (data, AES.block_size))
+
+class xform_order (SPG_xform):
+
+    def finish (self):
+        self.send['hash'] (self.args['recv_hash'])
+        self.send['data'] (self.args['recv_data'])

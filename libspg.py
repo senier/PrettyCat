@@ -235,9 +235,6 @@ class decrypt (counter_mode):
 
     def recv_ciphertext (self, ct):
 
-        if len(ct) != AES.block_size:
-            raise Exception ("Decryption with invalid blocksize (expected " + str (AES.block_size) + ")")
-
         self.ct = bytes(ct)
         self.decrypt_if_valid()
 

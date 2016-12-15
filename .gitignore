@@ -12,7 +12,8 @@ test.pdf
 *.bbl
 *.blg
 *.brf
-*.svg
+./*.svg
+tests/*.svg
 *.json
 *.graph
 *.bak

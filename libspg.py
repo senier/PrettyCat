@@ -259,13 +259,21 @@ class env (SPG_thread):
         self.host        = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
         self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
         self.mode        = config.attrib['mode']
+        self.conn        = None
+        self.ready       = threading.Condition()
 
         print ("   Env init: " + self.host + ":" + str(self.port))
 
     def recv_data (self, data):
+
+        self.ready.acquire()
+        self.ready.wait()
         self.conn.send (data + b'\0')
+        self.ready.release()
     
     def run (self):
+
+        self.ready.acquire()
 
         if self.mode == 'server':
             self.socket = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
@@ -277,12 +285,17 @@ class env (SPG_thread):
             (self.conn, addr) = self.socket.accept()
             print ("   Connect: " + str(addr[0]) + ":" + str(addr[1]))
 
-        elif mode == 'client':
+            self.ready.notify()
+
+        elif self.mode == 'client':
 
             self.conn = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
             self.conn.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.conn.connect ((self.host, self.port))
 
+            self.ready.notify()
+
+        self.ready.release()
 
         while True:
             if 'data' in self.send:

@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+<spg>
+
+    <const id="Modulus" confidentiality="false">
+        <description>
+            Modulus for D-H operations
+        </description>
+        <config hex="FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1FE649286651ECE45B3DC2007CB8A163BF0598DA48361C55D39A69163FA8FD24CF5F83655D23DCA3AD961C62F356208552BB9ED529077096966D670C354E4ABC9804F1746C08CA237327FFFFFFFFFFFFFFFF"/>
+        <flow sarg="const" sink="Branch modulus" darg="data"/>
+    </const>
+
+    <branch id="Branch modulus">
+        <description>
+            Branch modulus
+        </description>
+        <flow sarg="modulus#1" sink="Calculate pub" darg="modulus"/>
+        <flow sarg="modulus#1" sink="Calculate sec" darg="modulus"/>
+    </branch>
+
+    <const id="Generator" confidentiality="false">
+        <description>
+            Generator for D-H operations
+        </description>
+        <config int="2"/>
+        <flow sarg="const" sink="Branch generator" darg="data"/>
+    </const>
+
+    <branch id="Branch generator">
+        <description>
+            Branch generator
+        </description>
+        <flow sarg="generator#1" sink="Calculate pub" darg="generator"/>
+        <flow sarg="generator#2" sink="Calculate sec" darg="generator"/>
+    </branch>
+
+    <const id="Sec length" confidentiality="false">
+        <description>
+            Length of secret key for D-H
+        </description>
+        <config int="320"/>
+        <flow sarg="const" sink="Random number generator" darg="len"/>
+    </const>
+
+    <rng id="Random number generator">
+        <description>
+            Genderate x for g^x in D-H
+        </description>
+        <flow sarg="data" sink="Branch sec" darg="data"/>
+    </rng>
+
+    <branch id="Branch sec">
+        <description>
+            Branch secret of initiator
+        </description>
+        <flow sarg="data#1" sink="Calculate pub" darg="psec"/>
+        <flow sarg="data#2" sink="Calculate sec" darg="psec"/>
+    </branch>
+
+    <dhpub id="Calculate pub">
+        <description>
+            Calculate initiator public value
+        </description>
+        <flow sarg="pub" sink="Serialize pub" darg="data"/>
+    </dhpub>
+
+    <xform id="Serialize pub" code="mpi">
+        <description>
+            Serialize pub value before sending
+        </description>
+        <flow sarg="data" sink="Network" darg="data"/>
+    </xform>
+
+    <xform id="Unserialize pub" code="unmpi">
+        <description>
+            Unserialize pub value after receiving
+        </description>
+        <flow sarg="data" sink="Calculate sec" darg="pub"/>
+        <arg name="data"/>
+    </xform>
+
+    <dhsec id="Calculate sec">
+        <description>
+            Calculate initiator secret value
+        </description>
+        <flow sarg="ssec" sink="Keystore" darg="data"/>
+    </dhsec>
+
+    <env id="Network" confidentiality="false">
+        <description>
+            Output result
+        </description>
+        <config mode="server" host="localhost" port="12000"/>
+        <flow sarg="remote_pub" sink="Unserialize pub" darg="data"/>
+        <arg name="data"/>
+    </env>
+
+    <env id="Keystore" confidentiality="true">
+        <description>
+            Output result
+        </description>
+        <config mode="server" port="12002"/>
+        <arg name="data"/>
+    </env>
+</spg>

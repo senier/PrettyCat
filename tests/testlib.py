@@ -23,7 +23,7 @@ class env_list (libspg.SPG_thread):
 
         time.sleep(self.delay)
         for v in self.values:
-            self.send['data'](v.encode())
+            self.send ('data', v.encode())
 
 class env_check_fixed (SPG_base):
 
@@ -56,7 +56,7 @@ class xform_get_random (SPG_base):
 
     def start (self):
         self.request_length = 597
-        self.send['len'](self.request_length)
+        self.send ('len', self.request_length)
 
     def recv_random (self, data):
         recvlen = len(data)
@@ -66,10 +66,10 @@ class xform_get_random (SPG_base):
 class xform_aes_pad (SPG_base):
 
     def recv_data (self, data):
-        self.send['data'] (libspg.pad (data, AES.block_size))
+        self.send ('data', libspg.pad (data, AES.block_size))
 
 class xform_order (SPG_xform):
 
     def finish (self):
-        self.send['hash'] (self.args['recv_hash'])
-        self.send['data'] (self.args['recv_data'])
+        self.send ('hash', self.args['recv_hash'])
+        self.send ('data', self.args['recv_data'])

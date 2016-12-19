@@ -26,37 +26,37 @@ class not_implemented (libspg.SPG_base):
 class xform_ake_state (libspg.SPG_base):
 
     def recv_responder_state (self, state):
-        self.send['encrypted'] (state)
+        self.send ('encrypted', state)
 
     def recv_initiator_state (self, state):
-        self.send['encrypted'] (state)
+        self.send ('encrypted', state)
 
 class xform_data_r (libspg.SPG_base):
 
     def recv_data (self, data):
         parsed = parse_data (data)
 
-        self.send['protocol_version'] (parsed['protocol_version'])
-        self.send['message_type'] (parsed['message_type'])
-        self.send['sender_instance_tag'] (parsed['sender_instance'])
-        self.send['receiver_instance_tag'] (parsed['receiver_instance'])
-        self.send['flags'] (parsed['flags'])
-        self.send['sender_keyid#1'] (parsed['sender_keyid'])
-        self.send['sender_keyid#2'] (parsed['sender_keyid'])
-        self.send['recipient_keyid#1'] (parsed['recipient_keyid'])
-        self.send['recipient_keyid#2'] (parsed['recipient_keyid'])
-        self.send['dh_y#1'] (parsed['dh_y'])
-        self.send['dh_y#2'] (parsed['dh_y'])
-        self.send['top_half_of_counter_init#1'] (parsed['counter'])
-        self.send['top_half_of_counter_init#2'] (parsed['counter'])
-        self.send['encrypted_message'] (parsed['enc_data'])
-        self.send['authenticator'] (parsed['mac'])
+        self.send ('protocol_version', parsed['protocol_version'])
+        self.send ('message_type', parsed['message_type'])
+        self.send ('sender_instance_tag', parsed['sender_instance'])
+        self.send ('receiver_instance_tag', parsed['receiver_instance'])
+        self.send ('flags', parsed['flags'])
+        self.send ('sender_keyid#1', parsed['sender_keyid'])
+        self.send ('sender_keyid#2', parsed['sender_keyid'])
+        self.send ('recipient_keyid#1', parsed['recipient_keyid'])
+        self.send ('recipient_keyid#2', parsed['recipient_keyid'])
+        self.send ('dh_y#1', parsed['dh_y'])
+        self.send ('dh_y#2', parsed['dh_y'])
+        self.send ('top_half_of_counter_init#1', parsed['counter'])
+        self.send ('top_half_of_counter_init#2', parsed['counter'])
+        self.send ('encrypted_message', parsed['enc_data'])
+        self.send ('authenticator', parsed['mac'])
 
 class xform_data_s (libspg.SPG_xform):
 
     def finish (self):
-        self.send['data'] \
-            (self.args['protocol_version'] + \
+        self.send ('data', \
+             self.args['protocol_version'] + \
              self.args['message_type'] + \
              self.args['sender_instance_tag'] + \
              self.args['receiver_instance_tag'] + \
@@ -72,12 +72,12 @@ class xform_data_s (libspg.SPG_xform):
 class xform_derive_keys (libspg.SPG_base):
 
     def _send_ssec (self, ssecmpi):
-        self.send['secbytes#1'] (ssecmpi)
-        self.send['secbytes#2'] (ssecmpi)
-        self.send['secbytes#3'] (ssecmpi)
-        self.send['secbytes#4'] (ssecmpi)
-        self.send['secbytes#5'] (ssecmpi)
-        self.send['secbytes#6'] (ssecmpi)
+        self.send ('secbytes#1', ssecmpi)
+        self.send ('secbytes#2', ssecmpi)
+        self.send ('secbytes#3', ssecmpi)
+        self.send ('secbytes#4', ssecmpi)
+        self.send ('secbytes#5', ssecmpi)
+        self.send ('secbytes#6', ssecmpi)
 
     def recv_responder_ssec (self, ssec):
         ssecmpi = libspg.encode_mpi (ssec)
@@ -92,14 +92,14 @@ class xform_dh_commit_r (libspg.SPG_base):
     def recv_dhcm (self, dhcm):
         # hashed_gx should exactly be the remainder from extracting encrypted g^x DATA
         (encrypted_gx, hashed_gx) = decode_data (dhcm)
-        self.send['encrypted_g^x'] (encrypted_gx)
-        self.send['hashed_g^x'] (hashed_gx)
+        self.send ('encrypted_g^x', encrypted_gx)
+        self.send ('hashed_g^x', hashed_gx)
 
 class xform_dh_key_r (libspg.SPG_base):
 
     def recv_dhkm (self, dhkm):
         (dh_y, dummy) = libspg.decode_data (dhkm)
-        self.send['g^y'] (dh_y)
+        self.send ('g^y', dh_y)
 
 class xform_network_mux (libspg.SPG_base):
 
@@ -132,7 +132,7 @@ class xform_network_mux (libspg.SPG_base):
 
             self.query_received = True
             if self.dhcm:
-                self.send['msg'] (self.dhcm)
+                self.send ('msg', self.dhcm)
                 self.query_received = False
                 self.dhcm = None
             return
@@ -153,7 +153,7 @@ class xform_network_mux (libspg.SPG_base):
         if (message_type == 0x02):
             output = 'dhcm'
             if self.dhkm != None:
-                self.send['msg'] (self.dhkm)
+                self.send ('msg', self.dhkm)
                 self.dhkm = None
                 self.dhcm_received = False
             else:
@@ -163,7 +163,7 @@ class xform_network_mux (libspg.SPG_base):
             sender_instance_tag = data[3:7]
             # Set sender_instance_tag of D-H Key message as outgoing receiver
             # instance tag for subsequent Reveal Signature messages
-            self.send['rit'] (sender_instance_tag)
+            self.send ('rit', sender_instance_tag)
 
         elif (message_type == 0x11):
             output = 'rvsm'
@@ -176,30 +176,30 @@ class xform_network_mux (libspg.SPG_base):
             libspg.warn ("Invalid message type " + str(message_type))
             return
 
-        self.send[output] (data[12:])
+        self.send(output, data[12:])
 
     def recv_dhkm (self, dhkm):
         if self.dhcm_received:
-            self.send['msg'] (self.dhkm)
+            self.send ('msg', self.dhkm)
             self.dhkm = None
         else:
             self.dhkm = self._encode (dhkm)
 
     def recv_dhcm (self, dhcm):
         if self.query_received:
-            self.send['msg'] (self._encode(dhcm))
+            self.send ('msg', self._encode(dhcm))
             self.query_received = False
         else:
             self.dhcm = self._encode(dhcm)
 
     def recv_rvsm (self, rvsm):
-        self.send['msg'] (self._encode(rvsm))
+        self.send ('msg', self._encode(rvsm))
 
     def recv_sigm (self, sigm):
-        self.send['msg'] (self._encode(sigm))
+        self.send ('msg', self._encode(sigm))
 
     def recv_data (self, data):
-        self.send['msg'] (self._encode(data))
+        self.send ('msg', self._encode(data))
 
 class xform_reveal_old_mac_keys (libspg.SPG_xform):
 
@@ -212,10 +212,10 @@ class xform_reveal_signature_r (libspg.SPG_base):
         (revealed_key, rest)                 = libspg.decode_data (rvsm)
         (encrypted_signature, mac_signature) = libspg.decode_data (rest)
 
-        self.send['revealed_key'] (revealed_key)
-        self.send['encrypted_signature#1'] (encrypted_signature)
-        self.send['encrypted_signature#2'] (encrypted_signature)
-        self.send['macd_signature'] (macd_signature)
+        self.send ('revealed_key', revealed_key)
+        self.send ('encrypted_signature#1', encrypted_signature)
+        self.send ('encrypted_signature#2', encrypted_signature)
+        self.send ('macd_signature', macd_signature)
 
 class xform_select_pubkeys (libspg.SPG_base):
 
@@ -240,27 +240,27 @@ class xform_select_pubkeys (libspg.SPG_base):
             return
 
         if self.latest_local_keyid == self.local_keyid:
-            self.send['current_pubkey'](self.current_local)
+            self.send ('current_pubkey', self.current_local)
         elif self.latest_local_keyid == self.local_keyid - 1:
-            self.send['current_pubkey'](self.previous_local)
+            self.send ('current_pubkey', self.previous_local)
         else:
             error ("No local pubkey")
             return
 
         # send current local keyid
-        self.send['local_keyid#1'] (self.local_keyid)
-        self.send['local_keyid#2'] (self.local_keyid)
-        self.send['local_keyid#3'] (self.local_keyid)
+        self.send ('local_keyid#1', self.local_keyid)
+        self.send ('local_keyid#2', self.local_keyid)
+        self.send ('local_keyid#3', self.local_keyid)
 
         # Determine end and send start respective byte
         if self.current_local > self.current_remote:
             # 'High' end
-            self.send['sendbyte'] (0x01)
-            self.send['recvbyte'] (0x02)
+            self.send ('sendbyte', 0x01)
+            self.send ('recvbyte', 0x02)
         else:
             # 'Low' end
-            self.send['sendbyte'] (0x02)
-            self.send['recvbyte'] (0x01)
+            self.send ('sendbyte', 0x02)
+            self.send ('recvbyte', 0x01)
 
     def recv_initiator_pub_local (self, pub):
         self.current_local = pub
@@ -327,8 +327,8 @@ class xform_signature_r (libspg.SPG_base):
 
     def recv_sigm (self, sigm):
         (encrypted_sig, macd_signature) = decode_data (sigm)
-        self.send['encrypted_signature'] (encrypted_sig)
-        self.send['macd_signature'] (macd_signature)
+        self.send ('encrypted_signature', encrypted_sig)
+        self.send ('macd_signature', macd_signature)
 
 class xform_split_x (libspg.SPG_base):
 
@@ -341,10 +341,10 @@ class xform_split_x (libspg.SPG_base):
         keyid = int.from_byte (rest[0:4], byteorder='big')
         sig = rest[4:45]
 
-        self.send['pub#1'] (pubkey)
-        self.send['pub#2'] (pubkey)
-        self.send['signature'] (sig)
-        self.send['keyid'] (keyid)
+        self.send ('pub#1', pubkey)
+        self.send ('pub#2', pubkey)
+        self.send ('signature', sig)
+        self.send ('keyid', keyid)
 
 class xform_verify_counter (libspg.SPG_base):
 
@@ -377,11 +377,11 @@ class xform_verify_counter (libspg.SPG_base):
         self.last_recipient_keyid = parsed['recipient_keyid']
         self.last_sender_keyid    = parsed['sender_keyid']
 
-        self.send['data'] (parsed['enc_data'])
-        self.send['recipient_keyid#1'] (parsed['recipient_keyid'])
-        self.send['recipient_keyid#2'] (parsed['recipient_keyid'])
+        self.send ('data', parsed['enc_data'])
+        self.send ('recipient_keyid#1', parsed['recipient_keyid'])
+        self.send ('recipient_keyid#2', parsed['recipient_keyid'])
 
 class xform_handle_query (libspg.SPG_xform):
 
     def finish (self):
-        self.send['len'] (self.args['recv_len'])
+        self.send ('len', self.args['recv_len'])

@@ -580,7 +580,7 @@ class Graph:
                     raise
                 sendmethods[data['sarg']] = recvmethod
 
-            G.node[node]['class'].sendmethods (sendmethods)
+            G.node[node]['class'].set_sendmethods (sendmethods)
 
         for node in G.node:
             G.node[node]['class'].setDaemon (True)

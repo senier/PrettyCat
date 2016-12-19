@@ -62,11 +62,19 @@ class SPG_base:
         self.attributes = attributes
         self.arguments  = attributes['inputs']
 
-    def recvmethods (self, recvmethods):
-        self.recv = recvmethods
+        self.__sendmethods = None
 
-    def sendmethods (self, sendmethods):
-        self.send = sendmethods
+    # def recvmethods (self, recvmethods):
+    #     self.recv = recvmethods
+
+    def set_sendmethods (self, sendmethods):
+        self.__sendmethods = sendmethods
+
+    def sendmethods (self):
+        return self.__sendmethods
+
+    def send (self, argument, data):
+        self.__sendmethods[argument] (data)
 
     def start (self): pass
     def join (self): pass
@@ -85,11 +93,17 @@ class SPG_thread (threading.Thread):
         self.attributes = attributes
         self.arguments  = attributes['inputs']
 
-    def recvmethods (self, recvmethods):
-        self.recv = recvmethods
+    # def recvmethods (self, recvmethods):
+    #     self.recv = recvmethods
 
-    def sendmethods (self, sendmethods):
-        self.send = sendmethods
+    def set_sendmethods (self, sendmethods):
+        self.__sendmethods = sendmethods
+
+    def sendmethods (self):
+        return self.__sendmethods
+
+    def send (self, argument, data):
+        self.__sendmethods[argument] (data)
 
 class SPG_xform (SPG_base):
 
@@ -124,7 +138,7 @@ class comp (SPG_base):
         else:
             result = 'True' if self.data2 == data else 'False'
             #print ("Comp: " + str(self.data2) + " vs. " + str(data))
-            self.send['result'](result.encode())
+            self.send ('result', result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -135,7 +149,7 @@ class comp (SPG_base):
         else:
             result = 'True' if self.data1 == data else 'False'
             #print ("Comp: " + str(self.data1) + " vs. " + str(data))
-            self.send['result'](result.encode())
+            self.send ('result', result.encode())
             self.data1 = None
             self.data2 = None
 
@@ -206,14 +220,14 @@ class encrypt (counter_mode):
             ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
             cipher = AES.new (self.key, AES.MODE_CBC, ctr)
             self.key_changed = False
-            self.send['ciphertext'](cipher.encrypt (pad (self.pt, AES.block_size)))
+            self.send ('ciphertext', cipher.encrypt (pad (self.pt, AES.block_size)))
             self.send_ctr(ctr)
             self.pt = None
 
 class encrypt_ctr (encrypt):
 
     def send_ctr(self, ctr):
-        self.send['ctr'](int.from_bytes (ctr, byteorder='big'))
+        self.send ('ctr', int.from_bytes (ctr, byteorder='big'))
 
 class decrypt (counter_mode):
 
@@ -241,7 +255,7 @@ class decrypt (counter_mode):
     def decrypt_if_valid (self):
         if self.ctr != None and self.key != None and self.ct != None:
             cipher = AES.new (self.key, AES.MODE_CBC, self.ctr.to_bytes (AES.block_size, byteorder='big'))
-            self.send['plaintext'](cipher.decrypt (self.ct))
+            self.send ('plaintext', cipher.decrypt (self.ct))
             self.ct = None
 
 class env (SPG_thread):
@@ -339,7 +353,7 @@ class const (SPG_base):
             raise Exception ("No value set for const '" + name + "'")
 
     def start (self):
-        self.send['const'](self.value)
+        self.send ('const', self.value)
 
 class branch (SPG_base):
 
@@ -347,8 +361,8 @@ class branch (SPG_base):
         super().__init__ (name, config, attributes)
 
     def recv_data (self, data):
-        for send_data in self.send:
-            self.send[send_data] (data)
+        for send_data in self.sendmethods():
+            self.send (send_data, data)
 
 class dh (SPG_base):
     def __init__ (self, name, config, attributes):
@@ -374,7 +388,7 @@ class dhpub (dh):
     def calculate_if_valid (self):
         if self.generator != None and self.modulus != None and self.psec != None:
             try:
-                self.send['pub'] (pow(self.generator, int.from_bytes (self.psec, byteorder='big'), self.modulus))
+                self.send ('pub', pow(self.generator, int.from_bytes (self.psec, byteorder='big'), self.modulus))
             except TypeError:
                 err ("Type error in " + self.name)
                 raise
@@ -394,7 +408,7 @@ class dhsec (dh):
             # (2) 1 == pub^q mod modulus for q = (modulus-1)/2
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
-                    self.send['ssec'] (pow(self.pub, int.from_bytes (self.psec, byteorder='big'), self.modulus))
+                    self.send ('ssec', pow(self.pub, int.from_bytes (self.psec, byteorder='big'), self.modulus))
             self.psec = None
 
     def recv_pub (self, pub):
@@ -413,7 +427,7 @@ class hmac (SPG_base):
 
         if self.key != None and self.msg != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.send['auth'](hmac.digest())
+            self.send ('auth', hmac.digest())
             self.msg = None
 
     def recv_msg (self, msg):
@@ -430,8 +444,8 @@ class hmac_out (hmac):
 
         if self.key != None and self.msg != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            self.send['auth'](hmac.digest())
-            self.send['msg'](self.msg)
+            self.send ('auth', hmac.digest())
+            self.send ('msg', self.msg)
             self.msg = None
 
 class verify_hmac (hmac):
@@ -446,7 +460,7 @@ class verify_hmac (hmac):
         if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             result = 'True' if hmac.digest() == self.auth else 'False'
-            self.send['result'](result.encode())
+            self.send ('result', result.encode())
             self.msg  = None
             self.auth = None
 
@@ -461,7 +475,7 @@ class verify_hmac_out (verify_hmac):
         if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
             if hmac.digest() == self.auth:
-                self.send['msg'](self.msg)
+                self.send ('msg', self.msg)
             self.msg  = None
             self.auth = None
 
@@ -500,7 +514,7 @@ class sign (__sig_base):
             signature = key.sign (self.msg, self.rand)
             r = signature[0].to_bytes(20, byteorder='big')
             s = signature[1].to_bytes(20, byteorder='big')
-            self.send['auth'](r + s)
+            self.send ('auth', r + s)
             self.msg  = None
             self.rand = None
 
@@ -530,7 +544,7 @@ class verify_sig (__sig_base):
     def verify_if_valid (self):
         if self.pubkey and self.auth != None and self.msg != None:
             result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
-            self.send['result'](result.encode())
+            self.send ('result', result.encode())
             self.auth = None
             self.msg  = None
 
@@ -565,7 +579,7 @@ class hash (SPG_base):
 
     def recv_data (self, data):
         h = self.hashalgo.new(data)
-        self.send['hash'](h.digest())
+        self.send ('hash', h.digest())
 
 class guard (SPG_base):
 
@@ -578,21 +592,21 @@ class guard (SPG_base):
     def recv_data (self, data):
         self.data = data
         if self.cond:
-            self.send['data'](self.data)
+            self.send ('data', self.data)
             self.cond = None
             self.data = None
 
     def recv_cond (self, cond):
         self.cond = cond
         if self.data:
-            self.send['data'](self.data)
+            self.send ('data', self.data)
             self.cond = None
             self.data = None
 
 class release (SPG_base):
 
     def recv_data (self, data):
-        self.send['data'](data)
+        self.send ('data', data)
 
 class latch (SPG_base):
 
@@ -604,8 +618,8 @@ class latch (SPG_base):
     def recv_data (self, data):
         if self.data == None:
             self.data = data
-            self.send['trigger']('True'.encode())
-        self.send['data'](self.data)
+            self.send ('trigger', 'True'.encode())
+        self.send ('data', self.data)
 
 class rng (SPG_base):
 
@@ -613,7 +627,7 @@ class rng (SPG_base):
         super().__init__ (name, config, attributes)
 
     def recv_len (self, length):
-        self.send['data'](Random.get_random_bytes(int(length)))
+        self.send ('data', Random.get_random_bytes(int(length)))
 
 class verify_commit (hash):
 
@@ -628,7 +642,7 @@ class verify_commit (hash):
         if self.hash != None:
             h = self.hashalgo.new(data)
             if h.digest() == self.hash:
-                self.send['data'](data)
+                self.send ('data', data)
             self.hash = None
             self.data = None
 
@@ -644,7 +658,7 @@ class xform_concat (SPG_xform):
         result = bytearray()
         for a in self.attributes['arguments']:
             result.extend(bytearray(self.args["recv_" + a]))
-        self.send['result'](result)
+        self.send ('result', result)
 
 class xform_prefix (SPG_xform):
     def finish (self):
@@ -657,20 +671,20 @@ class xform_prefix (SPG_xform):
         length = int(self.config.attrib['length'])
 
         for send_data in self.send:
-            self.send[send_data] (bytes(self.args['recv_data'])[0:length])
+            self.send (send_data, bytes(self.args['recv_data'])[0:length])
 
 class xform_mpi (SPG_base):
 
     def recv_data (self, data):
         for output in self.attributes['outputs']:
-            self.send[output] (encode_mpi (data))
+            self.send (output, encode_mpi (data))
 
 class xform_data (SPG_base):
 
     def recv_data (self, data):
         length = len(data)
         for output in self.attributes['outputs']:
-            self.send[output] (length.to_bytes (4, byteorder='big') + data)
+            self.send (output, length.to_bytes (4, byteorder='big') + data)
 
 class xform_split (SPG_xform):
 
@@ -686,11 +700,11 @@ class xform_split (SPG_xform):
             raise Exception ("Split expects even number of input bytes")
 
         middle = length // 2
-        self.send['left'] (data[0:middle])
-        self.send['right'] (data[middle:])
+        self.send ('left', data[0:middle])
+        self.send ('right', data[middle:])
 
 class xform_unmpi (SPG_base):
 
     def recv_data (self, data):
         (mpi, unused) = decode_mpi (data)
-        self.send['data'] (mpi)
+        self.send ('data', mpi)

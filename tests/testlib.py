@@ -47,6 +47,11 @@ class env_check_fixed (SPG_base):
         else:
             info ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
 
+class env_print (SPG_base):
+
+    def recv_data (self, data):
+        print (self.name + ": " + str (data))
+
 class xform_get_random (SPG_base):
 
     def start (self):

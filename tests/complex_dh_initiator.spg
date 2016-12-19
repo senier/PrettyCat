@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<spg>
+<spg code="testlib">
 
     <const id="Modulus" confidentiality="false">
         <description>
@@ -94,7 +94,7 @@
         <arg name="data"/>
     </env>
 
-    <env id="Keystore" confidentiality="true">
+    <env id="Keystore" confidentiality="true" code="print">
         <description>
             Output result
         </description>

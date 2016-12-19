@@ -38,7 +38,7 @@
             Length of secret key for D-H
         </description>
         <config int="320"/>
-        <flow sarg="data" sink="Random number generator" darg="len"/>
+        <flow sarg="const" sink="Random number generator" darg="len"/>
     </const>
 
     <rng id="Random number generator">

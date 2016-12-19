@@ -38,16 +38,8 @@
             Length of secret key for D-H
         </description>
         <config int="320"/>
-        <flow sarg="const" sink="Trigger" darg="len"/>
-    </const>
-
-    <xform id="Trigger" code="trigger">
-        <description>
-            Trigger D-H key agreement
-        </description>
         <flow sarg="data" sink="Random number generator" darg="len"/>
-        <arg name="len"/>
-    </xform>
+    </const>
 
     <rng id="Random number generator">
         <description>

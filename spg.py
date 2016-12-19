@@ -779,9 +779,9 @@ class Primitive:
                 missing_args = set(interfaces['outputs']) - set(self.outputs)
                 excess_args = set(self.outputs) - set(interfaces['outputs'])
 
-                if missing_args and excess_args: raise MissingAndExcessIncomingEdges (name, missing_args, excess_args)
-                if missing_args:                 raise MissingIncomingEdges (name, missing_args)
-                if excess_args:                  raise ExcessIncomingEdges (name, excess_args)
+                if missing_args and excess_args: raise MissingAndExcessOutgoingEdges (name, missing_args, excess_args)
+                if missing_args:                 raise MissingOutgoingEdges (name, missing_args)
+                if excess_args:                  raise ExcessOutgoingEdges (name, excess_args)
 
 
     def populate (self, solver):

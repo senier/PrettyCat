@@ -271,20 +271,42 @@ class env (SPG_thread):
         self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
         self.mode        = config.attrib['mode']
         self.conn        = None
-        self.ready       = threading.Condition()
-
-        print ("   Env init: " + self.host + ":" + str(self.port))
+        self.ready       = threading.Semaphore(0)
 
     def recv_data (self, data):
 
+        data_len = len(data)
         self.ready.acquire()
-        self.ready.wait()
-        self.conn.send (data + b'\0')
+        self.conn.send (data_len.to_bytes (2, byteorder='big') + data)
         self.ready.release()
+
+    def __forward (self):
+
+        header = self.conn.recv (self.bufsize)
+
+        # End of transmission
+        if len(header) == 0:
+            return False
+
+        if len(header) < 2:
+            warn ("Invalid data received (too short: " + str(len(header)) + ")")
+            return True
+
+        length = int.from_bytes (header[0:2], byteorder='big')
+
+        data = header[2:]
+        length -= len(data)
+
+        while length > 0:
+            data += self.conn.recv (length)
+            length -= len(data)
+
+        self.send ('data', data)
     
     def run (self):
 
-        self.ready.acquire()
+        if not 'data' in self.sendmethods():
+            raise InvalidArgument (self.name + " needs missing output argument 'data'")
 
         if self.mode == 'server':
             self.socket = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
@@ -296,25 +318,17 @@ class env (SPG_thread):
             (self.conn, addr) = self.socket.accept()
             print ("   Connect from: " + str(addr[0]) + ":" + str(addr[1]))
 
-            self.ready.notify()
-
         elif self.mode == 'client':
 
             self.conn = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
             self.conn.setsockopt (socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             self.conn.connect ((self.host, self.port))
-
             print ("   Connected to: " + self.host + ":" + str(self.port))
-            self.ready.notify()
 
         self.ready.release()
 
-        while True:
-            if 'data' in self.send:
-                data = self.conn.recv (self.bufsize)
-                if not data:
-                    return
-                self.send['data'](data)
+        # Forward all messages until channel is closed
+        while self.__forward (): pass
 
 class const (SPG_base):
 

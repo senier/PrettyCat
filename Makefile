@@ -46,7 +46,9 @@ tests/%.svg: tests/%.spg spg.py
 	-@./spg.py $(SPG_ARGS) --input $< --output tests/$*.FAILED.svg --test
 	-@mv tests/$*.FAILED.svg $@
 
-tests/%.run: tests/%.spg spg.py
+tests/%.run:: tests/%.spg spg.py FORCE
 	@echo "=== Running $@"
 	@./spg.py $(SPG_ARGS) --input $< --output $@.svg --run
 	@mv $@.svg $@
+
+FORCE:

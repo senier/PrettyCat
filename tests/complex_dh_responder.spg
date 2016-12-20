@@ -90,7 +90,7 @@
             Output result
         </description>
         <config mode="server" host="localhost" port="12000"/>
-        <flow sarg="remote_pub" sink="Unserialize pub" darg="data"/>
+        <flow sarg="data" sink="Unserialize pub" darg="data"/>
         <arg name="data"/>
     </env>
 

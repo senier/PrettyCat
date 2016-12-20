@@ -74,6 +74,7 @@ class SPG_base:
         return self.__sendmethods
 
     def send (self, argument, data):
+        info ("S: " + self.name + ": Sending argument " + argument)
         self.__sendmethods[argument] (data)
 
     def start (self): pass
@@ -103,6 +104,7 @@ class SPG_thread (threading.Thread):
         return self.__sendmethods
 
     def send (self, argument, data):
+        info ("T: " + self.name + ": Sending argument " + argument)
         self.__sendmethods[argument] (data)
 
 class SPG_xform (SPG_base):

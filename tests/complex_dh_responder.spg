@@ -14,7 +14,7 @@
             Branch modulus
         </description>
         <flow sarg="modulus#1" sink="Calculate pub" darg="modulus"/>
-        <flow sarg="modulus#1" sink="Calculate sec" darg="modulus"/>
+        <flow sarg="modulus#2" sink="Calculate sec" darg="modulus"/>
     </branch>
 
     <const id="Generator" confidentiality="false">

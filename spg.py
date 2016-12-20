@@ -114,9 +114,24 @@ schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:complexType name="baseElements">
     <xs:sequence minOccurs="1" maxOccurs="unbounded">
         <xs:choice>
-            <xs:element name="env"             type="envElement"/>
-            <xs:element name="xform"           type="xformElement"/>
-            <xs:element name="branch"          type="forwardElement"/>
+            <xs:element name="env"             type="envElement">
+                <xs:unique name="EnvUniqueSourceArg">
+                    <xs:selector xpath="./flow" />
+                    <xs:field xpath="@sarg"/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="xform"           type="xformElement">
+                <xs:unique name="XformUniqueSourceArg">
+                    <xs:selector xpath="./flow" />
+                    <xs:field xpath="@sarg"/>
+                </xs:unique>
+            </xs:element>
+            <xs:element name="branch"          type="forwardElement">
+                <xs:unique name="ForwardUniqueSourceArg">
+                    <xs:selector xpath="./flow" />
+                    <xs:field xpath="@sarg"/>
+                </xs:unique>
+            </xs:element>
             <xs:element name="const"           type="constElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
             <xs:element name="dhsec"           type="forwardElement"/>

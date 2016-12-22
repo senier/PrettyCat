@@ -39,6 +39,10 @@ def decode_mpi (mpi):
     (data, remainder) = decode_data (mpi)
     return (int.from_bytes (data, byteorder='big'), remainder)
 
+def encode_data (data):
+    length = len(data)
+    return length.to_bytes (4, byteorder='big') + data
+
 def encode_mpi (num):
     length = (num.bit_length() // 8) + 1
     return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
@@ -727,3 +731,14 @@ class xform_unmpi (SPG_base):
     def recv_data (self, data):
         (mpi, unused) = decode_mpi (data)
         self.send ('data', mpi)
+
+class xform_serialize (SPG_base):
+
+    def recv_data (self, data):
+        print ("Serializing data of len " + str(len(data)))
+        self.send ('data', encode_data (data))
+
+class env_print (SPG_base):
+
+    def recv_data (self, data):
+        print (self.name + ": " + str (data))

@@ -47,7 +47,7 @@
          to create SSID do not remove confidentialty from the output. This is
          right for key derivation, but wrong in this case. How do we distinguish
          these cases? -->
-    <env id="User_Interface" confidentiality="true" integrity="true">
+    <env id="User_Interface" confidentiality="true" integrity="true" code="print">
         <description>
             User interface environment guaranteeing integrity for displayed
             content.
@@ -697,8 +697,16 @@
         <description>
             Branch output arguments
         </description>
-        <flow sarg="data" sink="Release Random r (S)" darg="data"/>
+        <flow sarg="data" sink="Serialize r (S)" darg="data"/>
     </guard>
+
+    <xform id="Serialize r (S)" code="serialize">
+        <description>
+            Serialize key r
+        </description>
+        <flow sarg="data" sink="Release Random r (S)" darg="data"/>
+        <arg name="data"/>
+    </xform>
 
     <release id="Release Random r (S)">
         <description>
@@ -882,7 +890,7 @@
         <flow sarg="g^y#4" sink="Select pubkey (M)" darg="responder_pub_remote"/>
     </branch>
 
-    <xform id="Unserialize g^y (R)" code="unserialize">
+    <xform id="Unserialize g^y (R)" code="unmpi">
         <description>
             Convert MPI to long integer.
         </description>
@@ -1337,9 +1345,17 @@
         <description>
             Branch output arguments
         </description>
-        <flow sarg="ciphertext#1" sink="Reveal Signature (S)" darg="encrypted_signature"/>
+        <flow sarg="ciphertext#1" sink="Serialize X_B ciphertext" darg="data"/>
         <flow sarg="ciphertext#2" sink="MAC Encrypted X_B" darg="msg"/>
     </branch>
+
+    <xform id="Serialize X_B ciphertext" code="serialize">
+        <description>
+            Seialize encrypted X_B
+        </description>
+        <flow sarg="data" sink="Reveal Signature (S)" darg="encrypted_signature"/>
+        <arg name="data"/>
+    </xform>
 
     <!-- FIXME: Add DATA/MAC etc. encoding -->
     <hmac id="MAC Encrypted X_B">

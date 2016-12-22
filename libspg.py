@@ -681,12 +681,15 @@ class xform_prefix (SPG_xform):
         if len(self.args) != 1:
             raise Exception ("Prefix must only have one input argument")
 
-        if not 'length' in self.config.attrib:
+        if not 'length_in_bits' in self.config.attrib:
             raise Exception ("No length configured for " + self.name)
 
-        length = int(self.config.attrib['length'])
+        length_in_bits = int(self.config.attrib['length_in_bits'])
+        if length_in_bits % 8 != 0:
+            raise Exception ("Length is not divisible by 8: " + str(length_in_bits))
+        length = length_in_bits//8;
 
-        for send_data in self.send:
+        for send_data in self.sendmethods():
             self.send (send_data, bytes(self.args['recv_data'])[0:length])
 
 class xform_mpi (SPG_base):

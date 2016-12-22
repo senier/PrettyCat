@@ -239,7 +239,7 @@
         <description>
             Let ssid be the first 64 bits of h2(0x00).
         </description>
-        <config length="64"/>
+        <config length_in_bits="64"/>
         <flow sarg="ssid" sink="User_Interface" darg="data">
             <assert integrity="true" >
                 Attacker must not choose ssid, as she could impersonate a connection
@@ -1099,7 +1099,7 @@
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
-        <config length="160"/>
+        <config length_in_bits="160"/>
         <flow sarg="macd_signature" sink="Signature (S)" darg="macd_signature"/>
         <arg name="data"/>
     </xform>
@@ -1354,7 +1354,7 @@
             This is the SHA256-HMAC-160 (that is, the first 160 bits of the SHA256-HMAC)
             of the encrypted signature field.
         </description>
-        <config length="160"/>
+        <config length_in_bits="160"/>
         <flow sarg="macd_signature" sink="Reveal Signature (S)" darg="macd_signature"/>
         <arg name="data"/>
     </xform>
@@ -1664,7 +1664,7 @@
         <description>
             The first 16 bytes of h1(sendbyte)
         </description>
-        <config length="128"/>
+        <config length_in_bits="128"/>
         <flow sarg="data#1" sink="Derive sending MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Encrypt (M)" darg="key"/>
         <arg name="data"/>
@@ -1880,7 +1880,7 @@
         <description>
             The first 16 bytes of h1(recvbyte)
         </description>
-        <config length="128"/>
+        <config length_in_bits="128"/>
         <flow sarg="data#1" sink="Derive receiving MAC key (M)" darg="data"/>
         <flow sarg="data#2" sink="Decrypt (M)" darg="key"/>
         <arg name="data"/>

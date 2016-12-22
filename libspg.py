@@ -293,8 +293,8 @@ class env (SPG_thread):
 
         data_len = len(data)
         self.ready.acquire()
-        self.conn.send (data_len.to_bytes (2, byteorder='big') + data)
         print ("Sending data of length " + str(data_len))
+        self.conn.send (data_len.to_bytes (2, byteorder='big') + data + b'\0')
         self.ready.release()
 
     def __forward (self):
@@ -323,6 +323,7 @@ class env (SPG_thread):
             length -= len(data)
 
         self.send ('data', data)
+        return True
     
     def run (self):
 

@@ -1312,7 +1312,7 @@
             This is the signature, using the private part of the key pub, of the
             32-byte M_B (which does not need to be hashed again to produce the signature).
         </description>
-        <flow sarg="auth" sink="Concat X_B" darg="Signed M_B"/>
+        <flow sarg="auth" sink="Concat X_B" darg="signed_m_b"/>
     </sign>
 
     <xform id="Concat X_B" code="concat">
@@ -1322,7 +1322,7 @@
         <flow sarg="result" sink="Encrypt X_B" darg="plaintext"/>
         <arg name="pub"/>
         <arg name="keyid"/>
-        <arg name="Signed M_B"/>
+        <arg name="signed_m_b"/>
     </xform>
 
     <const id="Counter for X_B" confidentiality="false">

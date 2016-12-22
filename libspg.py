@@ -233,7 +233,7 @@ class encrypt (counter_mode):
             if not self.key_changed:
                 self.ctr = self.ctr + 1
             ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
-            cipher = AES.new (self.key, AES.MODE_CBC, ctr)
+            cipher = AES.new (self.key, AES.MODE_CTR, counter=lambda: ctr)
             self.key_changed = False
             self.send ('ciphertext', cipher.encrypt (pad (self.pt, AES.block_size)))
             self.send_ctr(ctr)
@@ -269,7 +269,8 @@ class decrypt (counter_mode):
 
     def decrypt_if_valid (self):
         if self.ctr != None and self.key != None and self.ct != None:
-            cipher = AES.new (self.key, AES.MODE_CBC, self.ctr.to_bytes (AES.block_size, byteorder='big'))
+            ctr = self.ctr.to_bytes (AES.block_size, byteorder='big')
+            cipher = AES.new (self.key, AES.MODE_CTR, counter=lambda: ctr)
             self.send ('plaintext', cipher.decrypt (self.ct))
             self.ct = None
 

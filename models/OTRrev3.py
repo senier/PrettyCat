@@ -118,6 +118,7 @@ class xform_network_mux (libspg.SPG_base):
 
     def recv_msg (self, data):
 
+        warn ("Got message len=" + str(len(data)))
         msg = data.decode ()
 
         # Check for OTR message types
@@ -130,8 +131,10 @@ class xform_network_mux (libspg.SPG_base):
                 warn ("Invalid version: " + version)
                 return
 
+            warn ("OTR version " + version + " requested")
             self.query_received = True
             if self.dhcm:
+                warn ("Sending queued DHCM")
                 self.send ('msg', self.dhcm)
                 self.query_received = False
                 self.dhcm = None
@@ -163,6 +166,7 @@ class xform_network_mux (libspg.SPG_base):
             sender_instance_tag = data[3:7]
             # Set sender_instance_tag of D-H Key message as outgoing receiver
             # instance tag for subsequent Reveal Signature messages
+            print ("Setting remote receiver instance tag to " + str(sender_instance_tag))
             self.send ('rit', sender_instance_tag)
 
         elif (message_type == 0x11):
@@ -176,6 +180,7 @@ class xform_network_mux (libspg.SPG_base):
             libspg.warn ("Invalid message type " + str(message_type))
             return
 
+        info ("Received " + output)
         self.send(output, data[12:])
 
     def recv_dhkm (self, dhkm):

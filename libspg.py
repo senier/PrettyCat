@@ -54,6 +54,13 @@ def decode_pubkey (pubkey):
     (y, pubkey) = decode_mpi (pubkey)
     return (p, q, g, y, pubkey)
 
+def dump (data):
+    if not type(data) is bytes:
+        return str(data)
+    hexstring = ''
+    for item in data: hexstring += '%02x' % int(item)
+    return str(hexstring)
+
 class SPG_base:
 
     def __init__ (self, name, config, attributes, needconfig = False):
@@ -79,6 +86,7 @@ class SPG_base:
 
     def send (self, argument, data):
         info ("S: " + self.name + ": Sending argument " + argument)
+        info ("   " + dump(data))
         self.__sendmethods[argument] (data)
 
     def start (self): pass
@@ -109,6 +117,7 @@ class SPG_thread (threading.Thread):
 
     def send (self, argument, data):
         info ("T: " + self.name + ": Sending argument " + argument)
+        info ("   " + dump(data))
         self.__sendmethods[argument] (data)
 
 class SPG_xform (SPG_base):
@@ -284,14 +293,17 @@ class env (SPG_thread):
         data_len = len(data)
         self.ready.acquire()
         self.conn.send (data_len.to_bytes (2, byteorder='big') + data)
+        print ("Sending data of length " + str(data_len))
         self.ready.release()
 
     def __forward (self):
 
+        info ("FORWARD: " + self.name)
         header = self.conn.recv (self.bufsize)
 
         # End of transmission
         if len(header) == 0:
+            info ("FORWARD: " + self.name + " EOT")
             return False
 
         if len(header) < 2:
@@ -299,6 +311,8 @@ class env (SPG_thread):
             return True
 
         length = int.from_bytes (header[0:2], byteorder='big')
+        print (str(header))
+        warn ("FORWARD: " + self.name + ", length (" + str(length) + ")")
 
         data = header[2:]
         length -= len(data)

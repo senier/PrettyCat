@@ -5,7 +5,7 @@
         <description>
             Plaintext
         </description>
-        <config data="This is my plain,This is another plaintxt,This is a 3rd plaintext" delay="0.1"/>
+        <config data="This is my plain,This is another plaintext,And this is a 3rd plaintext" delay="0.1"/>
         <flow sarg="data" sink="Branch Plaintext" darg="data"/>
     </env>
 
@@ -15,14 +15,14 @@
             (used to compare with decrypted value)
         </description>
         <flow sarg="data#1" sink="Encrypt" darg="plaintext"/>
-        <flow sarg="data#2" sink="Pad" darg="data"/>
+        <flow sarg="data#2" sink="Compare" darg="data2"/>
     </branch>
 
     <const id="IV">
         <description>
             Initial counter
         </description>
-        <config hex="DEADBEEFdEADC0DE"/>
+        <config int="1234"/>
         <flow sarg="const" sink="Encrypt" darg="ctr"/>
     </const>
 
@@ -58,14 +58,6 @@
         <config keylen="128"/>
         <flow sarg="plaintext" sink="Compare" darg="data1"/>
     </decrypt>
-
-    <xform id="Pad" code="aes_pad">
-        <description>
-            Pad input data to AES blocksize to allow comarison with
-            decryption output
-        </description>
-        <flow sarg="data" sink="Compare" darg="data2"/>
-    </xform>
 
     <comp id="Compare">
         <description>

@@ -56,11 +56,11 @@ def decode_pubkey (pubkey):
     return (p, q, g, y, pubkey)
 
 def dump (data):
-    if not type(data) is bytes:
+    if not type(data) is bytes and not type(data) is bytearray:
         return str(data)
     hexstring = ''
     for item in data: hexstring += '%02x' % int(item)
-    return str(hexstring)
+    return "[" + str(len(data)) + "] " + str(hexstring)
 
 class SPG_base:
 
@@ -86,8 +86,8 @@ class SPG_base:
         return self.__sendmethods
 
     def send (self, argument, data):
-        info ("S: " + self.name + ": Sending argument " + argument)
-        info ("   " + dump(data))
+        info ("S: " + self.name + "/" + argument)
+        info ("      " + dump(data))
         self.__sendmethods[argument] (data)
 
     def start (self): pass
@@ -117,8 +117,8 @@ class SPG_thread (threading.Thread):
         return self.__sendmethods
 
     def send (self, argument, data):
-        info ("T: " + self.name + ": Sending argument " + argument)
-        info ("   " + dump(data))
+        info ("T: " + self.name + "/" + argument)
+        info ("      " + dump(data))
         self.__sendmethods[argument] (data)
 
 class SPG_xform (SPG_base):
@@ -295,7 +295,6 @@ class env (SPG_thread):
 
         data_len = len(data)
         self.ready.acquire()
-        print ("Sending data of length " + str(data_len))
         self.conn.send (data_len.to_bytes (2, byteorder='big') + data + b'\0')
         self.ready.release()
 
@@ -753,7 +752,6 @@ class xform_unmpi (SPG_base):
 class xform_serialize (SPG_base):
 
     def recv_data (self, data):
-        print ("Serializing data of len " + str(len(data)))
         self.send ('data', encode_data (data))
 
 class env_print (SPG_base):

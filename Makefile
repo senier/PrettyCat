@@ -7,7 +7,7 @@ clean:
 RUNS  = $(wildcard tests/run_*.spg)
 TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
 
-SPG_ARGS = --latex ../../Papers/PETS_2017/rules.tex
+SPG_ARGS = --latex ../../Papers/ESSoS17/rules.tex --verbose
 
 export MALLOC_CHECK_=0
 

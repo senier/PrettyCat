@@ -959,10 +959,6 @@ class Primitive_dhpub (Primitive):
         interfaces = { 'inputs': ['modulus', 'generator', 'psec'], 'outputs': ['pub'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # Parameters are public, but an attacker may not chose a weak ones.
-        # Hence, integrity must be guaranteed
-        self.rule.append (And (Intg(self.input.modulus), Intg(self.input.generator)))
-
         # With knowledge of g^y and psec_in (x in DH terms) an attacker can
         # calculate the shared secret g^y^x
         self.rule.append (Conf(self.input.psec))
@@ -970,6 +966,10 @@ class Primitive_dhpub (Primitive):
         # If an attacker can choose psec_in (x in DH terms) and knows g^y,
         # she can calculate the shared secret g^yx
         self.rule.append (Intg(self.input.psec))
+
+        # Parameters are public, but an attacker may not chose a weak ones.
+        # Hence, integrity must be guaranteed
+        self.rule.append (And (Intg(self.input.modulus), Intg(self.input.generator)))
 
         # Being able to transmit g^x over an non-confidential channel is the
         # sole purpose of the DH key exchange, given that x has
@@ -1005,8 +1005,11 @@ class Primitive_encrypt (Primitive):
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext'] }
         super ().setup (name, G, attributes, interfaces)
 
+        # Integrity of input key must always be guaranteed
+        self.rule.append (Intg (self.input.key))
+
         # Counter mode encryption does not achieve integrity, hence an attacker
-        # can could change plaintext_in to influence the integrity of
+        # could change plaintext_in to influence the integrity of
         # ciphertext_out. If integrity must be guaranteed for ciphertext_out,
         # it also must be guaranteed for plaintext_in.
         self.rule.append (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
@@ -1016,9 +1019,6 @@ class Primitive_encrypt (Primitive):
         # If ciphertext_out requires confidentiality, the confidentiality of
         # pt_in is guaranteed even if key_in is known to an attacker.
         self.rule.append (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
-
-        # Integrity of input key must always be guaranteed
-        self.rule.append (Intg (self.input.key))
 
         # If no confidentiality is guaranteed for plaintext_in in the first
         # place, it is superfluous to encrypt (and hence chose unique counter
@@ -1205,15 +1205,15 @@ class Primitive_guard (Primitive):
         interfaces = { 'inputs': ['data', 'cond'], 'outputs': ['data'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # Guard does nothing to integrity.
-        self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
-
         #   Guard can be used to coordinate protocol steps, e.g. to send a reply
         #   only if the signature of a previous message was OK. Hence, the
         #   integrity requirements are at protocol level and cannot be derived
         #   from the primitive (or other primitives)
         #   FIXME: Is it true we cannot derive it from primitives? Should we make this configurable then?
         self.rule.append (Intg (self.input.cond))
+
+        # Guard does nothing to integrity.
+        self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
 
         # Guard does nothing to confidentiality.
         self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
@@ -1300,16 +1300,16 @@ class Primitive_latch (Primitive):
         interfaces = { 'inputs': ['data'], 'outputs': ['data', 'trigger'] }
         super ().setup (name, G, attributes, interfaces)
 
+        # The purpose of the latch primitive is to open a commitment. If it triggers too early,
+        # this may happen before the peer has committed to a value. Hence, the trigger value
+        # requires integrity guarantees.
+        self.rule.append (Intg (self.output.trigger))
+
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
 
         # If input data is confidential, confidentiality must be guaranteed for output data
         self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
-
-        # The purpose of the latch primitive is to open a commitment. If it triggers too early,
-        # this may happen before the peer has committed to a value. Hence, the trigger value
-        # requires integrity guarantees.
-        self.rule.append (Intg (self.output.trigger))
 
 ####################################################################################################
 

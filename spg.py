@@ -1437,7 +1437,7 @@ def set_style (o, c, i):
 
     o['fillcolor'] = o['color']
 
-def latex_expression (prefix, exp):
+def latex_expression (prefix, exp, level = 0):
 
     result = ""
     na = exp.num_args()
@@ -1445,21 +1445,27 @@ def latex_expression (prefix, exp):
     if is_and (exp):
         for idx in range (0, na):
             if idx != 0:
+                if level == 0:
+                    result += "\\\\ &"
                 result += "\land{}"
-            result += latex_expression (prefix, exp.arg(idx))
+            result += latex_expression (prefix, exp.arg(idx), level + 1)
     elif is_or (exp):
         if na > 1: result += "("
         for idx in range (0, na):
             if idx != 0:
                 result += "\lor{}"
-            result += latex_expression (prefix, exp.arg(idx))
+            result += latex_expression (prefix, exp.arg(idx), level + 1)
         if na > 1: result += ")"
     elif is_eq(exp):
-        result += latex_expression (prefix, exp.arg(0))
+        result += latex_expression (prefix, exp.arg(0), level + 1)
         result += " ≡ "
-        result += latex_expression (prefix, exp.arg(1))
+        result += latex_expression (prefix, exp.arg(1), level + 1)
+    elif is_app_of(exp, Z3_OP_IMPLIES):
+        result += latex_expression (prefix, exp.arg(0), level + 1)
+        result += " \\rightarrow{} "
+        result += latex_expression (prefix, exp.arg(1), level + 1)
     elif is_not(exp):
-        result += latex_expression (prefix, exp.arg(0))
+        result += latex_expression (prefix, exp.arg(0), level + 1)
     elif is_const(exp):
 
         var = str(exp)
@@ -1519,8 +1525,8 @@ def dump_primitive_rules (filename):
             if not name in ['env', 'xform', 'const', 'branch']:
                 p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
                 n = name.replace ("_", '') 
-                outfile.write ("\\newcommand{\\" + n + "rule}{\\text{rule}_{\\text{" + n + "}} = " + \
-                    latex_expression(name, simplify (And (p.rule))) + "}" + "\n")
+                outfile.write ("\\newcommand{\\" + n + "rule}{\guarantee{}_{\\text{" + n + "}} &=" + \
+                    latex_expression(name, And (p.rule)) + "}" + "\n")
 
 def main():
 

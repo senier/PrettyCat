@@ -1446,7 +1446,7 @@ def latex_expression (prefix, exp, level = 0):
         for idx in range (0, na):
             if idx != 0:
                 if level == 0:
-                    result += "\\\\ &"
+                    result += "\\label{eq:" + prefix + "_" + str(idx) + "}\\\\ &"
                 result += "\land{}"
             result += latex_expression (prefix, exp.arg(idx), level + 1)
     elif is_or (exp):
@@ -1465,7 +1465,7 @@ def latex_expression (prefix, exp, level = 0):
         result += " \\rightarrow{} "
         result += latex_expression (prefix, exp.arg(1), level + 1)
     elif is_not(exp):
-        result += latex_expression (prefix, exp.arg(0), level + 1)
+        result += " \\neg{} " + latex_expression (prefix, exp.arg(0), level + 1)
     elif is_const(exp):
 
         var = str(exp)

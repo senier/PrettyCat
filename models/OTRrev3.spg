@@ -41,6 +41,14 @@
         <arg name="data"/>
     </env>
 
+    <env id="Keystore" confidentiality="true" integrity="true" code="file" >
+        <description>
+            Private part of DSA key
+        </description>
+        <config source="priv.key"/>
+        <flow sarg="priv" sink="Branch priv" darg="data"/>
+    </env>
+
     <!-- FIXME: User_Interface should not require confidentiality (after all,
          displaying SSID is not confidential). However, if we require no
          confidentiality here, there is a conflict as hash operations as used
@@ -88,20 +96,7 @@
         <arg name="data"/>
     </xform>
 
-    <const id="priv" confidentiality="true">
-        <description>
-            Private part of DSA key
-        </description>
-        <config hexbytes="deadc0de"/>
-        <flow sarg="const" sink="Branch priv const" darg="data">
-            <assert confidentiality="true" integrity="true">
-                Private key must be confidential and must not be chosen
-                by attacker.
-            </assert>
-        </flow>
-    </const>
-
-    <xform id="Branch priv const" code="branch">
+    <xform id="Branch priv" code="branch">
         <description>
             Branch output arguments
         </description>

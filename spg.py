@@ -900,12 +900,8 @@ class Primitive_const (Primitive):
         interfaces = { 'inputs': [], 'outputs': ['const'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # Guarantees explicitly set in the XML
-        og = self.output.guarantees()['const']
-        if self.guarantees['c'] != None:
-            self.rule.append (Conf (og) == self.guarantees['c'])
-        else:
-            self.rule.append (Conf(self.output.const))
+        # Constants can never be confidential
+        self.rule.append (Not (Conf(self.output.const)))
 
 class Primitive_rng (Primitive):
     """

@@ -326,7 +326,7 @@ class Graph:
         # Dump all rules if requested
         if dump_rules:
             for a in solver.solver.assertions():
-                print (a)
+                print (latex_expression (None, a.arg(1), 0, 0) + " \\\\")
 
         if solver.check() == sat:
 

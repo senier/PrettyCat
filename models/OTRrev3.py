@@ -180,7 +180,7 @@ class xform_network_mux (libspg.SPG_base):
             return
 
         info ("Received " + output)
-        self.send(output, data[12:])
+        self.send(output, data[11:])
 
     def recv_dhkm (self, dhkm):
         if self.dhcm_received:

@@ -22,6 +22,10 @@ class InvalidArgument (Exception):
     def __init__ (self, text):
         Exception.__init__(self, "Invalid argument: " + text)
 
+class InvalidData (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, text)
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
@@ -34,6 +38,8 @@ def err (message):
 
 def decode_data (data):
     length = int.from_bytes (data[0:4], byteorder='big')
+    if length > len(data) - 4:
+        raise InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
     return (data[4:4+length], data[4+length:])
 
 def decode_mpi (mpi):
@@ -49,7 +55,12 @@ def encode_mpi (num):
     return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
 
 def decode_pubkey (pubkey):
-    (p, pubkey) = decode_mpi (pubkey)
+
+    keytype = pubkey[0:2]
+    if keytype != b'\x00\x00':
+        raise InvalidData ("Key has invalid type: " + str(keytype))
+
+    (p, pubkey) = decode_mpi (pubkey[2:])
     (q, pubkey) = decode_mpi (pubkey)
     (g, pubkey) = decode_mpi (pubkey)
     (y, pubkey) = decode_mpi (pubkey)
@@ -445,7 +456,8 @@ class dhsec (dh):
             # (2) 1 == pub^q mod modulus for q = (modulus-1)/2
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
-                    self.send ('ssec', pow(self.pub, int.from_bytes (self.psec, byteorder='big'), self.modulus))
+                    psec = int.from_bytes (self.psec, byteorder='big')
+                    self.send ('ssec', pow(self.pub, psec, self.modulus))
             self.psec = None
 
     def recv_pub (self, pub):
@@ -548,9 +560,15 @@ class sign (__sig_base):
     def sign_if_valid (self):
         if self.privkey != None and self.pubkey and self.msg != None and self.rand != None:
             key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-            signature = key.sign (self.msg, self.rand)
-            r = signature[0].to_bytes(20, byteorder='big')
-            s = signature[1].to_bytes(20, byteorder='big')
+
+            K = int.from_bytes (self.rand, byteorder='big')
+            if K < 2 or K > key.q:
+                warn ("Invalid K")
+                return
+
+            (intr, ints) = key.sign (self.msg, self.rand)
+            r = intr.to_bytes(20, byteorder='big')
+            s = ints.to_bytes(20, byteorder='big')
             self.send ('auth', r + s)
             self.msg  = None
             self.rand = None
@@ -664,7 +682,7 @@ class rng (SPG_base):
         super().__init__ (name, config, attributes)
 
     def recv_len (self, length):
-        self.send ('data', Random.get_random_bytes(int(length)))
+        self.send ('data', Random.get_random_bytes(int(length)//8))
 
 class verify_commit (hash):
 

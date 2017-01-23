@@ -7,7 +7,11 @@ clean:
 RUNS  = $(wildcard tests/run_*.spg)
 TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
 
-SPG_ARGS = --latex ../../Papers/ESSoS17/rules.tex --verbose
+SPG_ARGS = --latex ../../Papers/ESSoS17/rules.tex
+
+#SPG_ARGS += --verbose
+SPG_ARGS += --cluster
+#SPG_ARGS += --concentrate
 
 export MALLOC_CHECK_=0
 
@@ -46,7 +50,11 @@ tests/%.test: tests/%.spg spg.py
 	-@./spg.py $(filter-out --cluster, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
 	-@mv tests/$*.FAILED.svg $@
 
-tests/%.run:: tests/%.spg spg.py FORCE
+tests/%.dot:: tests/%.spg spg.py
+	@echo "=== Graph $@"
+	./spg.py $(SPG_ARGS) --input $< --output $@
+
+tests/%.run:: tests/%.spg spg.py #FORCE
 	@echo "=== Running $@"
 	@./spg.py $(SPG_ARGS) --input $< --output $@.svg --run
 	@mv $@.svg $@

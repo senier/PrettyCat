@@ -403,7 +403,7 @@ class const (SPG_base):
     def start (self):
         self.send ('const', self.value)
 
-class branch (SPG_base):
+class xform_branch (SPG_base):
 
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes)

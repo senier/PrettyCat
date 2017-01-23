@@ -9,14 +9,15 @@
         <flow sarg="const" sink="Branch" darg="data"/>
     </const>
 
-    <branch id="Branch">
+    <xform id="Branch" code="branch">
         <description>
             Branch same value into comparator
         </description>
         <config string="baz"/>
         <flow sarg="data#1" sink="Compare" darg="data1"/>
         <flow sarg="data#2" sink="Compare" darg="data2"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <comp id="Compare">
         <description>

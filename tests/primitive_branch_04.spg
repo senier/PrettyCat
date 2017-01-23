@@ -13,7 +13,7 @@
         <flow sarg="data" sink="Branch" darg="data"/>
     </env>
 
-    <branch id="Branch">
+    <xform id="Branch" code="branch">
         <description>
             Branch data value
         </description>
@@ -23,7 +23,8 @@
         <flow sarg="data#2" sink="Output_Nonintg" darg="data">
             <assert integrity="true"/>
         </flow>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <env id="Output_Intg" integrity="true" confidentiality="false">
         <description>

@@ -7,12 +7,13 @@
         <flow sarg="data" sink="Branch" darg="data"/>
     </env>
 
-    <branch id="Branch">
+    <xform id="Branch" code="branch">
         <description>
             Dummy branch operation
         </description>
         <flow sarg="data" sink="Output" darg="data"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <env id="Output" confidentiality="false" integrity="true">
         <description>

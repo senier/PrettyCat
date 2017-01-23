@@ -9,13 +9,14 @@
         <flow sarg="const" sink="Branch key" darg="data"/>
     </const>
 
-    <branch id="Branch key">
+    <xform id="Branch key" code="branch">
         <description>
             Branch HMAC key
         </description>
         <flow sarg="data#1" sink="HMAC" darg="key"/>
         <flow sarg="data#2" sink="Verify HMAC" darg="key"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Message">
         <description>
@@ -25,14 +26,15 @@
         <flow sarg="const" sink="Branch message" darg="data"/>
     </const>
 
-    <branch id="Branch message">
+    <xform id="Branch message" code="branch">
         <description>
             Branch input message
         </description>
         <flow sarg="data#1" sink="HMAC" darg="msg"/>
         <flow sarg="data#2" sink="Verify HMAC" darg="msg"/>
         <flow sarg="data#3" sink="Comp" darg="data2"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <hmac id="HMAC">
         <description>

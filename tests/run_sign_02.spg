@@ -9,13 +9,14 @@
         <flow sarg="const" sink="Branch public key" darg="data"/>
     </const>
 
-    <branch id="Branch public key">
+    <xform id="Branch public key" code="branch">
         <description>
             Branch public key to sign/verify
         </description>
         <flow sarg="data#1" sink="Sign" darg="pubkey"/>
         <flow sarg="data#2" sink="Verify sig" darg="pubkey"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Private key">
         <description>
@@ -33,13 +34,14 @@
         <flow sarg="const" sink="Branch message" darg="data"/>
     </const>
 
-    <branch id="Branch message">
+    <xform id="Branch message" code="branch">
         <description>
             Branch message for sign/verify components
         </description>
         <flow sarg="data#1" sink="Sign" darg="msg"/>
         <flow sarg="data#2" sink="Verify sig" darg="msg"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="K">
         <description>

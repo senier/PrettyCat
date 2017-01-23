@@ -126,12 +126,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                     <xs:field xpath="@sarg"/>
                 </xs:unique>
             </xs:element>
-            <xs:element name="branch"          type="forwardElement">
-                <xs:unique name="ForwardUniqueSourceArg">
-                    <xs:selector xpath="./flow" />
-                    <xs:field xpath="@sarg"/>
-                </xs:unique>
-            </xs:element>
             <xs:element name="const"           type="constElement"/>
             <xs:element name="dhpub"           type="forwardElement"/>
             <xs:element name="dhsec"           type="forwardElement"/>
@@ -881,34 +875,6 @@ class Primitive_xform (Primitive):
                 output_if_rules.append (Implies (Conf(input_if), Conf(output_if)))
             self.rule.append (And (output_if_rules))
 
-class Primitive_branch (Primitive):
-    """
-    The branch primitive
-
-    Copy the input parameter into all output parameters.
-    """
-
-    def __init__ (self, G, name, attributes):
-
-        interfaces = { 'inputs': ['data'], 'outputs': None }
-        super ().setup (name, G, attributes, interfaces)
-
-        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.output.add_guarantee (data['sarg'])
-
-        # If integrity is guaranteed for some output, then integrity
-        # must be guaranteed for the input, too.
-        for (out_name, out_g) in self.output.guarantees().items():
-            self.rule.append (Implies (Intg(out_g), Intg(self.input.data)))
-
-        # If confidentiality is guaranteed for the input, then integrity
-        # must be guaranteed for all outputs, too.
-        output_conf_rules = []
-        for (out_name, out_g) in self.output.guarantees().items():
-            output_conf_rules.append (Implies (Conf(self.input.data), Conf(out_g)))
-
-        self.rule.append (And (output_conf_rules))
-
 class Primitive_const (Primitive):
     """
     The const primitive
@@ -1508,7 +1474,7 @@ def dump_primitive_rules (filename):
     with open (filename, 'w') as outfile:
         for primitive_class in Primitive.__subclasses__():
             name = primitive_class.__name__[10:]
-            if not name in ['env', 'xform', 'const', 'branch']:
+            if not name in ['env', 'xform', 'const']:
                 p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
                 n = name.replace ("_", '') 
                 outfile.write ("\\newcommand{\\" + n + "rule}{" + latex_expression(name, And (p.rule), 0, 1) + "}" + "\n")

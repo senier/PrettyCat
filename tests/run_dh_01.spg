@@ -9,7 +9,7 @@
         <flow sarg="const" sink="Branch modulus" darg="data"/>
     </const>
 
-    <branch id="Branch modulus">
+    <xform id="Branch modulus" code="branch">
         <description>
             Branch modulus
         </description>
@@ -17,7 +17,8 @@
         <flow sarg="modulus#2" sink="Calculate pub (R)" darg="modulus"/>
         <flow sarg="modulus#3" sink="Calculate sec (I)" darg="modulus"/>
         <flow sarg="modulus#4" sink="Calculate sec (R)" darg="modulus"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Generator" confidentiality="false">
         <description>
@@ -27,7 +28,7 @@
         <flow sarg="const" sink="Branch generator" darg="data"/>
     </const>
 
-    <branch id="Branch generator">
+    <xform id="Branch generator" code="branch">
         <description>
             Branch generator
         </description>
@@ -35,7 +36,8 @@
         <flow sarg="generator#2" sink="Calculate pub (R)" darg="generator"/>
         <flow sarg="generator#3" sink="Calculate sec (I)" darg="generator"/>
         <flow sarg="generator#4" sink="Calculate sec (R)" darg="generator"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Secret (I)">
         <description>
@@ -45,13 +47,14 @@
         <flow sarg="const" sink="Branch sec (I)" darg="data"/>
     </const>
 
-    <branch id="Branch sec (I)">
+    <xform id="Branch sec (I)" code="branch">
         <description>
             Branch secret of initiator
         </description>
         <flow sarg="data#1" sink="Calculate pub (I)" darg="psec"/>
         <flow sarg="data#2" sink="Calculate sec (I)" darg="psec"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate pub (I)">
         <description>
@@ -75,13 +78,14 @@
         <flow sarg="const" sink="Branch sec (R)" darg="data"/>
     </const>
 
-    <branch id="Branch sec (R)">
+    <xform id="Branch sec (R)" code="branch">
         <description>
             Branch responder secret
         </description>
         <flow sarg="data#1" sink="Calculate pub (R)" darg="psec"/>
         <flow sarg="data#2" sink="Calculate sec (R)" darg="psec"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate pub (R)">
         <description>

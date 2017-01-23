@@ -30,13 +30,14 @@
         <flow sarg="ciphertext" sink="Branch" darg="data"/>
     </encrypt_ctr>
 
-    <branch id="Branch">
+    <xform id="Branch" code="branch">
         <description>
             Duplicate ciphertext
         </description>
         <flow sarg="data#1" sink="HMAC" darg="msg"/>
         <flow sarg="data#2" sink="Message" darg="msg"/>
-    </branch>
+       <arg name="data"/>
+    </xform>
 
     <const id="MAC key">
         <description>

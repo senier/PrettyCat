@@ -25,14 +25,15 @@
         </flow>
     </const>
 
-    <branch id="Branch Key">
+    <xform id="Branch Key" code="branch">
         <description>
             Branch secret key
         </description>
         <flow sarg="data#1" sink="Sign" darg="privkey">
             <assert confidentiality="true"/>
         </flow>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Per-message key length">
         <description>

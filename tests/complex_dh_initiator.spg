@@ -9,13 +9,14 @@
         <flow sarg="const" sink="Branch modulus" darg="data"/>
     </const>
 
-    <branch id="Branch modulus">
+    <xform id="Branch modulus" code="branch">
         <description>
             Branch modulus
         </description>
         <flow sarg="modulus#1" sink="Calculate pub" darg="modulus"/>
         <flow sarg="modulus#2" sink="Calculate sec" darg="modulus"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Generator" confidentiality="false">
         <description>
@@ -25,13 +26,14 @@
         <flow sarg="const" sink="Branch generator" darg="data"/>
     </const>
 
-    <branch id="Branch generator">
+    <xform id="Branch generator" code="branch">
         <description>
             Branch generator
         </description>
         <flow sarg="generator#1" sink="Calculate pub" darg="generator"/>
         <flow sarg="generator#2" sink="Calculate sec" darg="generator"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="Sec length" confidentiality="false">
         <description>
@@ -48,13 +50,14 @@
         <flow sarg="data" sink="Branch sec" darg="data"/>
     </rng>
 
-    <branch id="Branch sec">
+    <xform id="Branch sec" code="branch">
         <description>
             Branch secret of initiator
         </description>
         <flow sarg="data#1" sink="Calculate pub" darg="psec"/>
         <flow sarg="data#2" sink="Calculate sec" darg="psec"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <dhpub id="Calculate pub">
         <description>

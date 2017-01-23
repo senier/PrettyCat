@@ -9,13 +9,14 @@
         <flow sarg="const" sink="Branch data" darg="data"/>
     </const>
 
-    <branch id="Branch data">
+    <xform id="Branch data" code="branch">
         <description>
             Branch input data
         </description>
         <flow sarg="data#1" sink="Compare" darg="data1"/>
         <flow sarg="data#2" sink="Release" darg="data"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <release id="Release">
         <description>

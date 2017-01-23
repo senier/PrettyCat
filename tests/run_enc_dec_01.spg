@@ -9,14 +9,15 @@
         <flow sarg="data" sink="Branch Plaintext" darg="data"/>
     </env>
 
-    <branch id="Branch Plaintext">
+    <xform id="Branch Plaintext" code="branch">
         <description>
             Split the plaintext to feed into encryption and comparator
             (used to compare with decrypted value)
         </description>
         <flow sarg="data#1" sink="Encrypt" darg="plaintext"/>
         <flow sarg="data#2" sink="Compare" darg="data2"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <const id="IV">
         <description>
@@ -34,13 +35,14 @@
         <flow sarg="const" sink="Branch Key" darg="data"/>
     </const>
 
-    <branch id="Branch Key">
+    <xform id="Branch Key" code="branch">
         <description>
             Branch Encryption key to encryption/decryption
         </description>
         <flow sarg="data#1" sink="Encrypt" darg="key"/>
         <flow sarg="data#2" sink="Decrypt" darg="key"/>
-    </branch>
+        <arg name="data"/>
+    </xform>
 
     <encrypt_ctr id="Encrypt">
         <description>

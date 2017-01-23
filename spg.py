@@ -971,11 +971,6 @@ class Primitive_dhpub (Primitive):
         # Hence, integrity must be guaranteed
         self.rule.append (And (Intg(self.input.modulus), Intg(self.input.generator)))
 
-        # Being able to transmit g^x over an non-confidential channel is the
-        # sole purpose of the DH key exchange, given that x has
-        # confidentiality and integrity guarantees
-        self.rule.append (Or (Conf(self.output.pub), And (Conf(self.input.psec), Intg(self.input.psec))))
-
 class Primitive_dhsec (Primitive):
 
     def __init__ (self, G, name, attributes):
@@ -1005,33 +1000,19 @@ class Primitive_encrypt (Primitive):
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # Integrity of input key must always be guaranteed
-        self.rule.append (Intg (self.input.key))
-
         # Counter mode encryption does not achieve integrity, hence an attacker
         # could change plaintext_in to influence the integrity of
         # ciphertext_out. If integrity must be guaranteed for ciphertext_out,
         # it also must be guaranteed for plaintext_in.
         self.rule.append (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
 
-        # If plaintext_in is known to an attacker (i.e. not confidential), it
-        # is superfluous to guarantee confidentiality for key_in.
-        # If ciphertext_out requires confidentiality, the confidentiality of
-        # pt_in is guaranteed even if key_in is known to an attacker.
-        self.rule.append (Or (Conf(self.input.key), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
+        # Integrity and confidentiality of input key must always be guaranteed
+        self.rule.append (And (Intg (self.input.key), Conf (self.input.key)))
 
-        # If no confidentiality is guaranteed for plaintext_in in the first
-        # place, it is superfluous to encrypt (and hence chose unique counter
-        # values). If confidentiality is guaranteed for ciphertext_out,
-        # encryption is not necessary. Hence, a ctr_in chose by an attacker
-        # does no harm.
-        self.rule.append (Or (Intg(self.input.ctr), Not (Conf(self.input.plaintext)), Conf(self.output.ciphertext)))
-
-        # If confidentiality and integrity is guaranteed for the key and
-        # integrity is guaranteed for ctr (to avoid using the same key/ctr
-        # combination twice), an attacker cannot decrypt the ciphertext and
-        # thus no confidentiality needs to be guaranteed by the environment.
-        self.rule.append (Or (Conf(self.output.ciphertext), And (Conf(self.input.key), Intg(self.input.key), Intg(self.input.ctr))))
+        # Integrity of the counter must be guaranteed, otherwise an attacker
+        # could break the encryption by making the component reuse a counter/key
+        # pair
+        self.rule.append (Intg(self.input.ctr))
 
 class Primitive_encrypt_ctr (Primitive_encrypt):
 
@@ -1039,9 +1020,6 @@ class Primitive_encrypt_ctr (Primitive_encrypt):
 
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext', 'ctr'] }
         super ().setup (name, G, attributes, interfaces)
-
-        # If integrity is guaranteed for output counter, integrity must be guaranteed for initial counter
-        self.rule.append (Implies (Intg(self.output.ctr), Intg(self.input.ctr)))
 
         # If confidentiality is guaranteed for initial counter, confidentiality must be guaranteed for output counter
         self.rule.append (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))

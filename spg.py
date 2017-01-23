@@ -359,7 +359,7 @@ class Graph:
             err ("No solution")
             return False
 
-    def partition (self, cluster):
+    def partition (self, cluster, concentrate):
 
         G = self.graph
 
@@ -395,12 +395,27 @@ class Graph:
         for p in partitions:
             graph.add_subgraph (partitions[p])
 
-        for edge in self.pd.get_edges():
-            new_edge = pydot.Edge (src = edge.get_source(), dst = edge.get_destination())
+        for (parent, child, data) in self.graph.edges(data=True):
+            pclust = G.node[parent]['partition']
+            cclust = G.node[child]['partition']
+            if pclust != cclust:
+                data['ltail'] = "cluster_" + str(pclust)
+                data['lhead'] = "cluster_" + str(cclust)
+
+        for edge in nx.drawing.nx_pydot.to_pydot(G).get_edges():
+            src = edge.get_source()
+            dst = edge.get_destination()
+
+            new_edge = pydot.Edge (src = src, dst = dst)
             attributes = edge.get_attributes()
             for a in attributes:
                 new_edge.set (a, attributes[a])
-            graph.add_edge (new_edge)
+
+            if 'ltail' in attributes and 'lhead' in attributes and concentrate:
+                cluster_edge = pydot.Edge (src = attributes['ltail'], dst = attributes['lhead'])
+                graph.add_edge (cluster_edge)
+            else:
+                graph.add_edge (new_edge)
 
         self.pd = graph
 
@@ -468,6 +483,7 @@ class Graph:
         pd.set ("splines", "ortho")
         pd.set ("size", "15.6,10.7")
         pd.set ("labelloc", "t")
+        pd.set ("concentrate", "true")
 
         if out.endswith(".pdf"):
             pd.write (out, prog = 'fdp', format = 'pdf')
@@ -1501,9 +1517,10 @@ def main():
 
     libspg.exitval = 0
     if solved:
-        G.partition(args.cluster)
+        G.partition(args.cluster, args.concentrate)
         if args.run:
             G.run()
+
     G.write (args.output[0])
 
     G.statistics()
@@ -1517,6 +1534,7 @@ if __name__ == "__main__":
     parser.add_argument('--latex', action='store', nargs=1, required=False, help='Store rules as latex file', dest='dump_latex');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
     parser.add_argument('--cluster', action='store_true', help='Cluster graph output', dest='cluster');
+    parser.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--run', action='store_true', required=False, help='Run model', dest='run');

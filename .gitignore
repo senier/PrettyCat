@@ -19,3 +19,4 @@ tests/*.svg
 *.bak
 __pycache__
 *.run
+otr.svg

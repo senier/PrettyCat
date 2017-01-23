@@ -229,13 +229,26 @@ def mark_partition (G, node, partition):
 
     # Partition towards parents
     for (parent, child) in G.in_edges (nbunch=node):
-        if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+
+        # Special case: A single constant has the same or fewer guarantees, put it into our domain.
+        if G.node[parent]['kind'] == 'const' and \
+           G.node[parent]['primitive'].guarantees['c'] <= G.node[node]['primitive'].guarantees['c'] and \
+           G.node[parent]['primitive'].guarantees['i'] <= G.node[node]['primitive'].guarantees['i']:
+            mark_partition (G, parent, partition)
+        # Default case: same guarantees
+        elif G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
            G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
             mark_partition (G, parent, partition)
 
     # Partition towards children
     for (parent, child) in G.out_edges (nbunch=node):
-        if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+
+        # If this is a constant which has the same or fewer guarantees, put it into our domain.
+        if G.node[node]['kind'] == 'const' and \
+           G.node[node]['primitive'].guarantees['c'] <= G.node[child]['primitive'].guarantees['c'] and \
+           G.node[node]['primitive'].guarantees['i'] <= G.node[child]['primitive'].guarantees['i']:
+            mark_partition (G, child, partition)
+        elif G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
            G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
             mark_partition (G, child, partition)
 

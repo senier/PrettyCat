@@ -457,6 +457,9 @@ class dhsec (dh):
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
                     psec = int.from_bytes (self.psec, byteorder='big')
+                    print ("   pub:  " + dump (self.pub))
+                    print ("   psec: " + dump (psec))
+                    print ("   mod:  " + dump (self.modulus))
                     self.send ('ssec', pow(self.pub, psec, self.modulus))
             self.psec = None
 
@@ -570,6 +573,10 @@ class sign (__sig_base):
             r = intr.to_bytes(20, byteorder='big')
             s = ints.to_bytes(20, byteorder='big')
             self.send ('auth', r + s)
+
+            print ("Signature: " + dump(r + s))
+            print ("   " + dump (hex(self.msg)))
+
             self.msg  = None
             self.rand = None
 

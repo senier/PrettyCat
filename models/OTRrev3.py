@@ -151,6 +151,8 @@ class xform_network_mux (libspg.SPG_base):
             warn ("Invalid base64 encoding: " + msg)
             return
 
+        warn ("MESSAGE: " + libspg.dump (data))
+
         message_type = int.from_bytes (data[2:3], byteorder='big')
         if (message_type == 0x02):
             output = 'dhcm'
@@ -179,10 +181,11 @@ class xform_network_mux (libspg.SPG_base):
             libspg.warn ("Invalid message type " + str(message_type))
             return
 
-        info ("Received " + output)
+        info ("Received " + output + ": " + libspg.dump (data[11:]))
         self.send(output, data[11:])
 
     def recv_dhkm (self, dhkm):
+        print ("DHKM: " + libspg.dump (dhkm))
         if self.dhcm_received:
             self.send ('msg', self.dhkm)
             self.dhkm = None

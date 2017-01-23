@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <env id="recv" confidentiality="true" integrity="false">
+        <description>
+            Plaintext
+        </description>
+        <flow sarg="msg" sink="enc" darg="plaintext"/>
+    </env>
+
+    <const id="iv" confidentiality="false">
+        <description>
+            Initial counter
+        </description>
+        <flow sarg="const" sink="enc" darg="ctr"/>
+    </const>
+
+    <const id="len" confidentiality="false">
+        <description>
+            key length
+        </description>
+        <flow sarg="const" sink="rng" darg="len"/>
+    </const>
+
+    <rng id="rng">
+        <description>
+            Generate key
+        </description>
+        <flow sarg="data" sink="enc" darg="key"/>
+    </rng>
+
+    <encrypt id="enc">
+        <description>
+            Counter-mode encryption of input value
+        </description>
+        <flow sarg="ciphertext" sink="send" darg="data"/>
+    </encrypt>
+
+    <env id="send" confidentiality="false" integrity="false">
+        <description>
+            Network
+        </description>
+        <arg name="data"/>
+    </env>
+
+</spg>

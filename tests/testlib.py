@@ -50,12 +50,14 @@ class env_check_fixed (SPG_base):
 class xform_get_random (SPG_base):
 
     def start (self):
-        self.request_length = 597
+        self.request_length = 528
         self.send ('len', self.request_length)
 
     def recv_random (self, data):
         recvlen = len(data)
-        if (recvlen != self.request_length):
+        if (8 * recvlen != self.request_length):
+            warn ("Received length (" + str(recvlen) + \
+                ") did not match requested length (" + str(self.request_length) + ")")
             libspg.exitval = 1
 
 class xform_aes_pad (SPG_base):

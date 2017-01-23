@@ -98,8 +98,7 @@ class xform_dh_commit_r (libspg.SPG_base):
 class xform_dh_key_r (libspg.SPG_base):
 
     def recv_dhkm (self, dhkm):
-        (dh_y, dummy) = libspg.decode_data (dhkm)
-        self.send ('g^y', dh_y)
+        self.send ('g^y', dhkm)
 
 class xform_network_mux (libspg.SPG_base):
 

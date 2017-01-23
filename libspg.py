@@ -689,6 +689,9 @@ class rng (SPG_base):
         super().__init__ (name, config, attributes)
 
     def recv_len (self, length):
+        # Length must be multiples of a byte
+        if length % 8 != 0:
+            raise InvalidData ("RNG: Length [in bits] must be multiple of 8 (got " + str (length) + ")")
         self.send ('data', Random.get_random_bytes(int(length)//8))
 
 class verify_commit (hash):

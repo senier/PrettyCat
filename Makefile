@@ -31,7 +31,7 @@ otr.graph: models/OTRrev3.spg spg.py
 	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
-tests:: $(sort $(TESTS:.spg=.svg))
+tests:: $(sort $(TESTS:.spg=.test))
 	@echo "$(words $^) TESTS DONE."
 
 run:: $(sort $(RUNS:.spg=.run))
@@ -41,9 +41,9 @@ tests/%.svg: tests/%.spg spg.py
 	@echo "=== Graph $@"
 	@./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests/%.svg: tests/%.spg spg.py
+tests/%.test: tests/%.spg spg.py
 	@echo "=== Testing $<"
-	-@./spg.py $(SPG_ARGS) --input $< --output tests/$*.FAILED.svg --test
+	-@./spg.py $(filter-out --cluster, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
 	-@mv tests/$*.FAILED.svg $@
 
 tests/%.run:: tests/%.spg spg.py FORCE

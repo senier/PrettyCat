@@ -1437,35 +1437,42 @@ def set_style (o, c, i):
 
     o['fillcolor'] = o['color']
 
-def latex_expression (prefix, exp, level = 0):
+def latex_expression (prefix, exp, level = 0, label = 1):
 
     result = ""
-    na = exp.num_args()
+    na  = exp.num_args()
 
     if is_and (exp):
         for idx in range (0, na):
             if idx != 0:
                 if level == 0:
-                    result += "\\label{eq:" + prefix + "_" + str(idx) + "}\\\\ &"
+                    if label:
+                        result += "\\label{eq:" + prefix + "_" + str(idx) + "}"
+                    result += "\\\\ &"
                 result += "\land{}"
-            result += latex_expression (prefix, exp.arg(idx), level + 1)
+            result += latex_expression (prefix, exp.arg(idx), level + 1, label)
+        if level == 0:
+            if label:
+                result += "\\label{eq:" + prefix + "_" + str(na) + "}"
+            else:
+                result += "\\label{eq:" + prefix + "_rule}"
     elif is_or (exp):
         if na > 1: result += "("
         for idx in range (0, na):
             if idx != 0:
                 result += "\lor{}"
-            result += latex_expression (prefix, exp.arg(idx), level + 1)
+            result += latex_expression (prefix, exp.arg(idx), level + 1, label)
         if na > 1: result += ")"
     elif is_eq(exp):
-        result += latex_expression (prefix, exp.arg(0), level + 1)
-        result += " ≡ "
-        result += latex_expression (prefix, exp.arg(1), level + 1)
+        result += latex_expression (prefix, exp.arg(0), level + 1, label)
+        result += " \equiv{} "
+        result += latex_expression (prefix, exp.arg(1), level + 1, label)
     elif is_app_of(exp, Z3_OP_IMPLIES):
-        result += latex_expression (prefix, exp.arg(0), level + 1)
+        result += latex_expression (prefix, exp.arg(0), level + 1, label)
         result += " \\rightarrow{} "
-        result += latex_expression (prefix, exp.arg(1), level + 1)
+        result += latex_expression (prefix, exp.arg(1), level + 1, label)
     elif is_not(exp):
-        result += " \\neg{} " + latex_expression (prefix, exp.arg(0), level + 1)
+        result += " \\neg{} " + latex_expression (prefix, exp.arg(0), level + 1, label)
     elif is_const(exp):
 
         var = str(exp)
@@ -1501,7 +1508,7 @@ def latex_expression (prefix, exp, level = 0):
             else:
                 raise Exception ("Invalid variable " + var + ": neither input nor output")
 
-            var = "\\text{" + var + "}"
+            var = var.capitalize()
 
             if invar:  var = "\\invar{" + var + "}"
             if outvar: var = "\\outvar{" + var + "}"
@@ -1526,8 +1533,8 @@ def dump_primitive_rules (filename):
             if not name in ['env', 'xform', 'const', 'branch']:
                 p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
                 n = name.replace ("_", '') 
-                outfile.write ("\\newcommand{\\" + n + "rule}{\guarantee{}_{\\text{" + n + "}} &=" + \
-                    latex_expression(name, And (p.rule)) + "}" + "\n")
+                outfile.write ("\\newcommand{\\" + n + "rule}{" + latex_expression(name, And (p.rule), 0, 1) + "}" + "\n")
+                outfile.write ("\\newcommand{\\" + n + "rulenolabel}{" + latex_expression(name, And (p.rule), 0, 0) + "}" + "\n")
 
 def main():
 

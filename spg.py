@@ -319,9 +319,9 @@ class Graph:
             cig = self.graph.node[child]['primitive'].input.guarantees()
             darg = data['darg']
             sarg = data['sarg']
-            channel = "CHNL_" + parent + "/" + sarg + " -> " + child + "/" + darg
-            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + "_conf")
-            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + "_intg")
+            channel = "CHNL#" + parent + "/" + sarg + " -> " + child + "/" + darg
+            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + "#conf")
+            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + "#intg")
 
         # Dump all rules if requested
         if dump_rules:
@@ -614,7 +614,7 @@ class Args:
         self._name   = name
 
     def add_guarantee (self, name):
-        self.__dict__.update (**{name: Guarantees (self._name + "_" + name)})
+        self.__dict__.update (**{name: Guarantees (self._name + "#" + name)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
@@ -622,12 +622,12 @@ class Args:
 class Input_Args (Args):
 
     def __init__ (self, name):
-        super().setup (name + "_input")
+        super().setup (name + "#input")
 
 class Output_Args (Args):
 
     def __init__ (self, name):
-        super().setup (name + "_output")
+        super().setup (name + "#output")
 
 class SPG_Solver_Base:
 
@@ -653,7 +653,7 @@ class SPG_Solver (SPG_Solver_Base):
         if (condition == None):
             return
 
-        key = "ASSERT_" + str(name)
+        key = "ASSERT#" + str(name)
         if key in self.assert_db:
             raise InconsistentRule (name, "Already present")
         self.assert_db[key] = condition
@@ -694,8 +694,8 @@ class Guarantees:
         # Z3 variables representing confidentiality and
         # integrity within the solver. These values are
         # used in the rules.
-        self.__c   = Bool(name + "_conf")
-        self.__i   = Bool(name + "_intg")
+        self.__c   = Bool(name + "#conf")
+        self.__i   = Bool(name + "#intg")
 
         # The actual boolean value. This is filled in from
         # a valid model found by the solver
@@ -800,7 +800,7 @@ class Primitive:
 
 
     def populate (self, solver):
-        solver.assert_and_track (And (self.rule), "RULE_" + self.name)
+        solver.assert_and_track (And (self.rule), "RULE#" + self.name)
 
     def prove (self, solver):
         self.populate (solver)
@@ -1479,22 +1479,23 @@ def latex_expression (prefix, exp, level = 0):
             invar  = False
             outvar = False
 
-            if not var.startswith (prefix + "_"):
-                raise Exception ("Invalid variable " + var + ": does not start with prefix " + prefix)
-            var = var[len(prefix)+1:]
+            (pr, var) = var.split('#', 1)
 
-            if var.endswith ("_intg"):
+            if prefix != None and pr != prefix:
+                raise Exception ("Invalid variable " + var + ": does not start with prefix " + prefix)
+
+            if var.endswith ("#intg"):
                 intg = True
-            elif var.endswith ("_conf"):
+            elif var.endswith ("#conf"):
                 conf = True
             else:
                 raise Exception ("Invalid variable " + var + ": neither integrity nor confidentiality")
             var = var[:-5]
 
-            if var.startswith ("input_"):
+            if var.startswith ("input#"):
                 invar = True
                 var = var[6:]
-            elif var.startswith ("output_"):
+            elif var.startswith ("output#"):
                 outvar = True
                 var = var[7:]
             else:

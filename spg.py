@@ -628,6 +628,61 @@ class Graph:
         for node in G.node:
             G.node[node]['class'].join ()
 
+    def dump_partitions (self, filename):
+        partitions = {}
+        guarantees = {}
+        for (parent, child, data) in self.graph.edges(data=True):
+
+            sp = self.graph.node[parent]['partition']
+            dp = self.graph.node[child]['partition']
+
+            if sp == dp:
+                continue
+
+            if not sp in partitions:
+                partitions[sp] = {}
+
+            if not dp in partitions[sp]:
+                partitions[sp][dp] = {}
+                partitions[sp][dp]['count'] = 1
+            else:
+                partitions[sp][dp]['count'] += 1
+
+        for node in self.graph.nodes():
+            p = self.graph.node[node]['partition']
+            if not p in guarantees:
+                guarantees[p] = {}
+                guarantees[p]['count'] = 1
+                guarantees[p]['tooltip'] = ""
+            else:
+                guarantees[p]['count'] += 1
+            if not 'c' in guarantees[p]:
+                guarantees[p]['c'] = False
+            if self.graph.node[node]['primitive'].guarantees['c']:
+                guarantees[p]['c'] = True
+            if not 'i' in guarantees[p]:
+                guarantees[p]['i'] = False
+            if self.graph.node[node]['primitive'].guarantees['i']:
+                guarantees[p]['i'] = True
+            guarantees[p]['tooltip'] += node + "<br>"
+
+        pg = nx.MultiDiGraph()
+        for p in guarantees:
+            name  = "Partition " + str(p)
+            count = guarantees[p]['count']
+            pg.add_node (name, label=name + "\n" + str(count), width=math.sqrt(count), height=math.sqrt(count), penwidth=5, shape='rectangle', tooltip=guarantees[p]['tooltip'])
+            set_style (pg.node[name], guarantees[p]['c'], guarantees[p]['i'])
+
+        for sp in partitions:
+            for dp in partitions[sp]:
+                pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), label=str(partitions[sp][dp]['count']), labeljust='r', penwidth='2')
+
+        dot = nx.drawing.nx_pydot.to_pydot(pg)
+        dot.set ("sep", "+50,20")
+        dot.set ("esep", "+10,4")
+        dot.set ("splines", "ortho")
+        dot.write (filename, prog = 'dot', format = 'svg')
+
 class Args:
 
     def __init__ (self, name):
@@ -1532,6 +1587,9 @@ def main():
 
     G.write (args.output[0])
 
+    if args.partitions:
+        G.dump_partitions(args.partitions[0])
+
     G.statistics()
 
     sys.exit (libspg.exitval if solved else 1)
@@ -1548,6 +1606,7 @@ if __name__ == "__main__":
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--run', action='store_true', required=False, help='Run model', dest='run');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
+    parser.add_argument('--partitions', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='partitions');
 
     try:
         args = parser.parse_args ()

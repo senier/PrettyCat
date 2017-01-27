@@ -12,6 +12,7 @@ SPG_ARGS = --latex ../../Papers/ESSoS17/rules.tex
 #SPG_ARGS += --verbose
 SPG_ARGS += --cluster
 #SPG_ARGS += --concentrate
+SPG_ARGS += --partitions=partitions.svg
 
 export MALLOC_CHECK_=0
 

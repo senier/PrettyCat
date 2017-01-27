@@ -232,7 +232,9 @@ class Graph:
         self.fail       = fail
         self.code       = code 
         self.pd         = None
-        self.partitions = { 'subgraph': {}, 'map': {} }
+        self.subgraphs  = {}
+        self._pmap      = {}
+        self._pnum      = 0
 
         # Create primitive objects
         for node in graph.nodes():
@@ -341,43 +343,76 @@ class Graph:
             err ("No solution")
             return False
 
-    def partition_exact (self, node, cluster, new_partition):
+    def has_pid (self, node):
+        return 'partition' in self.graph.node[node]
+
+    def set_pid (self, node, pid):
+        if self.has_pid (node):
+            raise Exception ("Overwriting partition")
+        self.graph.node[node]['partition'] = pid
+        new_pnum        = self._pnum if pid in self._pmap else self._pnum + 1
+        self._pmap[pid] = self._pnum
+        self._pnum      = new_pnum
+
+    def get_pid (self, node):
+        return self.graph.node[node]['partition']
+
+    def set_pnum (self, node, pnum):
+        pid = self.graph.node[node]['partition']
+        self._pmap[pid] = pnum
+
+    def get_pnum (self, node):
+        pid = self.graph.node[node]['partition']
+        return self._pmap[pid]
+
+    def get_no_parts (self):
+        return self._pnum
+
+    def partition_exact (self, node, cluster, new_pid):
 
         G = self.graph
     
         # Partition already set
-        if 'partition' in G.node[node]:
+        if self.has_pid (node):
             return False
-    
-        G.node[node]['partition'] = new_partition
-    
-        prefix = "cluster_" if cluster else "partition_"
-        self.partitions['subgraph'][new_partition] = \
-            pydot.Subgraph (graph_name = prefix + str(new_partition), \
-                            label      = "partition " + str(new_partition), \
-                            penwidth   = 2,
-                            bgcolor    = "gray80")
-    
+        
         # Always put env primitive into a new partition
         if G.node[node]['kind'] == 'env':
+            self.set_pid (node, self.new_id())
             return
+        else:
+            self.set_pid (node, new_pid)
     
         # Partition towards parents
         for (parent, child) in G.in_edges (nbunch=node):
     
             if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
                G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-                self.partition_exact (parent, cluster, new_partition)
+                self.partition_exact (parent, cluster, new_pid)
     
         # Partition towards children
         for (parent, child) in G.out_edges (nbunch=node):
     
             if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
                G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-                self.partition_exact (child, cluster, new_partition)
+                self.partition_exact (child, cluster, new_pid)
 
     def merge_const (self):
-        return
+
+        G = self.graph
+
+        for src in G.node:
+            if G.node[src]['kind'] == 'const':
+                dst = list(G.edge[src])[0]
+                if G.node[src]['primitive'].guarantees['c'] <= G.node[dst]['primitive'].guarantees['c'] and \
+                   G.node[src]['primitive'].guarantees['i'] <= G.node[dst]['primitive'].guarantees['i']:
+                    dstnum = self.get_pnum(dst)
+                    srcnum = self.get_pnum(src)
+                    if dstnum != srcnum:
+                        self.set_pnum (src, dstnum)
+
+    def new_id (self):
+        return sha1(urandom(20)).hexdigest()
 
     def partition (self, cluster, concentrate):
 
@@ -385,43 +420,53 @@ class Graph:
 
         # Partition graph exactly by guarantees
         for node in G.node:
-            self.partition_exact (node, cluster, sha1(urandom(20)).hexdigest())
-
-        # Map partitions to partition numbers
-        n = 0
-        for p in self.partitions['subgraph']:
-            self.partitions['map'][p] = n
-            n += 1
+            self.partition_exact (node, cluster, self.new_id())
 
         # Merge constants into compatible domains
-        self.merge_const ()
+        self.merge_const()
 
-        info ("Created " + str(n) + " partitions")
+        info ("Created " + str(self.get_no_parts()) + " partitions")
 
         for node in G.node:
-            part = "(" + str(self.partitions['map'][G.node[node]['partition']]) + ")"
+            part = "(" + str(self.get_pnum (node)) + ")"
             label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub>" + part + "</sub></font>>"
             G.node[node]['label'] = label
 
+        prefix = "cluster_" if cluster else "partition_"
         for node in nx.drawing.nx_pydot.to_pydot(G).get_nodes():
-            node_partition = node.get('partition')
-            new_node = pydot.Node(node.get_name())
+
+            name = node.get_name()
+            new_node = pydot.Node(name)
             attributes = node.get_attributes()
             for a in attributes:
                 new_node.set (a, attributes[a])
-            self.partitions['subgraph'][node_partition].add_node (new_node)
+
+            # to_pydot() quotes node names with spaces in it, but doesn't quote others
+            if name[0] == "\"" and name[-1] == "\"":
+                name = name[1:-1]
+
+            pid = self.get_pid (name)
+
+            if not pid in self.subgraphs:
+                self.subgraphs[pid] = \
+                    pydot.Subgraph (graph_name = prefix + str(self.get_pnum(name)), \
+                                    label      = "partition " + str(self.get_pnum(name)), \
+                                    penwidth   = 2,
+                                    bgcolor    = "gray80")
+
+            self.subgraphs[pid].add_node (new_node)
 
         # Create graph
         graph = pydot.Dot()
         graph.set_type ("digraph")
 
         # Add partition subgraphs
-        for p in self.partitions['subgraph']:
-            graph.add_subgraph (self.partitions['subgraph'][p])
+        for s in self.subgraphs:
+            graph.add_subgraph (self.subgraphs[s])
 
         for (parent, child, data) in self.graph.edges(data=True):
-            pclust = G.node[parent]['partition']
-            cclust = G.node[child]['partition']
+            pclust = self.get_pnum(parent)
+            cclust = self.get_pnum(child)
             if pclust != cclust:
                 data['ltail'] = "cluster_" + str(pclust)
                 data['lhead'] = "cluster_" + str(cclust)
@@ -644,8 +689,8 @@ class Graph:
         guarantees = {}
         for (parent, child, data) in self.graph.edges(data=True):
 
-            sp = self.graph.node[parent]['partition']
-            dp = self.graph.node[child]['partition']
+            sp = self.get_pnum (parent)
+            dp = self.get_pnum (child)
 
             if sp == dp:
                 continue
@@ -660,7 +705,7 @@ class Graph:
                 partitions[sp][dp]['count'] += 1
 
         for node in self.graph.nodes():
-            p = self.graph.node[node]['partition']
+            p = self.get_pnum (node)
             if not p in guarantees:
                 guarantees[p] = {}
                 guarantees[p]['count'] = 1

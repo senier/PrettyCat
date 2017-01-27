@@ -222,49 +222,17 @@ class PrimitiveNotImplemented (Exception):
     def __init__ (self, kind):
         Exception.__init__(self, "No implementation for primitive '" + kind + "'")
 
-def partition_exact (G, node, partitions, cluster, new_partition):
-
-    # Partition already set
-    if 'partition' in G.node[node]:
-        return False
-
-    G.node[node]['partition'] = new_partition
-
-    prefix = "cluster_" if cluster else "partition_"
-    partitions['subgraph'][new_partition] = \
-        pydot.Subgraph (graph_name = prefix + str(new_partition), \
-                        label      = "partition " + str(new_partition), \
-                        penwidth   = 2,
-                        bgcolor    = "gray80")
-
-    # Always put env primitive into a new partition
-    if G.node[node]['kind'] == 'env':
-        return
-
-    # Partition towards parents
-    for (parent, child) in G.in_edges (nbunch=node):
-
-        if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
-           G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-            partition_exact (G, parent, partitions, cluster, new_partition)
-
-    # Partition towards children
-    for (parent, child) in G.out_edges (nbunch=node):
-
-        if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
-           G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-            partition_exact (G, child, partitions, cluster, new_partition)
-
 def jdefault (o):
     return None
 
 class Graph:
 
     def __init__ (self, graph, code, fail):
-        self.graph    = graph
-        self.fail     = fail
-        self.code     = code 
-        self.pd       = None
+        self.graph      = graph
+        self.fail       = fail
+        self.code       = code 
+        self.pd         = None
+        self.partitions = { 'subgraph': {}, 'map': {} }
 
         # Create primitive objects
         for node in graph.nodes():
@@ -373,26 +341,65 @@ class Graph:
             err ("No solution")
             return False
 
+    def partition_exact (self, node, cluster, new_partition):
+
+        G = self.graph
+    
+        # Partition already set
+        if 'partition' in G.node[node]:
+            return False
+    
+        G.node[node]['partition'] = new_partition
+    
+        prefix = "cluster_" if cluster else "partition_"
+        self.partitions['subgraph'][new_partition] = \
+            pydot.Subgraph (graph_name = prefix + str(new_partition), \
+                            label      = "partition " + str(new_partition), \
+                            penwidth   = 2,
+                            bgcolor    = "gray80")
+    
+        # Always put env primitive into a new partition
+        if G.node[node]['kind'] == 'env':
+            return
+    
+        # Partition towards parents
+        for (parent, child) in G.in_edges (nbunch=node):
+    
+            if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+               G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
+                self.partition_exact (parent, cluster, new_partition)
+    
+        # Partition towards children
+        for (parent, child) in G.out_edges (nbunch=node):
+    
+            if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+               G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
+                self.partition_exact (child, cluster, new_partition)
+
+    def merge_const (self):
+        return
+
     def partition (self, cluster, concentrate):
 
         G = self.graph
 
         # Partition graph exactly by guarantees
-        partitions = { 'subgraph': {}, 'map': {} }
         for node in G.node:
-            partition_exact (G, node, partitions, cluster, sha1(urandom(20)).hexdigest())
+            self.partition_exact (node, cluster, sha1(urandom(20)).hexdigest())
 
         # Map partitions to partition numbers
         n = 0
-        for p in partitions['subgraph']:
-            if p == "map": continue
-            partitions['map'][p] = n
+        for p in self.partitions['subgraph']:
+            self.partitions['map'][p] = n
             n += 1
+
+        # Merge constants into compatible domains
+        self.merge_const ()
 
         info ("Created " + str(n) + " partitions")
 
         for node in G.node:
-            part = "(" + str(partitions['map'][G.node[node]['partition']]) + ")"
+            part = "(" + str(self.partitions['map'][G.node[node]['partition']]) + ")"
             label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub>" + part + "</sub></font>>"
             G.node[node]['label'] = label
 
@@ -402,15 +409,15 @@ class Graph:
             attributes = node.get_attributes()
             for a in attributes:
                 new_node.set (a, attributes[a])
-            partitions['subgraph'][node_partition].add_node (new_node)
+            self.partitions['subgraph'][node_partition].add_node (new_node)
 
         # Create graph
         graph = pydot.Dot()
         graph.set_type ("digraph")
 
         # Add partition subgraphs
-        for p in partitions['subgraph']:
-            graph.add_subgraph (partitions['subgraph'][p])
+        for p in self.partitions['subgraph']:
+            graph.add_subgraph (self.partitions['subgraph'][p])
 
         for (parent, child, data) in self.graph.edges(data=True):
             pclust = G.node[parent]['partition']

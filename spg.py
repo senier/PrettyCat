@@ -9,6 +9,9 @@ import re
 import pydot
 import json
 
+from hashlib import sha1
+from os import urandom
+
 from libspg import warn, info, err
 import libspg
 
@@ -219,40 +222,38 @@ class PrimitiveNotImplemented (Exception):
     def __init__ (self, kind):
         Exception.__init__(self, "No implementation for primitive '" + kind + "'")
 
-def mark_partition (G, node, partition):
+def partition_exact (G, node, partitions, cluster, new_partition):
 
     # Partition already set
     if 'partition' in G.node[node]:
         return False
 
-    G.node[node]['partition'] = partition
+    G.node[node]['partition'] = new_partition
+
+    prefix = "cluster_" if cluster else "partition_"
+    partitions['subgraph'][new_partition] = \
+        pydot.Subgraph (graph_name = prefix + str(new_partition), \
+                        label      = "partition " + str(new_partition), \
+                        penwidth   = 2,
+                        bgcolor    = "gray80")
+
+    # Always put env primitive into a new partition
+    if G.node[node]['kind'] == 'env':
+        return
 
     # Partition towards parents
     for (parent, child) in G.in_edges (nbunch=node):
 
-        # Special case: A single constant has the same or fewer guarantees, put it into our domain.
-        if G.node[parent]['kind'] == 'const' and \
-           G.node[parent]['primitive'].guarantees['c'] <= G.node[node]['primitive'].guarantees['c'] and \
-           G.node[parent]['primitive'].guarantees['i'] <= G.node[node]['primitive'].guarantees['i']:
-            mark_partition (G, parent, partition)
-        # Default case: same guarantees
-        elif G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+        if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
            G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-            mark_partition (G, parent, partition)
+            partition_exact (G, parent, partitions, cluster, new_partition)
 
     # Partition towards children
     for (parent, child) in G.out_edges (nbunch=node):
 
-        # If this is a constant which has the same or fewer guarantees, put it into our domain.
-        if G.node[node]['kind'] == 'const' and \
-           G.node[node]['primitive'].guarantees['c'] <= G.node[child]['primitive'].guarantees['c'] and \
-           G.node[node]['primitive'].guarantees['i'] <= G.node[child]['primitive'].guarantees['i']:
-            mark_partition (G, child, partition)
-        elif G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
+        if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
            G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-            mark_partition (G, child, partition)
-
-    return True
+            partition_exact (G, child, partitions, cluster, new_partition)
 
 def jdefault (o):
     return None
@@ -376,20 +377,23 @@ class Graph:
 
         G = self.graph
 
-        partitions = {}
-        partition_no = 1
+        # Partition graph exactly by guarantees
+        partitions = { 'subgraph': {}, 'map': {} }
+        for node in G.node:
+            partition_exact (G, node, partitions, cluster, sha1(urandom(20)).hexdigest())
+
+        # Map partitions to partition numbers
+        n = 0
+        for p in partitions['subgraph']:
+            if p == "map": continue
+            partitions['map'][p] = n
+            n += 1
+
+        info ("Created " + str(n) + " partitions")
 
         for node in G.node:
-            new_partition = mark_partition (G, node, partition_no)
-            if new_partition:
-                prefix = "cluster_" if cluster else "partition_"
-                partitions[str(partition_no)] = pydot.Subgraph (graph_name = prefix + str(partition_no), label = "partition " + str(partition_no), penwidth = 2, bgcolor = "gray80")
-                partition_no = partition_no + 1
-
-        info ("Created " + str(partition_no - 1) + " partitions")
-
-        for node in G.node:
-            label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub> (" + str(G.node[node]['partition']) + ")</sub></font>>"
+            part = "(" + str(partitions['map'][G.node[node]['partition']]) + ")"
+            label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub>" + part + "</sub></font>>"
             G.node[node]['label'] = label
 
         for node in nx.drawing.nx_pydot.to_pydot(G).get_nodes():
@@ -398,15 +402,15 @@ class Graph:
             attributes = node.get_attributes()
             for a in attributes:
                 new_node.set (a, attributes[a])
-            partitions[node_partition].add_node (new_node)
+            partitions['subgraph'][node_partition].add_node (new_node)
 
         # Create graph
         graph = pydot.Dot()
         graph.set_type ("digraph")
 
         # Add partition subgraphs
-        for p in partitions:
-            graph.add_subgraph (partitions[p])
+        for p in partitions['subgraph']:
+            graph.add_subgraph (partitions['subgraph'][p])
 
         for (parent, child, data) in self.graph.edges(data=True):
             pclust = G.node[parent]['partition']

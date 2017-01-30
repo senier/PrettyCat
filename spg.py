@@ -754,7 +754,7 @@ class Graph:
             if not p in guarantees:
                 guarantees[p] = {}
                 guarantees[p]['count'] = 1
-                guarantees[p]['tooltip'] = ""
+                guarantees[p]['label'] = ""
             else:
                 guarantees[p]['count'] += 1
 
@@ -763,7 +763,6 @@ class Graph:
             # we recognize them visually.
             if guarantees[p]['count'] == 1:
                 guarantees[p]['kind'] = self.graph.node[node]['kind']
-                guarantees[p]['name'] = node
 
             if not 'c' in guarantees[p]:
                 guarantees[p]['c'] = False
@@ -773,7 +772,8 @@ class Graph:
                 guarantees[p]['i'] = False
             if self.graph.node[node]['primitive'].guarantees['i']:
                 guarantees[p]['i'] = True
-            guarantees[p]['tooltip'] += node + "<br>"
+
+            guarantees[p]['label'] += node + "\n"
 
         pg = nx.MultiDiGraph()
         for p in guarantees:
@@ -782,24 +782,24 @@ class Graph:
             count = guarantees[p]['count']
 
             if guarantees[p]['kind'] == 'env':
-                label = guarantees[p]['name']
+                label = name + "\n\n"
                 shape = 'invhouse'
             else:
-                label = name + "\n" + str(count)
+                label = name + " (" + str(count) + ")\n\n"
                 shape =  'rectangle'
 
+            label += guarantees[p]['label']
             pg.add_node (name,
                          label=label, \
                          width=math.sqrt(count), \
                          height=math.sqrt(count), \
                          penwidth=5, \
-                         shape=shape, \
-                         tooltip=guarantees[p]['tooltip'])
+                         shape=shape)
             set_style (pg.node[name], guarantees[p]['c'], guarantees[p]['i'])
 
         for sp in partitions:
             for dp in partitions[sp]:
-                pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), label=str(partitions[sp][dp]['count']), labeljust='r', penwidth='2')
+                pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), penwidth=2, xlabel=str(partitions[sp][dp]['count']), labeljust='r')
 
         dot = nx.drawing.nx_pydot.to_pydot(pg)
         dot.set ("rankdir", "LR")

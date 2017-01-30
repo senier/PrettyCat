@@ -712,6 +712,14 @@ class Graph:
                 guarantees[p]['tooltip'] = ""
             else:
                 guarantees[p]['count'] += 1
+
+            # Store node kind for first node in partition. For 'env' primtives
+            # That have an own partition, we can change the shape such that
+            # we recognize them visually.
+            if guarantees[p]['count'] == 1:
+                guarantees[p]['kind'] = self.graph.node[node]['kind']
+                guarantees[p]['name'] = node
+
             if not 'c' in guarantees[p]:
                 guarantees[p]['c'] = False
             if self.graph.node[node]['primitive'].guarantees['c']:
@@ -724,9 +732,24 @@ class Graph:
 
         pg = nx.MultiDiGraph()
         for p in guarantees:
+
             name  = "Partition " + str(p)
             count = guarantees[p]['count']
-            pg.add_node (name, label=name + "\n" + str(count), width=math.sqrt(count), height=math.sqrt(count), penwidth=5, shape='rectangle', tooltip=guarantees[p]['tooltip'])
+
+            if guarantees[p]['kind'] == 'env':
+                label = guarantees[p]['name']
+                shape = 'invhouse'
+            else:
+                label = name + "\n" + str(count)
+                shape =  'rectangle'
+
+            pg.add_node (name,
+                         label=label, \
+                         width=math.sqrt(count), \
+                         height=math.sqrt(count), \
+                         penwidth=5, \
+                         shape=shape, \
+                         tooltip=guarantees[p]['tooltip'])
             set_style (pg.node[name], guarantees[p]['c'], guarantees[p]['i'])
 
         for sp in partitions:
@@ -734,6 +757,7 @@ class Graph:
                 pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), label=str(partitions[sp][dp]['count']), labeljust='r', penwidth='2')
 
         dot = nx.drawing.nx_pydot.to_pydot(pg)
+        dot.set ("rankdir", "LR")
         dot.set ("sep", "+50,20")
         dot.set ("esep", "+10,4")
         dot.set ("splines", "ortho")

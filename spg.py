@@ -1320,11 +1320,8 @@ class Primitive_verify_hmac (Primitive):
         interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['result'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # If an attacker can modify the result of a verify operation, she could
-        # as well chose an own key and use it to create a valid signature yielding
-        # a positive result
-        self.rule.append (Implies (Intg(self.output.result), And (Conf(self.input.key), Intg(self.input.key))))
-
+        # An attacker must not chose the integrity verification key.
+        self.rule.append (Intg(self.input.key))
 
         # If the input message is confidential, the result is confidential, too.
         self.rule.append  (Implies (Conf(self.input.msg), Conf(self.output.result)))

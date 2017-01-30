@@ -368,7 +368,7 @@ class Graph:
     def get_no_parts (self):
         return self._pnum
 
-    def partition_exact (self, node, cluster, new_pid):
+    def partition_exact (self, node, new_pid):
 
         G = self.graph
     
@@ -388,14 +388,14 @@ class Graph:
     
             if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
                G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-                self.partition_exact (parent, cluster, new_pid)
+                self.partition_exact (parent, new_pid)
     
         # Partition towards children
         for (parent, child) in G.out_edges (nbunch=node):
     
             if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
                G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
-                self.partition_exact (child, cluster, new_pid)
+                self.partition_exact (child, new_pid)
 
     def merge_const (self):
 
@@ -414,25 +414,34 @@ class Graph:
     def new_id (self):
         return sha1(urandom(20)).hexdigest()
 
-    def partition (self, cluster, concentrate):
+    def merge_branch (self):
+        raise Exception ("Not implemented")
+
+    def partition (self, partition, merge_const, merge_branch, concentrate):
 
         G = self.graph
 
-        # Partition graph exactly by guarantees
-        for node in G.node:
-            self.partition_exact (node, cluster, self.new_id())
+        if not partition:
+            return
 
-        # Merge constants into compatible domains
-        self.merge_const()
+        for node in G.node:
+            self.partition_exact (node, self.new_id())
+
+        # Partition graph exactly by guarantees
+        if merge_const:
+            # Merge constants into compatible domains
+            self.merge_const()
+            if merge_branch:
+                self.merge_branch()
 
         info ("Created " + str(self.get_no_parts()) + " partitions")
 
         for node in G.node:
-            part = "(" + str(self.get_pnum (node)) + ")"
-            label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\"><sub>" + part + "</sub></font>>"
+            part  = "<sub>(" + str(self.get_pnum (node)) + ")</sub>" if partition else ""
+            label = "<<b>" + G.node[node]['kind'] + ": </b>" + node + "<font point-size=\"6\">" + part + "</font>>"
             G.node[node]['label'] = label
 
-        prefix = "cluster_" if cluster else "partition_"
+        prefix = "cluster_" if partition else "partition_"
         for node in nx.drawing.nx_pydot.to_pydot(G).get_nodes():
 
             name = node.get_name()
@@ -1661,14 +1670,14 @@ def main():
 
     libspg.exitval = 0
     if solved:
-        G.partition(args.cluster, args.concentrate)
+        G.partition (args.partition, args.merge_const, args.merge_branch, args.concentrate)
         if args.run:
             G.run()
 
     G.write (args.output[0])
 
-    if args.partitions:
-        G.dump_partitions(args.partitions[0])
+    if args.partition and args.pgraph:
+        G.dump_partitions(args.pgraph[0])
 
     G.statistics()
 
@@ -1680,13 +1689,16 @@ if __name__ == "__main__":
     parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
     parser.add_argument('--latex', action='store', nargs=1, required=False, help='Store rules as latex file', dest='dump_latex');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
-    parser.add_argument('--cluster', action='store_true', help='Cluster graph output', dest='cluster');
-    parser.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--run', action='store_true', required=False, help='Run model', dest='run');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
-    parser.add_argument('--partitions', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='partitions');
+    pgroup = parser.add_argument_group ("partition")
+    pgroup.add_argument('--partition', action='store_true', help='Partition graph output', dest='partition');
+    pgroup.add_argument('--merge_const', action='store_true', help='Merge constants into compatible partitions', dest='merge_const');
+    pgroup.add_argument('--merge_branch', action='store_true', help='Marge branched constants into compatible domains', dest='merge_branch');
+    pgroup.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
+    pgroup.add_argument('--pgraph', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='pgraph');
 
     try:
         args = parser.parse_args ()

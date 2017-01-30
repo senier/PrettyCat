@@ -397,6 +397,11 @@ class Graph:
                G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
                 self.partition_exact (child, new_pid)
 
+    def guarantees_lt (self, src, dst):
+        G = self.graph
+        return G.node[src]['primitive'].guarantees['c'] <= G.node[dst]['primitive'].guarantees['c'] and \
+               G.node[src]['primitive'].guarantees['i'] <= G.node[dst]['primitive'].guarantees['i']
+
     def merge_const (self):
 
         G = self.graph
@@ -404,8 +409,7 @@ class Graph:
         for src in G.node:
             if G.node[src]['kind'] == 'const':
                 dst = list(G.edge[src])[0]
-                if G.node[src]['primitive'].guarantees['c'] <= G.node[dst]['primitive'].guarantees['c'] and \
-                   G.node[src]['primitive'].guarantees['i'] <= G.node[dst]['primitive'].guarantees['i']:
+                if self.guarantees_lt (src, dst):
                     dstnum = self.get_pnum(dst)
                     srcnum = self.get_pnum(src)
                     if dstnum != srcnum:
@@ -415,7 +419,39 @@ class Graph:
         return sha1(urandom(20)).hexdigest()
 
     def merge_branch (self):
-        raise Exception ("Not implemented")
+
+        G = self.graph
+
+        for const in G.node:
+
+            if G.node[const]['kind'] != 'const': continue
+
+            branch   = list(G.edge[const])[0]
+            in_edges = len(G.in_edges(nbunch=branch))
+
+            # We assume a branch is an xform with only one
+            # input. This may be wrong, though.
+            if G.node[branch]['kind'] == 'xform' and in_edges == 1:
+
+                constnum  = self.get_pnum(const)
+                branchnum = self.get_pnum(branch)
+
+                # Const/branch not in the same partition
+                if constnum != branchnum: continue
+
+                compatible = True
+                targetnum  = None
+                for (b, target, data) in G.out_edges(nbunch=branch, data=True):
+                    if targetnum:
+                        compatible = compatible and targetnum == self.get_pnum(target)
+                    else:
+                        targetnum = self.get_pnum(target)
+                    compatible = compatible and self.guarantees_lt (branch, target)
+
+                # Only join different partitions with compatible guarantees
+                if branchnum != targetnum and compatible:
+                    for (b, target, data) in G.out_edges(nbunch=branch, data=True):
+                        self.set_pnum (branch, self.get_pnum (target))
 
     def partition (self, partition, merge_const, merge_branch, concentrate):
 

@@ -1377,8 +1377,6 @@ class Primitive_release (Primitive):
         interfaces = { 'inputs': ['data'], 'outputs': ['data'] }
         super ().setup (name, G, attributes, interfaces)
 
-        self.rule.append (True)
-
 class Primitive_comp (Primitive):
 
     """

@@ -393,15 +393,15 @@ class Graph:
         # Partition towards parents
         for (parent, child) in G.in_edges (nbunch=node):
     
-            if G.node[parent]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
-               G.node[parent]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
+            if G.node[parent]['primitive'].guarantees['c'] == G.node[child]['primitive'].guarantees['c'] and \
+               G.node[parent]['primitive'].guarantees['i'] == G.node[child]['primitive'].guarantees['i']:
                 self.partition_exact (parent, new_pid)
     
         # Partition towards children
         for (parent, child) in G.out_edges (nbunch=node):
     
-            if G.node[child]['primitive'].guarantees['c'] == G.node[node]['primitive'].guarantees['c'] and \
-               G.node[child]['primitive'].guarantees['i'] == G.node[node]['primitive'].guarantees['i']:
+            if G.node[parent]['primitive'].guarantees['c'] == G.node[child]['primitive'].guarantees['c'] and \
+               G.node[parent]['primitive'].guarantees['i'] == G.node[child]['primitive'].guarantees['i']:
                 self.partition_exact (child, new_pid)
 
     def guarantees_lt (self, src, dst):

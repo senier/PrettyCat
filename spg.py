@@ -390,8 +390,24 @@ class Graph:
         self._id += 1
         return self._id
 
-    def get_no_parts (self):
-        return self._pnum
+    def partition_info (self):
+        pids  = set()
+        intra = 0
+        inter = 0
+
+        for node in self.graph.node:
+            if self.graph.node[node]['kind'] != 'env' and self.has_pid (node):
+                pids.add (self.get_pnum (node))
+
+        for (parent, child) in self.graph.edges():
+            if self.graph.node[parent]['kind'] == 'env' or self.graph.node[child]['kind'] == 'env':
+                continue
+            if self.has_pid (parent) and self.has_pid (child) and self.get_pnum (parent) == self.get_pnum (child):
+                intra += 1
+            else:
+                inter += 1
+
+        return ("%3.0d intra=%3.0d inter=%3.0d total=%3.0d" % (len(pids), intra, inter, intra + inter))
 
     def partition_exact (self, node, new_pid):
 
@@ -480,19 +496,25 @@ class Graph:
         G = self.graph
 
         if not partition:
+            info ("Partitioning disabled")
             return
+
+        info ("Partitions:")
+        info ("   No partitions: " + str(self.partition_info()))
 
         for node in G.node:
             self.partition_exact (node, self.new_id())
+
+        info ("   Exact:         " + str(self.partition_info()))
 
         # Partition graph exactly by guarantees
         if merge_const:
             # Merge constants into compatible domains
             self.merge_const()
+            info ("   Merge const:   " + str(self.partition_info()))
             if merge_branch:
                 self.merge_branch()
-
-        info ("Created " + str(self.get_no_parts()) + " partitions")
+                info ("   Merge branch:  " + str(self.partition_info()))
 
         for node in G.node:
             part  = "<sub>(" + str(self.get_pnum (node)) + ")</sub>" if partition else ""

@@ -352,16 +352,12 @@ class Graph:
         self._pmap[pid] = self._pnum
         self._pnum      = new_pnum
 
-        info ("set_pid (" + node + "): " + str(pid) + " new_pnum: " + str(new_pnum))
-
     def get_pid (self, node):
         pid = self.graph.node[node]['partition']
-        info ("get_pid (" + node + "): " + str(pid))
         return pid
 
     def set_pnum (self, node, pnum):
         pid = self.graph.node[node]['partition']
-        info ("get_pnum (" + node + ") := " + str(pnum))
         self._pmap[pid] = pnum
 
     def get_pnum (self, node):

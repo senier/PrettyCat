@@ -22,3 +22,4 @@ __pycache__
 otr.svg
 *.test
 partitions.svg
+TEMP_*

@@ -1501,10 +1501,6 @@ class Primitive_latch (Primitive):
         # requires integrity guarantees.
         self.rule.append (Intg (self.output.trigger))
 
-        # The output data requires integrity, too. Otherwise an attacker could change it to
-        # another value.
-        self.rule.append (Intg(self.output.data))
-
         # If input data is confidential, confidentiality must be guaranteed for output data
         self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
 

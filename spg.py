@@ -1209,12 +1209,26 @@ class Primitive_encrypt (Primitive):
         # pair
         self.rule.append (Intg(self.input.ctr))
 
-class Primitive_encrypt_ctr (Primitive_encrypt):
+class Primitive_encrypt_ctr (Primitive):
 
     def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['plaintext', 'key', 'ctr'], 'outputs': ['ciphertext', 'ctr'] }
         super ().setup (name, G, attributes, interfaces)
+
+        # Counter mode encryption does not achieve integrity, hence an attacker
+        # could change plaintext_in to influence the integrity of
+        # ciphertext_out. If integrity must be guaranteed for ciphertext_out,
+        # it also must be guaranteed for plaintext_in.
+        self.rule.append (Implies (Intg(self.output.ciphertext), Intg(self.input.plaintext)))
+
+        # Integrity and confidentiality of input key must always be guaranteed
+        self.rule.append (And (Intg (self.input.key), Conf (self.input.key)))
+
+        # Integrity of the counter must be guaranteed, otherwise an attacker
+        # could break the encryption by making the component reuse a counter/key
+        # pair
+        self.rule.append (Intg(self.input.ctr))
 
         # If confidentiality is guaranteed for initial counter, confidentiality must be guaranteed for output counter
         self.rule.append (Implies (Conf(self.input.ctr), Conf(self.output.ctr)))
@@ -1266,12 +1280,22 @@ class Primitive_hmac (Primitive):
         # be guaranteed for the msg_in.
         self.rule.append (Intg (self.input.msg))
 
-class Primitive_hmac_out (Primitive_hmac):
+class Primitive_hmac_out (Primitive):
 
     def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['key', 'msg'], 'outputs': ['auth', 'msg'] }
         super ().setup (name, G, attributes, interfaces)
+
+        # If integrity is not guaranteed for the input data, HMAC cannot
+        # protect anything. Hence, it does not harm if the key is released
+        # to or chosen by an attacker.
+        self.rule.append (Conf(self.input.key))
+        self.rule.append (Intg(self.input.key))
+
+        # We assume that an HMAC component is only used when integrity must
+        # be guaranteed for the msg_in.
+        self.rule.append (Intg (self.input.msg))
 
         # HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))
@@ -1350,12 +1374,15 @@ class Primitive_verify_hmac (Primitive):
         # If the input message is confidential, the result is confidential, too.
         self.rule.append  (Implies (Conf(self.input.msg), Conf(self.output.result)))
 
-class Primitive_verify_hmac_out (Primitive_verify_hmac):
+class Primitive_verify_hmac_out (Primitive):
 
     def __init__ (self, G, name, attributes):
 
         interfaces = { 'inputs': ['msg', 'auth', 'key'], 'outputs': ['msg'] }
         super ().setup (name, G, attributes, interfaces)
+
+        # An attacker must not chose the integrity verification key.
+        self.rule.append (Intg(self.input.key))
 
         #   The HMAC does not achieve confidentiality.
         self.rule.append (Implies (Conf(self.input.msg), Conf(self.output.msg)))

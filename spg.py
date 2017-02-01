@@ -9,9 +9,6 @@ import re
 import pydot
 import json
 
-from hashlib import sha1
-from os import urandom
-
 from libspg import warn, info, err
 import libspg
 
@@ -235,6 +232,7 @@ class Graph:
         self.subgraphs  = {}
         self._pmap      = {}
         self._pnum      = 0
+        self._id        = 0
 
         # Create primitive objects
         for node in graph.nodes():
@@ -354,16 +352,25 @@ class Graph:
         self._pmap[pid] = self._pnum
         self._pnum      = new_pnum
 
+        info ("set_pid (" + node + "): " + str(pid) + " new_pnum: " + str(new_pnum))
+
     def get_pid (self, node):
-        return self.graph.node[node]['partition']
+        pid = self.graph.node[node]['partition']
+        info ("get_pid (" + node + "): " + str(pid))
+        return pid
 
     def set_pnum (self, node, pnum):
         pid = self.graph.node[node]['partition']
+        info ("get_pnum (" + node + ") := " + str(pnum))
         self._pmap[pid] = pnum
 
     def get_pnum (self, node):
         pid = self.graph.node[node]['partition']
         return self._pmap[pid]
+
+    def new_id (self):
+        self._id += 1
+        return self._id
 
     def get_no_parts (self):
         return self._pnum
@@ -414,9 +421,6 @@ class Graph:
                     srcnum = self.get_pnum(src)
                     if dstnum != srcnum:
                         self.set_pnum (src, dstnum)
-
-    def new_id (self):
-        return sha1(urandom(20)).hexdigest()
 
     def merge_branch (self):
 

@@ -381,14 +381,14 @@ class Graph:
     
         # Partition already set
         if self.has_pid (node):
-            return False
+            return
         
         # Always put env primitive into a new partition
         if G.node[node]['kind'] == 'env':
             self.set_pid (node, self.new_id())
             return
-        else:
-            self.set_pid (node, new_pid)
+
+        self.set_pid (node, new_pid)
     
         # Partition towards parents
         for (parent, child) in G.in_edges (nbunch=node):

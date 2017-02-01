@@ -695,16 +695,9 @@
             Branch output arguments
         </description>
         <flow sarg="data#1" sink="Encrypt g^x (S)" darg="key"/>
-        <flow sarg="data#2" sink="Guard Random r (S)" darg="data"/>
+        <flow sarg="data#2" sink="Serialize r (S)" darg="data"/>
         <arg name="data"/>
     </xform>
-
-    <guard id="Guard Random r (S)">
-        <description>
-            Branch output arguments
-        </description>
-        <flow sarg="data" sink="Serialize r (S)" darg="data"/>
-    </guard>
 
     <xform id="Serialize r (S)" code="serialize">
         <description>
@@ -874,19 +867,9 @@
         <description>
             Second message of the AKE. It simply consists of Alice's D-H encryption key.
         </description>
-        <flow sarg="g^y" sink="Latch g^y (R)" darg="data"/>
+        <flow sarg="g^y" sink="Branch g^y (R)" darg="data"/>
         <arg name="dhkm"/>
     </xform>
-
-    <latch id="Latch g^y (R)">
-        <description>
-            Make sure we receive g^y exactly once and stick to it. The trigger
-            guards our Reveal Signature response, i.e. it is sent only when
-            g^y was received in a D-H Key message.
-        </description>
-        <flow sarg="data" sink="Branch g^y (R)" darg="data"/>
-        <flow sarg="trigger" sink="Guard Random r (S)" darg="cond"/>
-    </latch>
 
     <xform id="Branch g^y (R)" code="branch">
         <description>

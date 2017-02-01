@@ -144,7 +144,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
             <xs:element name="release"         type="forwardElement"/>
             <xs:element name="comp"            type="forwardElement"/>
             <xs:element name="verify_commit"   type="forwardElement"/>
-            <xs:element name="latch"           type="forwardElement"/>
         </xs:choice>
     </xs:sequence>
     <xs:attribute name="assert_fail" type="xs:boolean" />
@@ -1474,32 +1473,6 @@ class Primitive_verify_commit (Primitive):
 
         # If an attacker can chose input data, she may change the output data.
         self.rule.append (Implies (Intg(self.output.data), Intg(self.input.data)))
-
-        # If input data is confidential, confidentiality must be guaranteed for output data
-        self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))
-
-class Primitive_latch (Primitive):
-
-    """
-    Latch primitive
-
-    This primitive receives a value (potentially without any guarantees) and outputs
-    it unmodified. It guarantees that after receiving a value once it cannot be changed anymore.
-    Additionally it has a trigger output signaling that data was received.
-
-    Rationale: This is used for commitment schemes where we open a commitment only after
-    we received a peers (immutable) value.
-    """
-
-    def __init__ (self, G, name, attributes):
-
-        interfaces = { 'inputs': ['data'], 'outputs': ['data', 'trigger'] }
-        super ().setup (name, G, attributes, interfaces)
-
-        # The purpose of the latch primitive is to open a commitment. If it triggers too early,
-        # this may happen before the peer has committed to a value. Hence, the trigger value
-        # requires integrity guarantees.
-        self.rule.append (Intg (self.output.trigger))
 
         # If input data is confidential, confidentiality must be guaranteed for output data
         self.rule.append (Implies (Conf(self.input.data), Conf(self.output.data)))

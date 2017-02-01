@@ -18,13 +18,13 @@
         <arg name="data"/>
     </xform>
 
-    <const id="Private key">
+    <env id="Private key" code="static">
         <description>
             Private DSA key
         </description>
         <config hexbytes="21b7b2ea84b110266d6f08e3bb29efb50464b406"/>
-        <flow sarg="const" sink="Sign" darg="privkey"/>
-    </const>
+        <flow sarg="data" sink="Sign" darg="privkey"/>
+    </env>
 
     <const id="Message">
         <description>
@@ -43,15 +43,15 @@
         <arg name="data"/>
     </xform>
 
-    <const id="K">
+    <env id="K" code="static">
         <description>
             "Random" K - Only for testing. Normally this must be
             a random number between [1, q-1] for which the attacker
             does not know the value of any bit.
         </description>
         <config hexbytes="ff"/>
-        <flow sarg="const" sink="Sign" darg="rand"/>
-    </const>
+        <flow sarg="data" sink="Sign" darg="rand"/>
+    </env>
 
     <sign id="Sign">
         <description>

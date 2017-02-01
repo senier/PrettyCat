@@ -16,14 +16,14 @@
         </flow>
     </const>
 
-    <const id="Private key">
+    <env id="Private key" confidentiality="true" integrity="true">
         <description>
             Private key
         </description>
         <flow sarg="const" sink="Branch Key" darg="data">
             <assert confidentiality="true"/>
         </flow>
-    </const>
+    </env>
 
     <xform id="Branch Key" code="branch">
         <description>

@@ -4,6 +4,20 @@ from libspg import info, warn, err, SPG_base, SPG_xform
 import libspg
 import time
 
+class env_static (libspg.SPG_thread):
+
+    def __init__ (self, name, config, arguments):
+
+        super().__init__ (name, config, arguments)
+
+        if not 'hexbytes' in config.attrib:
+            raise Exception ("No hexbytes configured")
+
+        self.value = bytearray.fromhex(config.attrib['hexbytes'])
+
+    def run (self):
+        self.send ('data', self.value)
+
 class env_list (libspg.SPG_thread):
 
     def __init__ (self, name, config, arguments):

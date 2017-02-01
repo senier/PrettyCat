@@ -880,7 +880,7 @@
 
     <latch id="Latch g^y (R)">
         <description>
-            Make sure we receive g^y exactly one and stick to it. The trigger
+            Make sure we receive g^y exactly once and stick to it. The trigger
             guards our Reveal Signature response, i.e. it is sent only when
             g^y was received in a D-H Key message.
         </description>
@@ -1940,14 +1940,22 @@
             The 20-byte SHA-1 hash of the 16-byte sending AES key.
         </description>
         <config algo="SHA"/>
-        <flow sarg="hash" sink="Branch Derive receiving MAC key (M) hash" darg="data"/>
+        <flow sarg="hash" sink="Branch Derive receiving MAC key (M) hash" darg="data">
+            <assert integrity="true">
+                Attacker must not chose integrity verification key
+            </assert>
+        </flow>
     </hash>
 
     <xform id="Branch Derive receiving MAC key (M) hash" code="branch">
         <description>
             Branch output arguments
         </description>
-        <flow sarg="hash#1" sink="Verify MAC (M)" darg="key"/>
+        <flow sarg="hash#1" sink="Verify MAC (M)" darg="key">
+            <assert integrity="true">
+                Attacker must not chose integrity verification key
+            </assert>
+        </flow>
         <flow sarg="hash#2" sink="Reveal old MAC keys (M)" darg="key"/>
         <arg name="data"/>
     </xform>

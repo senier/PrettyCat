@@ -15,6 +15,7 @@ SPG_ARGS += --merge_const
 SPG_ARGS += --merge_branch
 SPG_ARGS += --concentrate
 SPG_ARGS += --pgraph=partitions.svg
+SPG_ARGS += --dump=doc/ruleset.tex
 
 export MALLOC_CHECK_=0
 

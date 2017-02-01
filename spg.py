@@ -280,7 +280,7 @@ class Graph:
 
         return success
 
-    def analyze (self, dump_rules):
+    def analyze (self, dumpfile):
 
         solver = SPG_Solver()
         assertno = 0
@@ -300,9 +300,33 @@ class Graph:
             solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + "#intg")
 
         # Dump all rules if requested
-        if dump_rules:
-            for a in solver.solver.assertions():
-                print (latex_expression (None, a.arg(1), 0, 0) + " \\\\")
+        if dumpfile:
+            with open (dumpfile, 'w') as f:
+                f.write ("\\documentclass[a4paper]{article}\n")
+                f.write ("\\usepackage{amssymb}\n")
+                f.write ("\\usepackage{fdsymbol}\n")
+                f.write ("\\usepackage{float}\n")
+                f.write ("\\newcommand{\intg}[1]{{#1}_{\mathcal{I}}}\n")
+                f.write ("\\newcommand{\conf}[1]{{#1}_{\mathcal{C}}}\n")
+                f.write ("\\newcommand{\invar}[1]{\mathit{#1}}\n")
+                f.write ("\\newcommand{\outvar}[1]{\overrightharpoon{#1}}\n")
+                f.write ("\\begin{document}\n")
+                for a in solver.solver.assertions():
+                    if a.arg(1):
+                        f.write ("\\begin{figure}[H]\n")
+                        f.write ("\\begin{align*}\n")
+                        f.write ("R &= " + latex_expression (None, a.arg(1), 0, 0) + " \n")
+                        f.write ("\\end{align*}\n")
+                        caption = str(a.arg(0))
+                        caption = re.sub ('ASSERT#RULE#', 'Rule: ', caption)
+                        caption = re.sub ('ASSERT#CHNL#', 'Channel: ', caption)
+                        caption = re.sub ('_', '\_', caption)
+                        caption = re.sub ('\^', '\^ ', caption)
+                        caption = re.sub ('#', '\#', caption)
+                        caption = re.sub ('->', '$\\\\rightarrow{}$', caption)
+                        f.write ("\\caption{" + caption + "}\n")
+                        f.write ("\\end{figure}\n")
+                f.write ("\\end{document}")
 
         if solver.check() == sat:
 
@@ -1377,6 +1401,8 @@ class Primitive_release (Primitive):
         interfaces = { 'inputs': ['data'], 'outputs': ['data'] }
         super ().setup (name, G, attributes, interfaces)
 
+        self.rule.append (True)
+
 class Primitive_comp (Primitive):
 
     """
@@ -1591,16 +1617,17 @@ def latex_expression (prefix, exp, level = 0, label = 1):
         for idx in range (0, na):
             if idx != 0:
                 if level == 0:
-                    if label:
+                    if prefix and label:
                         result += "\\label{eq:" + prefix + "_" + str(idx) + "}"
                     result += "\\\\ &"
                 result += "\land{}"
             result += latex_expression (prefix, exp.arg(idx), level + 1, label)
         if level == 0:
-            if label:
-                result += "\\label{eq:" + prefix + "_" + str(na) + "}"
-            else:
-                result += "\\label{eq:" + prefix + "_rule}"
+            if prefix:
+                if label:
+                    result += "\\label{eq:" + prefix + "_" + str(na) + "}"
+                else:
+                    result += "\\label{eq:" + prefix + "_rule}"
     elif is_or (exp):
         if na > 1: result += "("
         for idx in range (0, na):
@@ -1654,6 +1681,8 @@ def latex_expression (prefix, exp, level = 0, label = 1):
                 raise Exception ("Invalid variable " + var + ": neither input nor output")
 
             var = var.capitalize()
+            var = re.sub ('#', '\#', var)
+            var = re.sub ('_', '\_', var)
 
             if invar:  var = "\\invar{" + var + "}"
             if outvar: var = "\\outvar{" + var + "}"
@@ -1694,7 +1723,7 @@ def main():
         G.label()
         G.write ("initial_" + args.output[0])
       
-    solved = G.analyze(args.dump_rules)
+    solved = G.analyze(args.dumpfile[0])
     G.label()
 
     if args.dump_latex:
@@ -1718,7 +1747,6 @@ def main():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
-    parser.add_argument('--dump', action='store_true', help='Dump rules', dest='dump_rules');
     parser.add_argument('--latex', action='store', nargs=1, required=False, help='Store rules as latex file', dest='dump_latex');
     parser.add_argument('--test', action='store_true', help='Run in test mode', dest='test');
     parser.add_argument('--initial', action='store_true', help='Write graph prior to analysis', dest='initial');
@@ -1730,6 +1758,7 @@ if __name__ == "__main__":
     pgroup.add_argument('--merge_const', action='store_true', help='Merge constants into compatible partitions', dest='merge_const');
     pgroup.add_argument('--merge_branch', action='store_true', help='Marge branched constants into compatible domains', dest='merge_branch');
     pgroup.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
+    parser.add_argument('--dump', action='store', nargs=1, help='Dump rules to file', dest='dumpfile');
     pgroup.add_argument('--pgraph', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='pgraph');
 
     try:

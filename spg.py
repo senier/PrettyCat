@@ -390,17 +390,45 @@ class Graph:
         self._id += 1
         return self._id
 
+    def guarantee_info (self):
+
+        G = self.graph
+
+        g_none = set()
+        g_conf = set()
+        g_intg = set()
+        g_both = set()
+
+        for node in G.node:
+            if G.node[node]['kind'] != 'env' and self.has_pid (node):
+                c = G.node[node]['primitive'].guarantees['c']
+                i = G.node[node]['primitive'].guarantees['i']
+                if c and i:
+                    g_both.add (node)
+                elif c:
+                    g_conf.add (node)
+                elif i:
+                    g_intg.add (node)
+                else:
+                    g_none.add (node)
+
+        return ("total: %3.0d none: %3.0d intg: %3.0d conf: %3.0d both: %3.0d" % \
+            (len(G.node), len(g_none), len(g_intg), len(g_conf), len(g_both)))
+
     def partition_info (self):
-        pids  = set()
+
+        G = self.graph
+
+        pids   = set()
         intra = 0
         inter = 0
 
-        for node in self.graph.node:
-            if self.graph.node[node]['kind'] != 'env' and self.has_pid (node):
+        for node in G.node:
+            if G.node[node]['kind'] != 'env' and self.has_pid (node):
                 pids.add (self.get_pnum (node))
 
-        for (parent, child) in self.graph.edges():
-            if self.graph.node[parent]['kind'] == 'env' or self.graph.node[child]['kind'] == 'env':
+        for (parent, child) in G.edges():
+            if G.node[parent]['kind'] == 'env' or G.node[child]['kind'] == 'env':
                 continue
             if self.has_pid (parent) and self.has_pid (child) and self.get_pnum (parent) == self.get_pnum (child):
                 intra += 1
@@ -1750,6 +1778,7 @@ def main():
     libspg.exitval = 0
     if solved:
         G.partition (args.partition, args.merge_const, args.merge_branch, args.concentrate)
+        info  ("Guarantees: " + G.guarantee_info())
         if args.run:
             G.run()
 

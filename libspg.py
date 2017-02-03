@@ -35,43 +35,25 @@ def info (message):
 
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
-
-def decode_data (data):
-    length = int.from_bytes (data[0:4], byteorder='big')
-    if length > len(data) - 4:
-        raise InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
-    return (data[4:4+length], data[4+length:])
-
-def decode_mpi (mpi):
-    (data, remainder) = decode_data (mpi)
-    return (int.from_bytes (data, byteorder='big'), remainder)
-
-def encode_data (data):
-    length = len(data)
-    return length.to_bytes (4, byteorder='big') + data
-
-def encode_mpi (num):
-    length = (num.bit_length() // 8) + 1
-    return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
-
-def decode_pubkey (pubkey):
-
-    keytype = pubkey[0:2]
-    if keytype != b'\x00\x00':
-        raise InvalidData ("Key has invalid type: " + str(keytype))
-
-    (p, pubkey) = decode_mpi (pubkey[2:])
-    (q, pubkey) = decode_mpi (pubkey)
-    (g, pubkey) = decode_mpi (pubkey)
-    (y, pubkey) = decode_mpi (pubkey)
-    return (p, q, g, y, pubkey)
-
+    
 def dump (data):
     if not type(data) is bytes and not type(data) is bytearray:
         return str(data)
     hexstring = ''
     for item in data: hexstring += '%02x' % int(item)
     return "[" + str(len(data)) + "] " + str(hexstring)
+
+class MPI:
+
+    def decode_data (self, data):
+        length = int.from_bytes (data[0:4], byteorder='big')
+        if length > len(data) - 4:
+            raise InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
+        return (data[4:4+length], data[4+length:])
+
+    def decode_mpi (self, mpi):
+        (data, remainder) = self.decode_data (mpi)
+        return (int.from_bytes (data, byteorder='big'), remainder)
 
 class SPG_base:
 
@@ -86,9 +68,6 @@ class SPG_base:
         self.arguments  = attributes['inputs']
 
         self.__sendmethods = None
-
-    # def recvmethods (self, recvmethods):
-    #     self.recv = recvmethods
 
     def set_sendmethods (self, sendmethods):
         self.__sendmethods = sendmethods
@@ -117,9 +96,6 @@ class SPG_thread (threading.Thread):
         self.config     = config
         self.attributes = attributes
         self.arguments  = attributes['inputs']
-
-    # def recvmethods (self, recvmethods):
-    #     self.recv = recvmethods
 
     def set_sendmethods (self, sendmethods):
         self.__sendmethods = sendmethods
@@ -531,7 +507,7 @@ class verify_hmac_out (verify_hmac):
             self.msg  = None
             self.auth = None
 
-class __sig_base (SPG_base):
+class __sig_base (SPG_base, MPI):
 
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes)
@@ -543,9 +519,21 @@ class __sig_base (SPG_base):
 
         self.msg = int.from_bytes (msg, byteorder='big')
 
+    def decode_pubkey (self, pubkey):
+    
+        keytype = pubkey[0:2]
+        if keytype != b'\x00\x00':
+            raise InvalidData ("Key has invalid type: " + str(keytype))
+    
+        (p, pubkey) = self.decode_mpi (pubkey[2:])
+        (q, pubkey) = self.decode_mpi (pubkey)
+        (g, pubkey) = self.decode_mpi (pubkey)
+        (y, pubkey) = self.decode_mpi (pubkey)
+        return (p, q, g, y, pubkey)
+
     def recv_pubkey (self, pubkey):
 
-        (p, q, g, y, dummy) = decode_pubkey (pubkey)
+        (p, q, g, y, dummy) = self.decode_pubkey (pubkey)
         if not p or not q or not g or not y:
             raise Exception ("Invalid pubkey")
 
@@ -743,9 +731,13 @@ class xform_prefix (SPG_xform):
 
 class xform_mpi (SPG_base):
 
+    def encode_mpi (self, num):
+        length = (num.bit_length() // 8) + 1
+        return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
+
     def recv_data (self, data):
         for output in self.attributes['outputs']:
-            self.send (output, encode_mpi (data))
+            self.send (output, self.encode_mpi (data))
 
 class xform_data (SPG_base):
 
@@ -771,16 +763,20 @@ class xform_split (SPG_xform):
         self.send ('left', data[0:middle])
         self.send ('right', data[middle:])
 
-class xform_unmpi (SPG_base):
+class xform_unmpi (SPG_base, MPI):
 
     def recv_data (self, data):
-        (mpi, unused) = decode_mpi (data)
+        (mpi, unused) = self.decode_mpi (data)
         self.send ('data', mpi)
 
 class xform_serialize (SPG_base):
 
+    def encode_data (data):
+        length = len(data)
+        return length.to_bytes (4, byteorder='big') + data
+
     def recv_data (self, data):
-        self.send ('data', encode_data (data))
+        self.send ('data', self.encode_data (data))
 
 class env_print (SPG_base):
 

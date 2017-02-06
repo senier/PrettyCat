@@ -10,22 +10,6 @@ from Crypto import Random
 exitval = 0
 quiet = 0
 
-class NotImplemented (Exception):
-    def __init__ (self, text):
-        Exception.__init__(self, "Not implemented: " + text)
-
-class InvalidConfiguration (Exception):
-    def __init__ (self, text):
-        Exception.__init__(self, "Invalid configuration: " + text)
-
-class InvalidArgument (Exception):
-    def __init__ (self, text):
-        Exception.__init__(self, "Invalid argument: " + text)
-
-class InvalidData (Exception):
-    def __init__ (self, text):
-        Exception.__init__(self, text)
-
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
@@ -43,7 +27,27 @@ def dump (data):
     for item in data: hexstring += '%02x' % int(item)
     return "[" + str(len(data)) + "] " + str(hexstring)
 
+class NotImplemented (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Not implemented: " + text)
+
+class InvalidConfiguration (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Invalid configuration: " + text)
+
+class InvalidArgument (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, "Invalid argument: " + text)
+
+class InvalidData (Exception):
+    def __init__ (self, text):
+        Exception.__init__(self, text)
+
 class MPI:
+
+    def encode_mpi (self, num):
+        length = (num.bit_length() // 8) + 1
+        return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
 
     def decode_data (self, data):
         length = int.from_bytes (data[0:4], byteorder='big')
@@ -78,7 +82,10 @@ class SPG_base:
     def send (self, argument, data):
         info ("S: " + self.name + "/" + argument)
         info ("      " + dump(data))
-        self.__sendmethods[argument] (data)
+        try:
+            self.__sendmethods[argument] (data)
+        except:
+            raise InvalidConfiguration (self.name + " has no outgoing port '" + argument + "'")
 
     def start (self): pass
     def join (self): pass
@@ -180,9 +187,6 @@ class counter_mode (SPG_base):
 
         self.ctr = None
         self.key = None
-
-def pad (data, blocksize):
-    return data + (blocksize - len (data) % blocksize) * b'0'
 
 class encrypt (counter_mode):
 
@@ -547,26 +551,47 @@ class sign (__sig_base):
         self.privkey = None
         self.pubkey  = None
         self.rand    = None
+        self.msg     = None
 
     def sign_if_valid (self):
-        if self.privkey != None and self.pubkey and self.msg != None and self.rand != None:
-            key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
 
-            K = int.from_bytes (self.rand, byteorder='big')
-            if K < 2 or K > key.q:
-                warn ("Invalid K")
-                return
+        if not self.privkey:
+            warn ("No private key")
+            return
 
-            (intr, ints) = key.sign (self.msg, self.rand)
-            r = intr.to_bytes(20, byteorder='big')
-            s = ints.to_bytes(20, byteorder='big')
-            self.send ('auth', r + s)
+        if not self.pubkey:
+            warn ("No public key")
+            return
 
-            print ("Signature: " + dump(r + s))
-            print ("   " + dump (hex(self.msg)))
+        if not self.msg:
+            warn ("No message")
+            return
 
-            self.msg  = None
-            self.rand = None
+        if not self.rand:
+            warn ("No random")
+            return
+
+        key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
+        err ("p: " + str(self.pubkey.p))
+        err ("q: " + str(self.pubkey.q))
+        err ("g: " + str(self.pubkey.g))
+        err ("y: " + str(self.pubkey.y))
+
+        K = int.from_bytes (self.rand, byteorder='big')
+        if K < 2 or K > key.q:
+            warn ("Invalid K")
+            return
+
+        (intr, ints) = key.sign (self.msg, self.rand)
+        r = intr.to_bytes(20, byteorder='big')
+        s = ints.to_bytes(20, byteorder='big')
+        self.send ('auth', r + s)
+
+        print ("Signature: " + dump(r + s))
+        print ("   " + dump (hex(self.msg)))
+
+        self.msg  = None
+        self.rand = None
 
     def recv_privkey (self, privkey):
         self.privkey = int.from_bytes (privkey, byteorder='big')
@@ -729,11 +754,7 @@ class xform_prefix (SPG_xform):
         for send_data in self.sendmethods():
             self.send (send_data, bytes(self.args['recv_data'])[0:length])
 
-class xform_mpi (SPG_base):
-
-    def encode_mpi (self, num):
-        length = (num.bit_length() // 8) + 1
-        return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
+class xform_mpi (SPG_base, MPI):
 
     def recv_data (self, data):
         for output in self.attributes['outputs']:
@@ -771,7 +792,7 @@ class xform_unmpi (SPG_base, MPI):
 
 class xform_serialize (SPG_base):
 
-    def encode_data (data):
+    def encode_data (self, data):
         length = len(data)
         return length.to_bytes (4, byteorder='big') + data
 
@@ -781,4 +802,36 @@ class xform_serialize (SPG_base):
 class env_print (SPG_base):
 
     def recv_data (self, data):
-        print (self.name + ": " + str (data))
+        info (self.name + ": " + dump (data))
+
+class env_file (SPG_base):
+
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes, True)
+
+        if not 'source' in config.attrib:
+            raise InvalidConfiguration ("No file configured")
+
+    def run(self):
+        with open (self.config.attrib['source']) as f:
+            self.send ('data', f.read())
+
+class env_const (SPG_base):
+
+    def __init__ (self, name, config, attributes):
+        super().__init__ (name, config, attributes, True)
+
+        err ("Env const")
+
+        if not 'hexbytes' in config.attrib:
+            raise InvalidConfiguration ("No hexbytes configured for env_const")
+
+        try:
+            self.value = bytearray.fromhex(self.config.attrib['hexbytes'])
+        except ValueError:
+            warn ("Invalid hex value for " + name + " (" + self.config.attrib['hexbytes'] + ")")
+            raise
+
+    def start (self):
+        err ("SENDING ENV CONST")
+        self.send ('data', self.value)

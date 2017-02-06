@@ -3,19 +3,21 @@ from libspg import info, warn, err
 import base64
 import re
 
-def parse_data (data):
-    result['protocol_version']     = int.form_bytes(data[0:2],   byteorder='big')
-    result['message_type']         = int.form_bytes(data[2:3],   byteorder='big')
-    result['sender_instance']      = int.form_bytes(data[3:7],   byteorder='big')
-    result['receiver_instance']    = int.form_bytes(data[7:11],  byteorder='big')
-    result['flags']                = data[11:12]
-    result['sender_keyid']         = int.form_bytes(data[12:16], byteorder='big')
-    result['recipient_keyid']      = int.form_bytes(data[16:20], byteorder='big')
-    (result['dh_y'], rest)         = libspg.decode_mpi (data[20:])
-    result['counter']              = int.from_byates(rest[0:8], byteorder='big')
-    (result['enc_data'], rest)     = decode_data (rest[8:])
-    result['mac']                  = rest[0:20]
-    return result
+class Data_parser (libspg.MPI):
+
+    def parse_data (self, data):
+        result['protocol_version']     = int.form_bytes(data[0:2],   byteorder='big')
+        result['message_type']         = int.form_bytes(data[2:3],   byteorder='big')
+        result['sender_instance']      = int.form_bytes(data[3:7],   byteorder='big')
+        result['receiver_instance']    = int.form_bytes(data[7:11],  byteorder='big')
+        result['flags']                = data[11:12]
+        result['sender_keyid']         = int.form_bytes(data[12:16], byteorder='big')
+        result['recipient_keyid']      = int.form_bytes(data[16:20], byteorder='big')
+        (result['dh_y'], rest)         = self.decode_mpi (data[20:])
+        result['counter']              = int.from_byates(rest[0:8], byteorder='big')
+        (result['enc_data'], rest)     = decode_data (rest[8:])
+        result['mac']                  = rest[0:20]
+        return result
 
 class not_implemented (libspg.SPG_base):
 
@@ -31,10 +33,10 @@ class xform_ake_state (libspg.SPG_base):
     def recv_initiator_state (self, state):
         self.send ('encrypted', state)
 
-class xform_data_r (libspg.SPG_base):
+class xform_data_r (libspg.SPG_base, Data_parser):
 
     def recv_data (self, data):
-        parsed = parse_data (data)
+        parsed = self.parse_data (data)
 
         self.send ('protocol_version', parsed['protocol_version'])
         self.send ('message_type', parsed['message_type'])
@@ -69,7 +71,7 @@ class xform_data_s (libspg.SPG_xform):
              self.args['authenticator'] + \
              self.args['old_mac_keys'])
 
-class xform_derive_keys (libspg.SPG_base):
+class xform_derive_keys (libspg.SPG_base, libspg.MPI):
 
     def _send_ssec (self, ssecmpi):
         self.send ('secbytes#1', ssecmpi)
@@ -80,18 +82,18 @@ class xform_derive_keys (libspg.SPG_base):
         self.send ('secbytes#6', ssecmpi)
 
     def recv_responder_ssec (self, ssec):
-        ssecmpi = libspg.encode_mpi (ssec)
+        ssecmpi = self.encode_mpi (ssec)
         self._send_ssec (ssecmpi)
 
     def recv_initiator_ssec (self, ssec):
-        ssecmpi = libspg.encode_mpi (ssec)
+        ssecmpi = self.encode_mpi (ssec)
         self._send_ssec (ssecmpi)
 
-class xform_dh_commit_r (libspg.SPG_base):
+class xform_dh_commit_r (libspg.SPG_base, libspg.MPI):
 
     def recv_dhcm (self, dhcm):
         # hashed_gx should exactly be the remainder from extracting encrypted g^x DATA
-        (encrypted_gx, hashed_gx) = decode_data (dhcm)
+        (encrypted_gx, hashed_gx) = self.decode_data (dhcm)
         self.send ('encrypted_g^x', encrypted_gx)
         self.send ('hashed_g^x', hashed_gx)
 
@@ -213,18 +215,18 @@ class xform_reveal_old_mac_keys (libspg.SPG_xform):
     def finished (self, data):
         error ("Revealing old MAC keys not implemented")
 
-class xform_reveal_signature_r (libspg.SPG_base):
+class xform_reveal_signature_r (libspg.SPG_base, libspg.MPI):
 
     def recv_rvsm (self, rvsm):
-        (revealed_key, rest)                 = libspg.decode_data (rvsm)
-        (encrypted_signature, mac_signature) = libspg.decode_data (rest)
+        (revealed_key, rest)                 = self.decode_data (rvsm)
+        (encrypted_signature, mac_signature) = self.decode_data (rest)
 
         self.send ('revealed_key', revealed_key)
         self.send ('encrypted_signature#1', encrypted_signature)
         self.send ('encrypted_signature#2', encrypted_signature)
         self.send ('macd_signature', macd_signature)
 
-class xform_select_pubkeys (libspg.SPG_base):
+class xform_select_pubkeys (libspg.SPG_base, libspg.MPI):
 
     def __init__ (self, name, config, arguments):
         super().__init__ (name, config, arguments)
@@ -232,18 +234,22 @@ class xform_select_pubkeys (libspg.SPG_base):
         self.current_local       = None
         self.previous_local      = None
         self.local_keyid         = 0
+        self.latest_local_keyid  = 0
+
         self.current_remote      = None
         self.remote_keyid        = None
         self.latest_remote_keyid = None
-        self.latest_local_keyid  = None
 
     def check_send_pubkey (self):
 
-        if not self.current_local or \
-            not self.local_keyid or \
-            not self.remote_keyid or \
-            not self.latest_remote_keyid or \
-            not self.latest_local_keyid:
+        info ("Checking pubkey")
+
+        if self.current_remote == None:
+            info ("No remote key!")
+            return
+
+        if self.current_local == None:
+            info ("No local key!")
             return
 
         if self.latest_local_keyid == self.local_keyid:
@@ -251,7 +257,7 @@ class xform_select_pubkeys (libspg.SPG_base):
         elif self.latest_local_keyid == self.local_keyid - 1:
             self.send ('current_pubkey', self.previous_local)
         else:
-            error ("No local pubkey")
+            err ("No local pubkey")
             return
 
         # send current local keyid
@@ -286,17 +292,17 @@ class xform_select_pubkeys (libspg.SPG_base):
         self.check_send_pubkey()
 
     def recv_initiator_pub_remote (self, pub):
-        self.current_remote = pub
+        (self.current_remote, unused) = self.decode_mpi(pub)
         self.remote_keyid   = 1
         self.check_send_pubkey()
 
     def recv_responder_pub_remote (self, pub):
-        self.current_remote = pub
+        (self.current_remote, unused) = self.decode_mpi(pub)
         self.remote_keyid   = 1
         self.check_send_pubkey()
 
     def recv_pub_remote (self, pub):
-        self.current_remote = pub
+        (self.current_remote, unused) = self.decode_mpi(pub)
         self.check_send_pubkey()
 
     def recv_latest_local_keyid (self, keyid):
@@ -330,21 +336,21 @@ class xform_select_secret_key (libspg.SPG_base):
     def recv_current_keyid (self, keyid):
         self.current_keyid = keyid
 
-class xform_signature_r (libspg.SPG_base):
+class xform_signature_r (libspg.SPG_base, libspg.MPI):
 
     def recv_sigm (self, sigm):
-        (encrypted_sig, macd_signature) = decode_data (sigm)
+        (encrypted_sig, macd_signature) = self.decode_data (sigm)
         self.send ('encrypted_signature', encrypted_sig)
         self.send ('macd_signature', macd_signature)
 
-class xform_split_x (libspg.SPG_base):
+class xform_split_x (libspg.SPG_base, libspg.MPI):
 
     def recv_data (self, data):
         pubkey_type = int.from_bytes (data[0:4], byteorder='big')
         if (pubkey_type != 0):
             raise Exception ("Unsupported pubkey type " + str (pubkey_type))
 
-        (pubkey, rest) = libspg.decode_pubkey (data[4:])
+        (pubkey, rest) = self.decode_pubkey (data[4:])
         keyid = int.from_byte (rest[0:4], byteorder='big')
         sig = rest[4:45]
 
@@ -353,7 +359,7 @@ class xform_split_x (libspg.SPG_base):
         self.send ('signature', sig)
         self.send ('keyid', keyid)
 
-class xform_verify_counter (libspg.SPG_base):
+class xform_verify_counter (libspg.SPG_base, Data_parser):
 
     def __init__ (self, name, config, arguments):
         super().__init__ (name, config, arguments)
@@ -363,7 +369,7 @@ class xform_verify_counter (libspg.SPG_base):
         self.last_sender_keyid    = 0
 
     def recv_data (self, data):
-        parsed = parse_data (data)
+        parsed = self.parse_data (data)
 
         # recipient_keyid must be monotonic
         if parsed['recipient_keyid'] < self.last_recipient_keyid:

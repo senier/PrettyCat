@@ -19,8 +19,9 @@ sig = key.sign(h,k)
 
 if key.verify(h,sig):
     print ("Input:   " + ''.join('{:02x}'.format(x) for x in h))
-    print ("Params:  " + mpi(key.p) + mpi(key.q) + mpi(key.g) + mpi(key.y))
+    print ("Params:  " + format (0, '04x') + mpi(key.p) + mpi(key.q) + mpi(key.g) + mpi(key.y))
     print ("Private: " + str (hex (key.x))[2:])
     print ("Sig:     " + str (hex(sig[0])[2:]) + str (hex(sig[1])[2:]))
+    print ("(Import using xxd -p -r - output_file.dat)")
 else:
     print ("Incorrect signature")

@@ -218,6 +218,8 @@ class PrimitiveNotImplemented (Exception):
     def __init__ (self, kind):
         Exception.__init__(self, "No implementation for primitive '" + kind + "'")
 
+class InternalError (Exception): pass
+
 def jdefault (o):
     return None
 
@@ -232,6 +234,7 @@ class Graph:
         self._pmap      = {}
         self._pnum      = 0
         self._id        = 0
+        self.unsat      = None
 
         # Create primitive objects
         for node in graph.nodes():
@@ -279,6 +282,43 @@ class Graph:
 
         return success
 
+    def mark_expression (self, uc):
+        if is_and (uc) or is_or (uc):
+            for idx in range (0, uc.num_args()):
+                self.mark_expression (uc.arg(idx))
+        elif is_eq(uc):
+            self.mark_expression (uc.arg(0))
+            self.mark_expression (uc.arg(1))
+        elif is_not(uc):
+            self.mark_expression (uc.arg(0))
+        elif is_const(uc):
+
+            var = str(uc)
+            (name, inout, arg, kind) = var.split ('>')
+
+            if self.unsat == None:
+                self.unsat = {}
+
+            if not name in self.unsat:
+                self.unsat[name] = {}
+
+            if not inout in self.unsat[name]:
+                self.unsat[name][inout] = {}
+
+            if not arg in self.unsat[name][inout]:
+                self.unsat[name][inout][arg] = {}
+
+            self.unsat[name][inout][arg][kind] = True
+
+        else:
+            raise Exception ("Unhandled expression: " + str(uc))
+
+    def safe_unsat_core (self, unsat_core):
+
+        self.mark_expression (simplify (And (unsat_core)))
+        info ("Full, simplified unsat core:")
+        info (latex_expression (None, simplify (And (unsat_core))))
+
     def analyze (self, dumpfile):
 
         solver = SPG_Solver()
@@ -294,9 +334,9 @@ class Graph:
             cig = self.graph.node[child]['primitive'].input.guarantees()
             darg = data['darg']
             sarg = data['sarg']
-            channel = "CHNL#" + parent + "/" + sarg + " -> " + child + "/" + darg
-            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + "#conf")
-            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + "#intg")
+            channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
+            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
+            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
 
         # Dump all rules if requested
         if dumpfile:
@@ -316,11 +356,11 @@ class Graph:
                     f.write ("R &= " + latex_expression (None, a.arg(1), 0, 0) + " \n")
                     f.write ("\\end{align*}\n")
                     caption = str(a.arg(0))
-                    caption = re.sub ('ASSERT#RULE#', 'Rule: ', caption)
-                    caption = re.sub ('ASSERT#CHNL#', 'Channel: ', caption)
+                    caption = re.sub ('ASSERT>RULE>', 'Rule: ', caption)
+                    caption = re.sub ('ASSERT>CHNL>', 'Channel: ', caption)
                     caption = re.sub ('_', '\_', caption)
                     caption = re.sub ('\^', '\^ ', caption)
-                    caption = re.sub ('#', '\#', caption)
+                    caption = re.sub ('>', '\>', caption)
                     caption = re.sub ('->', '$\\\\rightarrow{}$', caption)
                     f.write ("\\caption{" + caption + "}\n")
                     f.write ("\\end{figure}\n")
@@ -354,7 +394,7 @@ class Graph:
             return result
 
         else:
-            solver.mark_unsat_core(self.graph)
+            self.safe_unsat_core(solver.unsat_core())
 
             # We expect a failure - exit without error
             if self.fail:
@@ -654,6 +694,23 @@ class Graph:
             cg = G.node[child]['primitive'].input.guarantees()[darg]
             set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
+        # Make unsat core if present
+        if self.unsat:
+            for node in self.unsat:
+                intg = False
+                conf = False
+                if 'input' in self.unsat[node]:
+                    for arg in self.unsat[node]['input']:
+                        a = self.unsat[node]['input'][arg]
+                        intg |= 'intg' in a
+                        conf |= 'conf' in a
+                if 'output' in self.unsat[node]:
+                    for arg in self.unsat[node]['output']:
+                        intg |= 'intg' in a
+                        conf |= 'conf' in a
+
+                set_style (G.node[node], intg, conf, 'dashed' if intg or conf else 'filled')
+
         self.pd = nx.drawing.nx_pydot.to_pydot(self.graph)
 
     def write (self, out):
@@ -750,22 +807,23 @@ class Graph:
 
         info ("in_c: " + str(in_c) + " in_i: " + str(in_i) + " out_c: " + str(out_c) + " out_i: " + str(out_i))
 
-        partitions = {}
-        for (parent, child, data) in G.edges(data=True):
-            spart = self.get_pnum(parent)
-            dpart = self.get_pnum(child)
-            if spart != dpart and G.node[parent]['kind'] != 'env' and G.node[child]['kind'] != 'env':
-                if not spart in partitions:
-                    partitions[spart] = {}
-                if not dpart in partitions[spart]:
-                    partitions[spart][dpart] = []
-                partitions[spart][dpart].append ((parent, data['sarg'], child, data['darg']))
+        if args.partition:
+            partitions = {}
+            for (parent, child, data) in G.edges(data=True):
+                spart = self.get_pnum(parent)
+                dpart = self.get_pnum(child)
+                if spart != dpart and G.node[parent]['kind'] != 'env' and G.node[child]['kind'] != 'env':
+                    if not spart in partitions:
+                        partitions[spart] = {}
+                    if not dpart in partitions[spart]:
+                        partitions[spart][dpart] = []
+                    partitions[spart][dpart].append ((parent, data['sarg'], child, data['darg']))
 
-        for spart in partitions:
-            for dpart in partitions[spart]:
-                print ("%2.2d -> %2.2d:" % (spart, dpart))
-                for (parent, sport, child, dport) in partitions[spart][dpart]:
-                    print ("   %s/%s -> %s/%s" % (parent, sport, child, dport))
+            for spart in partitions:
+                for dpart in partitions[spart]:
+                    print ("%2.2d -> %2.2d:" % (spart, dpart))
+                    for (parent, sport, child, dport) in partitions[spart][dpart]:
+                        print ("   %s/%s -> %s/%s" % (parent, sport, child, dport))
 
     def run (self):
 
@@ -907,7 +965,7 @@ class Args:
         self._name   = name
 
     def add_guarantee (self, name):
-        self.__dict__.update (**{name: Guarantees (self._name + "#" + name)})
+        self.__dict__.update (**{name: Guarantees (self._name + ">" + name)})
 
     def guarantees (self):
         return { k: v for k, v in self.__dict__.items() if not k.startswith("_") }
@@ -915,12 +973,12 @@ class Args:
 class Input_Args (Args):
 
     def __init__ (self, name):
-        super().setup (name + "#input")
+        super().setup (name + ">input")
 
 class Output_Args (Args):
 
     def __init__ (self, name):
-        super().setup (name + "#output")
+        super().setup (name + ">output")
 
 class SPG_Solver_Base:
 
@@ -939,40 +997,24 @@ class SPG_Solver (SPG_Solver_Base):
         self.solver = Solver()
         self.assert_db = {}
         self.solver.set(unsat_core=True)
-        self.constraints = {}
+        self.unsat = None
+
+    def unsat_core (self):
+        unsat_core = []
+        for p in self.solver.unsat_core():
+            unsat_core.append (simplify (self.assert_db[str(p)]))
+        return unsat_core
 
     def assert_and_track (self, condition, name):
 
         if (condition == None):
             return
 
-        key = "ASSERT#" + str(name)
+        key = "ASSERT>" + str(name)
         if key in self.assert_db:
             raise InconsistentRule (name, "Already present")
         self.assert_db[key] = condition
         self.solver.assert_and_track (condition, key)
-
-    def mark_expression (self, G, uc):
-        if is_and (uc) or is_or (uc):
-            for idx in range (0, uc.num_args()):
-                self.mark_expression (G, uc.arg(idx))
-        elif is_eq(uc):
-            self.mark_expression (G, uc.arg(0))
-            self.mark_expression (G, uc.arg(1))
-        elif is_not(uc):
-            self.mark_expression (G, uc.arg(0))
-        elif is_const(uc):
-            self.constraints[str(uc)] = True
-        else:
-            raise Exception ("Unhandled expression: " + str(uc))
-
-    def mark_unsat_core (self, G):
-        unsat_core = []
-        for p in self.solver.unsat_core():
-            unsat_core.append (simplify (self.assert_db[str(p)]))
-        self.mark_expression (G, simplify (And (unsat_core)))
-        info ("Full, simplified unsat core:")
-        info (str(simplify (And (unsat_core))))
 
 class Guarantees:
 
@@ -987,8 +1029,8 @@ class Guarantees:
         # Z3 variables representing confidentiality and
         # integrity within the solver. These values are
         # used in the rules.
-        self.__c   = Bool(name + "#conf")
-        self.__i   = Bool(name + "#intg")
+        self.__c   = Bool(name + ">conf")
+        self.__i   = Bool(name + ">intg")
 
         # The actual boolean value. This is filled in from
         # a valid model found by the solver
@@ -1093,7 +1135,7 @@ class Primitive:
 
 
     def populate (self, solver):
-        solver.assert_and_track (And (self.rule), "RULE#" + self.name)
+        solver.assert_and_track (And (self.rule), "RULE>" + self.name)
 
     def prove (self, solver):
         self.populate (solver)
@@ -1654,10 +1696,10 @@ def parse_graph (inpath):
     info (str(len(mdg.node)) + " nodes.")
     return Graph (mdg, code, assert_fail)
 
-def set_style (o, c, i):
+def set_style (o, c, i, style = None):
 
-    #if c == None or i == None:
-    #    o['style'] = "dashed"
+    if style:
+        o['style'] = style
 
     if (c and i):
         o['color'] = "purple"
@@ -1722,30 +1764,30 @@ def latex_expression (prefix, exp, level = 0, label = 1):
             invar  = False
             outvar = False
 
-            (pr, var) = var.split('#', 1)
+            (pr, var) = var.split('>', 1)
 
             if prefix != None and pr != prefix:
                 raise Exception ("Invalid variable " + var + ": does not start with prefix " + prefix)
 
-            if var.endswith ("#intg"):
+            if var.endswith (">intg"):
                 intg = True
-            elif var.endswith ("#conf"):
+            elif var.endswith (">conf"):
                 conf = True
             else:
                 raise Exception ("Invalid variable " + var + ": neither integrity nor confidentiality")
             var = var[:-5]
 
-            if var.startswith ("input#"):
+            if var.startswith ("input>"):
                 invar = True
                 var = var[6:]
-            elif var.startswith ("output#"):
+            elif var.startswith ("output>"):
                 outvar = True
                 var = var[7:]
             else:
                 raise Exception ("Invalid variable " + var + ": neither input nor output")
 
             var = var.capitalize()
-            var = re.sub ('#', '\#', var)
+            var = re.sub ('>', '\>', var)
             var = re.sub ('_', '\_', var)
 
             if invar:  var = "\\invar{" + var + "}"

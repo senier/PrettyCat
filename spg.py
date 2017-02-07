@@ -726,6 +726,7 @@ class Graph:
 
     def statistics (self):
 
+        G = self.graph
         out_i = 0
         out_c = 0
         in_i = 0
@@ -748,6 +749,23 @@ class Graph:
                 in_i = in_i + 1
 
         info ("in_c: " + str(in_c) + " in_i: " + str(in_i) + " out_c: " + str(out_c) + " out_i: " + str(out_i))
+
+        partitions = {}
+        for (parent, child, data) in G.edges(data=True):
+            spart = self.get_pnum(parent)
+            dpart = self.get_pnum(child)
+            if spart != dpart and G.node[parent]['kind'] != 'env' and G.node[child]['kind'] != 'env':
+                if not spart in partitions:
+                    partitions[spart] = {}
+                if not dpart in partitions[spart]:
+                    partitions[spart][dpart] = []
+                partitions[spart][dpart].append ((parent, data['sarg'], child, data['darg']))
+
+        for spart in partitions:
+            for dpart in partitions[spart]:
+                print ("%2.2d -> %2.2d:" % (spart, dpart))
+                for (parent, sport, child, dport) in partitions[spart][dpart]:
+                    print ("   %s/%s -> %s/%s" % (parent, sport, child, dport))
 
     def run (self):
 
@@ -1782,12 +1800,11 @@ def main():
         if args.run:
             G.run()
 
+    G.statistics()
     G.write (args.output[0])
 
     if args.partition and args.pgraph:
         G.dump_partitions(args.pgraph[0])
-
-    G.statistics()
 
     sys.exit (libspg.exitval if solved else 1)
 

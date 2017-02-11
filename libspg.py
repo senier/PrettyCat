@@ -559,26 +559,22 @@ class sign (__sig_base):
     def sign_if_valid (self):
 
         if not self.privkey:
-            warn ("No private key")
             return
 
         if not self.pubkey:
-            warn ("No public key")
             return
 
         if not self.msg:
-            warn ("No message")
             return
 
         if not self.rand:
-            warn ("No random")
             return
 
         key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-        err ("p: " + str(self.pubkey.p))
-        err ("q: " + str(self.pubkey.q))
-        err ("g: " + str(self.pubkey.g))
-        err ("y: " + str(self.pubkey.y))
+        warn ("p: " + dump(hex(self.pubkey.p)))
+        warn ("q: " + dump(hex(self.pubkey.q)))
+        warn ("g: " + dump(hex(self.pubkey.g)))
+        warn ("y: " + dump(hex(self.pubkey.y)))
 
         K = int.from_bytes (self.rand, byteorder='big')
         if K < 2 or K > key.q:

@@ -1807,14 +1807,17 @@ def latex_expression (prefix, exp, level = 0, label = 1):
 
 def dump_primitive_rules (filename):
 
+    rules = []
+    for primitive_class in Primitive.__subclasses__():
+        name = primitive_class.__name__[10:]
+        if not name in ['env', 'xform', 'const']:
+            p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
+            n = name.replace ("_", '')
+            rules.append ("\\newcommand{\\" + n + "rule}{" + latex_expression(name, And (p.rule), 0, 1) + "}" + "\n")
+            rules.append ("\\newcommand{\\" + n + "rulenolabel}{" + latex_expression(name, And (p.rule), 0, 0) + "}" + "\n")
+
     with open (filename, 'w') as outfile:
-        for primitive_class in Primitive.__subclasses__():
-            name = primitive_class.__name__[10:]
-            if not name in ['env', 'xform', 'const']:
-                p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
-                n = name.replace ("_", '') 
-                outfile.write ("\\newcommand{\\" + n + "rule}{" + latex_expression(name, And (p.rule), 0, 1) + "}" + "\n")
-                outfile.write ("\\newcommand{\\" + n + "rulenolabel}{" + latex_expression(name, And (p.rule), 0, 0) + "}" + "\n")
+        for r in sorted(rules): outfile.write (r)
 
 def main():
 

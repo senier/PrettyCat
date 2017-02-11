@@ -1883,9 +1883,10 @@ def main():
         G.dump_partitions(args.pgraph[0])
 
     # This is just for comparison of graph statics
-    G.merge_all()
+    if args.verbose:
+        G.merge_all()
+        G.trace_info()
 
-    G.trace_info()
     sys.exit (libspg.exitval if solved else 1)
 
 if __name__ == "__main__":

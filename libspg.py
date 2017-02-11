@@ -810,8 +810,6 @@ class env_const (SPG_base):
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes, True)
 
-        err ("Env const")
-
         if not 'hexbytes' in config.attrib:
             raise InvalidConfiguration ("No hexbytes configured for env_const")
 
@@ -822,5 +820,4 @@ class env_const (SPG_base):
             raise
 
     def start (self):
-        err ("SENDING ENV CONST")
         self.send ('data', self.value)

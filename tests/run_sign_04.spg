@@ -3,30 +3,65 @@
 
     <const id="Public key">
         <description>
-            Pulic DSA key
+            Public DSA key
         </description>
-        <config hexbytes="00000000008080000000000000229cac14cdce2a3370141d0e1dcb8fa5820c4b0cd9994d33f5baca6e611eed7acf7b294260021ca6b01fa59c48c1d0ef052029a6a85513c35a7c5a6cd08da7c0b30dee2369f2599731e1431d1b84630708ce0ed251e7053b6176290f4c8f4bac08254b5f6ccd04b56147701823b679c6c81ff328d9ee8d2fe700000014f15bc6eaad1f0f58fcae7530c4ada70371ac70c100000080359280e0063ebe9ece613207c4ef294abe082ae40c72b9c87f9ca88a2e8b0a7ad69db512bfb63bb155797ea6884e3ab82d40fff9cb8f028e520dbf0a9f902f4c02cd670aea11531f071477ce777f37b84e3b4b1ed7f661466cf585c62511f7a636c1a22bd4cb82ed6cdf507b9f7071779eed21d59e2685b40162790fe1e5b4ab000000805b1b255518e3a6edda4ff34301fc875e9071f53c6f651b4539321e63c2f58296271f8c45080131baf6f66688be6c0e9223f3a2d641ad047fafbfb2851e517046df3d4527e9e23bd5d5753696c782a8b984cf12a76dbb9fab8e2649d3d5caeda69a720daa18728a5f28c764ada5d33ee9cd1e303581af26e60f186018f7cd25b6"/>
-        <flow sarg="const" sink="Verify sig" darg="pubkey"/>
+        <config hexbytes="00000000008080000000000000050374cab7f3cbf7c8e62dcd2660223605e1345075ee3f2d8d3dc596af0baa8b524c641ebf18ebe97c8de94c752541b642c358e1c8ef1d9c240eadc03cb95ce93ae4ab8714ee508f967a0c50e9c860c8ef02487ff2708759f22e8a24386768d043f09ba677e9b7c01f1085d2c1edbe9097439984eb6c4420ed00000014f805a53bec9c5ef25844b153a4429efad3a4d2b9000000806a0d26c388a10f6da66228fd8f763312ede510e15e45b5a6f21a2cd93bac428470138789502ee715a961efa83c5e99030eb1d1ae3c28759590e1c6283dde0f728b626cd967df5f377ad11aa8c88dd33ce86e1c5bad0a397754d7a1462cb46daa397987e73ebbc6dd442e89283679a8132e445056e50c26ee50bf45798d8b85100000008011e051c366d80b93607d9dc8bd1d92ef2c22f574ebcacf3c314b533f830d5c079d77501e85b88e7ffd2152689067f638bca9436fff3173d162401c8888d301841ea7bda1f2a1afa6c170f27ce1644c8d7ada8cf88cfac7e9f82326d25114f053901e0ae401fe3fb4b550b01e54ee8bda722593ce19fc242816cd409efe8f90ab"/>
+        <flow sarg="const" sink="Branch public key" darg="data"/>
     </const>
+
+    <xform id="Branch public key" code="branch">
+        <description>
+            Branch public key to sign/verify
+        </description>
+        <flow sarg="data#1" sink="Sign" darg="pubkey"/>
+        <flow sarg="data#2" sink="Verify sig" darg="pubkey"/>
+        <arg name="data"/>
+    </xform>
+
+    <env id="Private key" code='const'>
+        <description>
+            Private DSA key
+        </description>
+        <config hexbytes="128ef01d97e4ca1004276693c12cde058cd32eb2"/>
+        <flow sarg="data" sink="Sign" darg="privkey"/>
+    </env>
 
     <const id="Message">
         <description>
             Input message
         </description>
         <config hexbytes="f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0"/>
-        <flow sarg="const" sink="Verify sig" darg="msg"/>
+        <flow sarg="const" sink="Branch message" darg="data"/>
     </const>
 
-    <const id="Signature">
+    <xform id="Branch message" code="branch">
         <description>
-            Signature
+            Branch message for sign/verify components
         </description>
-        <!-- First nibble changed from 5 to 4: Must fail! -->
-        <config hexbytes="490e973a228fb2db61a326a0650f9b1f60c7de77dc21e4decc7131f210eb1cf5704c6e3ecafaa840"/>
-        <flow sarg="const" sink="Verify sig" darg="auth"/>
-    </const>
+        <flow sarg="data#1" sink="Sign" darg="msg"/>
+        <flow sarg="data#2" sink="Verify sig" darg="msg"/>
+        <arg name="data"/>
+    </xform>
 
-    <env id="Verify sig" code="verify_sig_ext">
+    <env id="K" code="const">
+        <description>
+            "Random" K - Only for testing. Normally this must be
+            a random number between [1, q-1] for which the attacker
+            does not know the value of any bit.
+        </description>
+        <config hexbytes="ff"/>
+        <flow sarg="data" sink="Sign" darg="rand"/>
+    </env>
+
+    <sign id="Sign">
+        <description>
+            Sign message
+        </description>
+        <flow sarg="auth" sink="Verify sig" darg="auth"/>
+    </sign>
+
+
+    <env id="Verify sig" code="verify_sig_ext" confidentiality="true">
         <description>
             Compare generated signature using external tool
         </description>

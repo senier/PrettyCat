@@ -51,7 +51,7 @@ tests/%.svg: tests/%.spg spg.py
 
 tests/%.test: tests/%.spg spg.py
 	@echo "=== Testing $<"
-	-@./spg.py $(filter-out --partition, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
+	-@./spg.py $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
 	-@mv tests/$*.FAILED.svg $@
 
 tests/%.dot:: tests/%.spg spg.py

@@ -721,6 +721,7 @@ class Graph:
                         conf |= 'conf' in a
                 if 'output' in self.unsat[node]:
                     for arg in self.unsat[node]['output']:
+                        a = self.unsat[node]['output'][arg]
                         intg |= 'intg' in a
                         conf |= 'conf' in a
 

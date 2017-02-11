@@ -235,6 +235,7 @@ class Graph:
         self._pnum      = 0
         self._id        = 0
         self.unsat      = None
+        self.tracelog   = []
 
         # Create primitive objects
         for node in graph.nodes():
@@ -259,6 +260,69 @@ class Graph:
 
     def graph (self):
         return self.graph
+
+    def trace_partition (self, tag):
+
+        G = self.graph
+
+        pids   = set()
+        intra  = 0
+        inter  = 0
+        g_none = set()
+        g_conf = set()
+        g_intg = set()
+        g_both = set()
+
+
+        for node in G.node:
+            if G.node[node]['kind'] != 'env':
+
+                if self.has_pid (node):
+                    pids.add (self.get_pnum (node))
+                else:
+                    pids.add (node)
+
+                c = G.node[node]['primitive'].guarantees['c']
+                i = G.node[node]['primitive'].guarantees['i']
+                if c and i:
+                    g_both.add (node)
+                elif c:
+                    g_conf.add (node)
+                elif i:
+                    g_intg.add (node)
+                else:
+                    g_none.add (node)
+
+        for (parent, child) in G.edges():
+            if G.node[parent]['kind'] == 'env' or G.node[child]['kind'] == 'env':
+                continue
+            if self.has_pid (parent) and self.has_pid (child) and self.get_pnum (parent) == self.get_pnum (child):
+                intra += 1
+            else:
+                inter += 1
+
+        entry = {}
+        entry['Type']                = tag
+        entry['Nodes']               = len(G.node)
+        entry['No. Partitions']      = len(pids)
+        entry['Intra Partition IPC'] = intra
+        entry['Inter Partition IPC'] = inter
+        entry['No Guarantees']       = len(g_none)
+        entry['Integrity']           = len(g_intg)
+        entry['Confidentiality']     = len(g_conf)
+        entry['Both']                = len(g_both)
+
+        self.tracelog.append (entry)
+
+    def trace_info (self):
+        num = 1
+        info ("Trace info:")
+        print ("Entry, Type, No. Partitions, Intra Partition IPC, Inter Partition IPC, No. Nodes, No Guarantees, Integrity, Confidentiality, Both")
+        for t in self.tracelog:
+            print ("%d, %s, %d, %d, %d, %d, %d, %d, %d %d" % \
+                (num, t['Type'], t['No. Partitions'], t['Intra Partition IPC'], t['Inter Partition IPC'], \
+                 t['Nodes'], t['No Guarantees'], t['Integrity'], t['Confidentiality'], t['Both']))
+            num += 1
 
     def check_assertions (self):
 
@@ -430,53 +494,6 @@ class Graph:
         self._id += 1
         return self._id
 
-    def guarantee_info (self):
-
-        G = self.graph
-
-        g_none = set()
-        g_conf = set()
-        g_intg = set()
-        g_both = set()
-
-        for node in G.node:
-            if G.node[node]['kind'] != 'env' and self.has_pid (node):
-                c = G.node[node]['primitive'].guarantees['c']
-                i = G.node[node]['primitive'].guarantees['i']
-                if c and i:
-                    g_both.add (node)
-                elif c:
-                    g_conf.add (node)
-                elif i:
-                    g_intg.add (node)
-                else:
-                    g_none.add (node)
-
-        return ("total: %3.0d none: %3.0d intg: %3.0d conf: %3.0d both: %3.0d" % \
-            (len(G.node), len(g_none), len(g_intg), len(g_conf), len(g_both)))
-
-    def partition_info (self):
-
-        G = self.graph
-
-        pids   = set()
-        intra = 0
-        inter = 0
-
-        for node in G.node:
-            if G.node[node]['kind'] != 'env' and self.has_pid (node):
-                pids.add (self.get_pnum (node))
-
-        for (parent, child) in G.edges():
-            if G.node[parent]['kind'] == 'env' or G.node[child]['kind'] == 'env':
-                continue
-            if self.has_pid (parent) and self.has_pid (child) and self.get_pnum (parent) == self.get_pnum (child):
-                intra += 1
-            else:
-                inter += 1
-
-        return ("%3.0d intra=%3.0d inter=%3.0d total=%3.0d" % (len(pids), intra, inter, intra + inter))
-
     def partition_exact (self, node, new_pid):
 
         G = self.graph
@@ -567,22 +584,20 @@ class Graph:
             info ("Partitioning disabled")
             return
 
-        info ("Partitions:")
-        info ("   No partitions: " + str(self.partition_info()))
+        self.trace_partition ("Merge none")
 
         for node in G.node:
             self.partition_exact (node, self.new_id())
-
-        info ("   Exact:         " + str(self.partition_info()))
+        self.trace_partition ("Merge Basic")
 
         # Partition graph exactly by guarantees
         if merge_const:
             # Merge constants into compatible domains
             self.merge_const()
-            info ("   Merge const:   " + str(self.partition_info()))
+            self.trace_partition ("Merge Const")
             if merge_branch:
                 self.merge_branch()
-                info ("   Merge branch:  " + str(self.partition_info()))
+                self.trace_partition ("Merge Branch")
 
         for node in G.node:
             part  = "<sub>(" + str(self.get_pnum (node)) + ")</sub>" if partition else ""
@@ -955,6 +970,16 @@ class Graph:
         dot.set ("esep", "+10,4")
         dot.set ("splines", "ortho")
         dot.write (filename, prog = 'dot', format = 'svg')
+
+    def merge_all (self):
+
+        G      = self.graph
+        dstnum = self.get_pnum(G.nodes()[0])
+
+        for node in G.nodes():
+            self.set_pnum (node, dstnum)
+
+        self.trace_partition ("Merge all")
 
 class Args:
 
@@ -1841,7 +1866,6 @@ def main():
     libspg.exitval = 0
     if solved:
         G.partition (args.partition, args.merge_const, args.merge_branch, args.concentrate)
-        info  ("Guarantees: " + G.guarantee_info())
         if args.run:
             G.run()
 
@@ -1851,6 +1875,10 @@ def main():
     if args.partition and args.pgraph:
         G.dump_partitions(args.pgraph[0])
 
+    # This is just for comparison of graph statics
+    G.merge_all()
+
+    G.trace_info()
     sys.exit (libspg.exitval if solved else 1)
 
 if __name__ == "__main__":

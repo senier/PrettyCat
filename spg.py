@@ -273,7 +273,6 @@ class Graph:
         g_intg = set()
         g_both = set()
 
-
         for node in G.node:
             if G.node[node]['kind'] != 'env':
 
@@ -294,6 +293,7 @@ class Graph:
                     g_none.add (node)
 
         for (parent, child) in G.edges():
+
             if G.node[parent]['kind'] == 'env' or G.node[child]['kind'] == 'env':
                 continue
             if self.has_pid (parent) and self.has_pid (child) and self.get_pnum (parent) == self.get_pnum (child):
@@ -892,25 +892,31 @@ class Graph:
         for node in G.node:
             G.node[node]['class'].join ()
 
-    def dump_partitions (self, filename):
+    def get_partitions (self):
+
         partitions = {}
-        guarantees = {}
         for (parent, child, data) in self.graph.edges(data=True):
 
             sp = self.get_pnum (parent)
             dp = self.get_pnum (child)
-
-            if sp == dp:
-                continue
 
             if not sp in partitions:
                 partitions[sp] = {}
 
             if not dp in partitions[sp]:
                 partitions[sp][dp] = {}
-                partitions[sp][dp]['count'] = 1
+
+            if not (parent, child) in partitions[sp][dp]:
+                partitions[sp][dp][(parent, child)] = 1
             else:
-                partitions[sp][dp]['count'] += 1
+                partitions[sp][dp][(parent, child)] += 1
+
+        return partitions
+
+    def dump_partitions (self, filename):
+
+        guarantees = {}
+        partitions = self.get_partitions()
 
         for node in self.graph.nodes():
             p = self.get_pnum (node)
@@ -962,7 +968,7 @@ class Graph:
 
         for sp in partitions:
             for dp in partitions[sp]:
-                pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), penwidth=2, xlabel=str(partitions[sp][dp]['count']), labeljust='r')
+                pg.add_edge ("Partition " + str(sp), "Partition " + str(dp), penwidth=2, xlabel=str(len(partitions[sp][dp])), labeljust='r')
 
         dot = nx.drawing.nx_pydot.to_pydot(pg)
         dot.set ("rankdir", "LR")

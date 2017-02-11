@@ -979,11 +979,11 @@ class Graph:
 
     def merge_all (self):
 
-        G      = self.graph
-        dstnum = self.get_pnum(G.nodes()[0])
+        G = self.graph
 
         for node in G.nodes():
-            self.set_pnum (node, dstnum)
+            G.node[node]['partition'] = 0
+            self.set_pnum (node, 0)
 
         self.trace_partition ("Merge all")
 

@@ -579,8 +579,7 @@ class sign (__sig_base):
 
         K = int.from_bytes (self.rand, byteorder='big')
         if K < 2 or K > key.q:
-            warn ("Invalid K")
-            return
+            raise Exception ("Invalid K")
 
         (intr, ints) = key.sign (self.msg, self.rand)
         r = intr.to_bytes(20, byteorder='big')

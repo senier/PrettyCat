@@ -839,7 +839,7 @@ class Graph:
             lib  = libspg
             name = kind
 
-            if kind == "env" or kind == "output" or kind == "xform":
+            if kind == "env" or kind == "xform":
                 classname = G.node[node]['classname']
                 if classname != None:
                     name = kind + "_" + G.node[node]['classname']

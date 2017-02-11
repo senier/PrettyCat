@@ -683,19 +683,6 @@ class release (SPG_base):
     def recv_data (self, data):
         self.send ('data', data)
 
-class latch (SPG_base):
-
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
-
-        self.data = None
-
-    def recv_data (self, data):
-        if self.data == None:
-            self.data = data
-            self.send ('trigger', 'True'.encode())
-        self.send ('data', self.data)
-
 class rng (SPG_base):
 
     def __init__ (self, name, config, attributes):

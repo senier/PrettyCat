@@ -17,6 +17,10 @@ SPG_ARGS += --concentrate
 SPG_ARGS += --pgraph=partitions.svg
 SPG_ARGS += --dump=doc/ruleset.tex
 
+ifneq ($(FORCE),)
+FORCE_TESTS=FORCE
+endif
+
 export MALLOC_CHECK_=0
 
 otr.svg: models/OTRrev3.spg spg.py
@@ -58,9 +62,9 @@ tests/%.dot:: tests/%.spg spg.py
 	@echo "=== Graph $@"
 	./spg.py $(SPG_ARGS) --input $< --output $@
 
-tests/%.run:: tests/%.spg spg.py #FORCE
+tests/%.run:: tests/%.spg spg.py $(FORCE_TESTS)
 	@echo "=== Running $@"
-	@./spg.py $(SPG_ARGS) --input $< --output $@.svg --run
+	@./spg.py $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output $@.svg --run
 	@mv $@.svg $@
 
 FORCE:

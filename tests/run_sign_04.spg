@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<spg code="testlib">
+
+    <const id="Public key">
+        <description>
+            Pulic DSA key
+        </description>
+        <config hexbytes="00000000008080000000000000229cac14cdce2a3370141d0e1dcb8fa5820c4b0cd9994d33f5baca6e611eed7acf7b294260021ca6b01fa59c48c1d0ef052029a6a85513c35a7c5a6cd08da7c0b30dee2369f2599731e1431d1b84630708ce0ed251e7053b6176290f4c8f4bac08254b5f6ccd04b56147701823b679c6c81ff328d9ee8d2fe700000014f15bc6eaad1f0f58fcae7530c4ada70371ac70c100000080359280e0063ebe9ece613207c4ef294abe082ae40c72b9c87f9ca88a2e8b0a7ad69db512bfb63bb155797ea6884e3ab82d40fff9cb8f028e520dbf0a9f902f4c02cd670aea11531f071477ce777f37b84e3b4b1ed7f661466cf585c62511f7a636c1a22bd4cb82ed6cdf507b9f7071779eed21d59e2685b40162790fe1e5b4ab000000805b1b255518e3a6edda4ff34301fc875e9071f53c6f651b4539321e63c2f58296271f8c45080131baf6f66688be6c0e9223f3a2d641ad047fafbfb2851e517046df3d4527e9e23bd5d5753696c782a8b984cf12a76dbb9fab8e2649d3d5caeda69a720daa18728a5f28c764ada5d33ee9cd1e303581af26e60f186018f7cd25b6"/>
+        <flow sarg="const" sink="Verify sig" darg="pubkey"/>
+    </const>
+
+    <const id="Message">
+        <description>
+            Input message
+        </description>
+        <config hexbytes="f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0"/>
+        <flow sarg="const" sink="Verify sig" darg="msg"/>
+    </const>
+
+    <const id="Signature">
+        <description>
+            Signature
+        </description>
+        <!-- First nibble changed from 5 to 4: Must fail! -->
+        <config hexbytes="490e973a228fb2db61a326a0650f9b1f60c7de77dc21e4decc7131f210eb1cf5704c6e3ecafaa840"/>
+        <flow sarg="const" sink="Verify sig" darg="auth"/>
+    </const>
+
+    <env id="Verify sig" code="verify_sig_ext">
+        <description>
+            Compare generated signature using external tool
+        </description>
+        <arg name="pubkey"/>
+        <arg name="auth"/>
+        <arg name="msg"/>
+    </env>
+
+</spg>

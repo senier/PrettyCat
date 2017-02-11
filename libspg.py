@@ -19,13 +19,16 @@ def info (message):
 
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")
+
+def hexstring (data):
+    hexstring = ''
+    for item in data: hexstring += '%02x' % int(item)
+    return hexstring
     
 def dump (data):
     if not type(data) is bytes and not type(data) is bytearray:
         return str(data)
-    hexstring = ''
-    for item in data: hexstring += '%02x' % int(item)
-    return "[" + str(len(data)) + "] " + str(hexstring)
+    return "[" + str(len(data)) + "] " + str(hexstring(data))
 
 class NotImplemented (Exception):
     def __init__ (self, text):

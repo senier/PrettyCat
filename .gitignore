@@ -23,3 +23,4 @@ otr.svg
 *.test
 partitions.svg
 TEMP_*
+tmp-*.dat

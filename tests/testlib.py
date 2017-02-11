@@ -1,8 +1,9 @@
 from Crypto.Cipher import AES
 import sys
-from libspg import info, warn, err, SPG_base, SPG_xform
+from libspg import info, warn, err, SPG_base, SPG_xform, hexstring
 import libspg
 import time
+from subprocess import call
 
 class env_static (libspg.SPG_thread):
 
@@ -84,3 +85,35 @@ class xform_order (SPG_xform):
     def finish (self):
         self.send ('hash', self.args['recv_hash'])
         self.send ('data', self.args['recv_data'])
+
+class env_verify_sig_ext (SPG_xform, libspg.MPI):
+
+    def finish (self):
+
+        libspg.exitval = 0
+        datfile = 'tmp-dat.dat'
+        sigfile = 'tmp-sig.dat'
+        pubfile = 'tmp-pub.dat'
+
+        # dump message
+        with open(datfile, 'w') as f:
+            f.write ('(data(flags raw)(value #%s#))' % hexstring(self.args['recv_msg']))
+
+        # dump authenticator
+        with open(sigfile, 'w') as f:
+            auth = self.args['recv_auth']
+            f.write ('(sig-val(dsa(r#%s#)(s#%s#)))' % (hexstring(auth[0:20]), hexstring(auth[20:])))
+
+        # dump pubkey
+        with open(pubfile, 'w') as f:
+            pub = self.args['recv_pubkey']
+            (p, rest) = self.decode_data (pub[2:])
+            (q, rest) = self.decode_data (rest)
+            (g, rest) = self.decode_data (rest)
+            (y, rest) = self.decode_data (rest)
+            f.write ("(public-key (dsa (p #%s#)(q #%s#)(g #%s#)(y #%s#)))" % (hexstring(p), hexstring(q), hexstring(g), hexstring(y)))
+
+        args = ['tools/dsavrfy', pubfile, datfile, sigfile]
+        rv = call (args)
+        if rv != 0:
+            libspg.exitval = 1

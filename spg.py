@@ -1906,10 +1906,15 @@ if __name__ == "__main__":
     parser.add_argument('--dump', action='store', nargs=1, help='Dump rules to file', dest='dumpfile');
     pgroup.add_argument('--pgraph', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='pgraph');
 
+    parser.add_argument('--schema', action='store_true', help='Dump XML Schema');
+
     try:
         args = parser.parse_args ()
         if args.test or args.run and not args.verbose:
             libspg.quiet = 1
+        if args.schema:
+            print (str(schema_src.read()))
+            sys.exit (0)
         main()
     except PrimitiveMissing as e:
         warn (e)

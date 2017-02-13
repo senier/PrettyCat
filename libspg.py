@@ -519,7 +519,22 @@ class verify_hmac_out (verify_hmac):
             self.msg  = None
             self.auth = None
 
-class __sig_base (SPG_base, MPI):
+class pubkey (MPI):
+
+    def decode_pubkey (self, pubkey):
+    
+        keytype = pubkey[0:2]
+        if keytype != b'\x00\x00':
+            raise InvalidData ("Key has invalid type: " + str(keytype))
+    
+        (p, pubkey)    = self.decode_mpi (pubkey[2:])
+        (q, pubkey)    = self.decode_mpi (pubkey)
+        (g, pubkey)    = self.decode_mpi (pubkey)
+        (y, remainder) = self.decode_mpi (pubkey)
+        return (p, q, g, y, remainder)
+
+
+class __sig_base (SPG_base, pubkey):
 
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes)
@@ -530,18 +545,6 @@ class __sig_base (SPG_base, MPI):
     def recv_msg (self, msg):
 
         self.msg = int.from_bytes (msg, byteorder='big')
-
-    def decode_pubkey (self, pubkey):
-    
-        keytype = pubkey[0:2]
-        if keytype != b'\x00\x00':
-            raise InvalidData ("Key has invalid type: " + str(keytype))
-    
-        (p, pubkey) = self.decode_mpi (pubkey[2:])
-        (q, pubkey) = self.decode_mpi (pubkey)
-        (g, pubkey) = self.decode_mpi (pubkey)
-        (y, pubkey) = self.decode_mpi (pubkey)
-        return (p, q, g, y, pubkey)
 
     def recv_pubkey (self, pubkey):
 

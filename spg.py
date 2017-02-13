@@ -1875,12 +1875,11 @@ def main():
         G.partition (args.partition, args.merge_const, args.merge_branch, args.concentrate)
         if args.run:
             G.run()
+        if args.partition and args.pgraph:
+            G.dump_partitions(args.pgraph[0])
+        G.statistics()
 
-    G.statistics()
     G.write (args.output[0])
-
-    if args.partition and args.pgraph:
-        G.dump_partitions(args.pgraph[0])
 
     # This is just for comparison of graph statics
     if args.verbose:
@@ -1903,9 +1902,9 @@ if __name__ == "__main__":
     pgroup.add_argument('--merge_const', action='store_true', help='Merge constants into compatible partitions', dest='merge_const');
     pgroup.add_argument('--merge_branch', action='store_true', help='Marge branched constants into compatible domains', dest='merge_branch');
     pgroup.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
-    parser.add_argument('--dump', action='store', nargs=1, help='Dump rules to file', dest='dumpfile');
     pgroup.add_argument('--pgraph', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='pgraph');
 
+    parser.add_argument('--dump', action='store', nargs=1, help='Dump rules to file', dest='dumpfile');
     parser.add_argument('--schema', action='store_true', help='Dump XML Schema');
 
     try:

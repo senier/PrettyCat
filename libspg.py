@@ -552,6 +552,11 @@ class __sig_base (SPG_base, pubkey):
         if not p or not q or not g or not y:
             raise Exception ("Invalid pubkey")
 
+        warn ("p:   " + dump(hex(p)))
+        warn ("q:   " + dump(hex(q)))
+        warn ("g:   " + dump(hex(g)))
+        warn ("y:   " + dump(hex(y)))
+
         self.pubkey = DSA.construct ((y, g, p, q))
 
 class sign (__sig_base):
@@ -579,10 +584,10 @@ class sign (__sig_base):
             return
 
         key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-        warn ("p: " + dump(hex(self.pubkey.p)))
-        warn ("q: " + dump(hex(self.pubkey.q)))
-        warn ("g: " + dump(hex(self.pubkey.g)))
-        warn ("y: " + dump(hex(self.pubkey.y)))
+        warn ("p:   " + dump(hex(self.pubkey.p)))
+        warn ("q:   " + dump(hex(self.pubkey.q)))
+        warn ("g:   " + dump(hex(self.pubkey.g)))
+        warn ("y:   " + dump(hex(self.pubkey.y)))
 
         K = int.from_bytes (self.rand, byteorder='big')
         if K < 2 or K > key.q:
@@ -593,8 +598,10 @@ class sign (__sig_base):
         s = ints.to_bytes(20, byteorder='big')
         self.send ('auth', r + s)
 
-        print ("Signature: " + dump(r + s))
-        print ("   " + dump (hex(self.msg)))
+        print ("Signature:")
+        print ("   R:   " + dump(r))
+        print ("   S:   " + dump(s))
+        print ("   MSG: " + dump (hex(self.msg)))
 
         self.msg  = None
         self.rand = None

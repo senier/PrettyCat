@@ -169,7 +169,6 @@ class xform_network_mux (libspg.SPG_base):
             sender_instance_tag = data[3:7]
             # Set sender_instance_tag of D-H Key message as outgoing receiver
             # instance tag for subsequent Reveal Signature messages
-            print ("Setting remote receiver instance tag to " + str(sender_instance_tag))
             self.send ('rit', sender_instance_tag)
 
         elif (message_type == 0x11):
@@ -187,7 +186,6 @@ class xform_network_mux (libspg.SPG_base):
         self.send(output, data[11:])
 
     def recv_dhkm (self, dhkm):
-        print ("DHKM: " + libspg.dump (dhkm))
         if self.dhcm_received:
             self.send ('msg', self.dhkm)
             self.dhkm = None

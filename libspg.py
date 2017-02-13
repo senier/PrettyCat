@@ -149,9 +149,8 @@ class comp (SPG_base):
         if self.data2 == None:
             self.data1 = data
         else:
-            result = 'True' if self.data2 == data else 'False'
-            #print ("Comp: " + str(self.data2) + " vs. " + str(data))
-            self.send ('result', result.encode())
+            result = 1 if self.data2 == data else 0
+            self.send ('result', result)
             self.data1 = None
             self.data2 = None
 
@@ -160,9 +159,8 @@ class comp (SPG_base):
         if self.data1 == None:
             self.data2 = data
         else:
-            result = 'True' if self.data1 == data else 'False'
-            #print ("Comp: " + str(self.data1) + " vs. " + str(data))
-            self.send ('result', result.encode())
+            result = 1 if self.data1 == data else 0
+            self.send ('result', result)
             self.data1 = None
             self.data2 = None
 
@@ -494,8 +492,15 @@ class verify_hmac (hmac):
 
         if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            result = 'True' if hmac.digest() == self.auth else 'False'
-            self.send ('result', result.encode())
+            if hmac.digest() == self.auth:
+                return 1
+            else:
+                err ("Error checking HMAC:")
+                err ("   " + dump(hmac.digest()) + " (calculated) vs. " + dump(self.auth) + " (got)")
+                err ("   Msg = " + dump(self.msg))
+                err ("   Key = " + dump(self.key))
+                return 0
+            self.send ('result', result)
             self.msg  = None
             self.auth = None
 
@@ -616,8 +621,15 @@ class verify_sig (__sig_base):
 
     def verify_if_valid (self):
         if self.pubkey and self.auth != None and self.msg != None:
-            result = 'True' if self.pubkey.verify (self.msg, self.auth) else 'False'
-            self.send ('result', result.encode())
+            print ("Msg: " + str(hex(self.msg)))
+            print ("R:   " + str(hex(self.auth[0])))
+            print ("S:   " + str(hex(self.auth[1])))
+            if self.pubkey.verify (self.msg, self.auth):
+                result = 1
+            else:
+                err ("Signature did not validate")
+                result = 0
+            self.send ('result', result)
             self.auth = None
             self.msg  = None
 

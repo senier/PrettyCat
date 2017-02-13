@@ -1133,6 +1133,7 @@
         <description>
             Check the SHA256-HMAC-160 authenticator for the encrypted signature.
         </description>
+        <config trunc="160"/>
         <flow sarg="result" sink="Guard Encrypted X_A" darg="cond"/>
     </verify_hmac>
 
@@ -1447,6 +1448,7 @@
         <description>
             Check the SHA256-HMAC-160 authenticator for the encrypted signature.
         </description>
+        <config trunc="160"/>
         <flow sarg="result" sink="Guard Encrypted X_B" darg="cond"/>
     </verify_hmac>
 

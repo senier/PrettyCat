@@ -486,17 +486,31 @@ class verify_hmac (hmac):
     def __init__ (self, name, config, attributes):
         super().__init__ (name, config, attributes)
 
+        self.trunc = None
         self.auth = None
+
+        err ("self.config: " + str(self.config))
+
+        if self.config != None and 'trunc' in self.config.attrib:
+            trunc_bits = int(self.config.attrib['trunc'])
+            if trunc_bits % 8 != 0:
+                raise InvalidData ("verify_hmac: Truncation length [in bits] must be multiple of 8 (got " + str (trunc_bits) + ")")
+            self.trunc = trunc_bits//8
 
     def calculate_if_valid (self):
 
         if self.key != None and self.msg != None and self.auth != None:
             hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            if hmac.digest() == self.auth:
+            if self.trunc:
+                digest = hmac.digest()[0:self.trunc]
+            else:
+                digest = hmac.digest()
+
+            if digest == self.auth:
                 return 1
             else:
                 err ("Error checking HMAC:")
-                err ("   " + dump(hmac.digest()) + " (calculated) vs. " + dump(self.auth) + " (got)")
+                err ("   " + dump(digest) + " (calculated) vs. " + dump(self.auth) + " (got)")
                 err ("   Msg = " + dump(self.msg))
                 err ("   Key = " + dump(self.key))
                 return 0

@@ -589,9 +589,8 @@ class sign (__sig_base):
         warn ("g:   " + dump(hex(self.pubkey.g)))
         warn ("y:   " + dump(hex(self.pubkey.y)))
 
-        K = int.from_bytes (self.rand, byteorder='big')
-        if K < 2 or K > key.q:
-            raise Exception ("Invalid K")
+        # FIXME: This is not the right way to truncate a random number!
+        K = int.from_bytes (self.rand, byteorder='big') % (self.pubkey.q - 2) + 2
 
         (intr, ints) = key.sign (self.msg, self.rand)
         r = intr.to_bytes(20, byteorder='big')

@@ -341,7 +341,10 @@ class xform_signature_r (libspg.SPG_base, libspg.MPI):
     def recv_sigm (self, sigm):
         (encrypted_sig, macd_signature) = self.decode_data (sigm)
         self.send ('encrypted_signature#1', encrypted_sig)
-        self.send ('encrypted_signature#2', encrypted_sig)
+
+        # MAC check required encrypted_sig with length header.
+        length = len(encrypted_sig)
+        self.send ('encrypted_signature#2', length.to_bytes (4, byteorder='big') + encrypted_sig)
         self.send ('macd_signature', macd_signature)
 
 class xform_split_x (libspg.SPG_base, libspg.MPI):

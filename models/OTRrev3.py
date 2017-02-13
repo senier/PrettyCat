@@ -6,16 +6,19 @@ import re
 class Data_parser (libspg.MPI):
 
     def parse_data (self, data):
-        result['protocol_version']     = int.form_bytes(data[0:2],   byteorder='big')
-        result['message_type']         = int.form_bytes(data[2:3],   byteorder='big')
-        result['sender_instance']      = int.form_bytes(data[3:7],   byteorder='big')
-        result['receiver_instance']    = int.form_bytes(data[7:11],  byteorder='big')
+        result = {}
+
+        result['protocol_version']     = int.from_bytes(data[0:2],   byteorder='big')
+        result['message_type']         = int.from_bytes(data[2:3],   byteorder='big')
+        result['sender_instance']      = int.from_bytes(data[3:7],   byteorder='big')
+        result['receiver_instance']    = int.from_bytes(data[7:11],  byteorder='big')
         result['flags']                = data[11:12]
-        result['sender_keyid']         = int.form_bytes(data[12:16], byteorder='big')
-        result['recipient_keyid']      = int.form_bytes(data[16:20], byteorder='big')
-        (result['dh_y'], rest)         = self.decode_mpi (data[20:])
-        result['counter']              = int.from_byates(rest[0:8], byteorder='big')
-        (result['enc_data'], rest)     = decode_data (rest[8:])
+        result['sender_keyid']         = int.from_bytes(data[12:16], byteorder='big')
+        result['recipient_keyid']      = int.from_bytes(data[16:20], byteorder='big')
+
+        (result['dh_y'], rest)         = self.extract_data(data[20:])
+        result['counter']              = int.from_bytes(rest[0:8], byteorder='big')
+        (result['enc_data'], rest)     = self.decode_data (rest[8:])
         result['mac']                  = rest[0:20]
         return result
 
@@ -49,8 +52,7 @@ class xform_data_r (libspg.SPG_base, Data_parser):
         self.send ('recipient_keyid#2', parsed['recipient_keyid'])
         self.send ('dh_y#1', parsed['dh_y'])
         self.send ('dh_y#2', parsed['dh_y'])
-        self.send ('top_half_of_counter_init#1', parsed['counter'])
-        self.send ('top_half_of_counter_init#2', parsed['counter'])
+        self.send ('top_half_of_counter_init', parsed['counter'])
         self.send ('encrypted_message', parsed['enc_data'])
         self.send ('authenticator', parsed['mac'])
 
@@ -176,7 +178,9 @@ class xform_network_mux (libspg.SPG_base):
         elif (message_type == 0x12):
             output = 'sigm'
         elif (message_type == 0x03):
-            output = 'data'
+            # Pass complete header to data as this info is MACd/signed
+            self.send('data', data)
+            return
         else:
             # Ignore invalid message types
             libspg.warn ("Invalid message type " + str(message_type))

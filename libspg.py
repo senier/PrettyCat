@@ -52,6 +52,12 @@ class MPI:
         length = ((num.bit_length() + 7) // 8)
         return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
 
+    def extract_data (self, data):
+        length = int.from_bytes (data[0:4], byteorder='big')
+        if length > len(data) - 4:
+            raise InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
+        return (data[:4+length], data[4+length:])
+
     def decode_data (self, data):
         length = int.from_bytes (data[0:4], byteorder='big')
         if length > len(data) - 4:

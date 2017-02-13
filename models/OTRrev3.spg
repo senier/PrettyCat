@@ -1961,7 +1961,7 @@
         <flow sarg="recipient_keyid#2"          sink="Concat authenticator (R)" darg="recipient_keyid"/>
         <flow sarg="dh_y#1"                     sink="Select pubkey (M)"        darg="pub_remote"/>
         <flow sarg="dh_y#2"                     sink="Concat authenticator (R)" darg="dh_y"/>
-        <flow sarg="top_half_of_counter_init#2" sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
+        <flow sarg="top_half_of_counter_init"   sink="Concat authenticator (R)" darg="top_half_of_counter_init"/>
         <flow sarg="encrypted_message"          sink="Concat authenticator (R)" darg="encrypted_message"/>
         <flow sarg="authenticator"              sink="Verify MAC (M)"           darg="auth"/>
         <arg name="data"/>

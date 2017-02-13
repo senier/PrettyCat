@@ -49,7 +49,7 @@ class InvalidData (Exception):
 class MPI:
 
     def encode_mpi (self, num):
-        length = (num.bit_length() // 8) + 1
+        length = ((num.bit_length() + 7) // 8)
         return length.to_bytes (4, byteorder='big') + num.to_bytes (length, byteorder='big')
 
     def decode_data (self, data):

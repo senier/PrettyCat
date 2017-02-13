@@ -347,16 +347,27 @@ class xform_signature_r (libspg.SPG_base, libspg.MPI):
         self.send ('encrypted_signature#2', length.to_bytes (4, byteorder='big') + encrypted_sig)
         self.send ('macd_signature', macd_signature)
 
-class xform_split_x (libspg.SPG_base, libspg.MPI):
+class xform_split_x (libspg.SPG_base):
+
+    def next_offset (self, data, offset = 0):
+        length = int.from_bytes (data[offset:offset+4], byteorder='big')
+        print ("next_offset: offset=" + str(offset) + " length=" + str(length))
+        if length > len(data[offset:]) - 4:
+            raise libspg.InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
+        return (offset+length+4)
+
+    def extract_pubkey (self, pubkey):
+
+        qoff = self.next_offset (pubkey, 2)
+        goff = self.next_offset (pubkey, qoff)
+        yoff = self.next_offset (pubkey, goff)
+        last = self.next_offset (pubkey, yoff)
+        return (pubkey[0:last], pubkey[last:])
 
     def recv_data (self, data):
-        pubkey_type = int.from_bytes (data[0:4], byteorder='big')
-        if (pubkey_type != 0):
-            raise Exception ("Unsupported pubkey type " + str (pubkey_type))
-
-        (pubkey, rest) = self.decode_pubkey (data[4:])
-        keyid = int.from_byte (rest[0:4], byteorder='big')
-        sig = rest[4:45]
+        (pubkey, remainder) = self.extract_pubkey (data)
+        keyid = remainder[0:4]
+        sig = remainder[4:45]
 
         self.send ('pub#1', pubkey)
         self.send ('pub#2', pubkey)

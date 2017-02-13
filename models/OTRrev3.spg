@@ -377,7 +377,8 @@
         <description>
             Branch output arguments
         </description>
-        <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key"> <assert integrity="true" confidentiality="true">
+        <flow sarg="hash#1" sink="HMAC M_B (S)" darg="key">
+            <assert integrity="true" confidentiality="true">
                 Attacker must not learn nor choose key.
             </assert>
         </flow>

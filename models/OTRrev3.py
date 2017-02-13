@@ -353,7 +353,6 @@ class xform_split_x (libspg.SPG_base):
 
     def next_offset (self, data, offset = 0):
         length = int.from_bytes (data[offset:offset+4], byteorder='big')
-        print ("next_offset: offset=" + str(offset) + " length=" + str(length))
         if length > len(data[offset:]) - 4:
             raise libspg.InvalidData ("Data length header exceeds buffer size: hdr=" + str(length) + " len=" + str(len(data)))
         return (offset+length+4)

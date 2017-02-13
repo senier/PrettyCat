@@ -298,7 +298,6 @@ class env (SPG_thread):
 
     def __forward (self):
 
-        info ("FORWARD: " + self.name)
         header = self.conn.recv (self.bufsize)
 
         # End of transmission
@@ -311,8 +310,6 @@ class env (SPG_thread):
             return True
 
         length = int.from_bytes (header[0:2], byteorder='big')
-        print (str(header))
-        warn ("FORWARD: " + self.name + ", length (" + str(length) + ")")
 
         data = header[2:]
         length -= len(data)
@@ -444,9 +441,6 @@ class dhsec (dh):
             if 2 <= self.pub and self.pub <= self.modulus - 2:
                 if pow (self.pub, (self.modulus - 1) // 2, self.modulus) == 1:
                     psec = int.from_bytes (self.psec, byteorder='big')
-                    print ("   pub:  " + dump (self.pub))
-                    print ("   psec: " + dump (psec))
-                    print ("   mod:  " + dump (self.modulus))
                     self.send ('ssec', pow(self.pub, psec, self.modulus))
             self.psec = None
 
@@ -494,8 +488,6 @@ class verify_hmac (hmac):
 
         self.trunc = None
         self.auth = None
-
-        err ("self.config: " + str(self.config))
 
         if self.config != None and 'trunc' in self.config.attrib:
             trunc_bits = int(self.config.attrib['trunc'])
@@ -572,11 +564,6 @@ class __sig_base (SPG_base, pubkey):
         if not p or not q or not g or not y:
             raise Exception ("Invalid pubkey")
 
-        warn ("p:   " + dump(hex(p)))
-        warn ("q:   " + dump(hex(q)))
-        warn ("g:   " + dump(hex(g)))
-        warn ("y:   " + dump(hex(y)))
-
         self.pubkey = DSA.construct ((y, g, p, q))
 
 class sign (__sig_base):
@@ -604,10 +591,6 @@ class sign (__sig_base):
             return
 
         key = DSA.construct ((self.pubkey.y, self.pubkey.g, self.pubkey.p, self.pubkey.q, self.privkey))
-        warn ("p:   " + dump(hex(self.pubkey.p)))
-        warn ("q:   " + dump(hex(self.pubkey.q)))
-        warn ("g:   " + dump(hex(self.pubkey.g)))
-        warn ("y:   " + dump(hex(self.pubkey.y)))
 
         # FIXME: This is not the right way to truncate a random number!
         K = int.from_bytes (self.rand, byteorder='big') % (self.pubkey.q - 2) + 2
@@ -616,11 +599,6 @@ class sign (__sig_base):
         r = intr.to_bytes(20, byteorder='big')
         s = ints.to_bytes(20, byteorder='big')
         self.send ('auth', r + s)
-
-        print ("Signature:")
-        print ("   R:   " + dump(r))
-        print ("   S:   " + dump(s))
-        print ("   MSG: " + dump (hex(self.msg)))
 
         self.msg  = None
         self.rand = None
@@ -650,9 +628,6 @@ class verify_sig (__sig_base):
 
     def verify_if_valid (self):
         if self.pubkey and self.auth != None and self.msg != None:
-            print ("Msg: " + str(hex(self.msg)))
-            print ("R:   " + str(hex(self.auth[0])))
-            print ("S:   " + str(hex(self.auth[1])))
             if self.pubkey.verify (self.msg, self.auth):
                 result = 1
             else:
@@ -761,7 +736,11 @@ class xform_concat (SPG_xform):
     def finish (self):
         result = bytearray()
         for a in self.attributes['arguments']:
-            result.extend(bytearray(self.args["recv_" + a]))
+            try:
+                result.extend(bytearray(self.args["recv_" + a]))
+            except:
+                err ("Error sending '" + a + "'")
+                raise
         self.send ('result', result)
 
 class xform_prefix (SPG_xform):

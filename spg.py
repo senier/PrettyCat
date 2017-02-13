@@ -326,24 +326,34 @@ class Graph:
 
     def check_assertions (self):
 
+        edges = 0
+        checked = 0
         success = True
 
         for (parent, child, data) in self.graph.edges (data=True):
+            has_assertions = False
+            edges += 1
             darg = data['darg']
             sarg = data['sarg']
 
             if data['assert_c'] != None:
+                has_assertions = True
                 val_c = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_c()
                 if val_c != data['assert_c']:
                     err (parent + "/" + sarg + " => " + child + "/" + darg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
                     success = False
 
             if data['assert_i'] != None:
+                has_assertions = True
                 val_i = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_i()
                 if val_i != data['assert_i']:
                     err (parent + "/" + sarg + " => " + child + "/" + darg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
                     success = False
 
+            if has_assertions:
+                checked += 1
+
+        info ("Checked %d assertions for %d edges" % (checked, edges))
         return success
 
     def mark_expression (self, uc):

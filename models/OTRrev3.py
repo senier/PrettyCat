@@ -8,16 +8,16 @@ class Data_parser (libspg.MPI):
     def parse_data (self, data):
         result = {}
 
-        result['protocol_version']     = int.from_bytes(data[0:2],   byteorder='big')
-        result['message_type']         = int.from_bytes(data[2:3],   byteorder='big')
-        result['sender_instance']      = int.from_bytes(data[3:7],   byteorder='big')
-        result['receiver_instance']    = int.from_bytes(data[7:11],  byteorder='big')
+        result['protocol_version']     = data[0:2]
+        result['message_type']         = data[2:3]
+        result['sender_instance']      = data[3:7]
+        result['receiver_instance']    = data[7:11]
         result['flags']                = data[11:12]
-        result['sender_keyid']         = int.from_bytes(data[12:16], byteorder='big')
-        result['recipient_keyid']      = int.from_bytes(data[16:20], byteorder='big')
+        result['sender_keyid']         = data[12:16]
+        result['recipient_keyid']      = data[16:20]
 
         (result['dh_y'], rest)         = self.extract_data(data[20:])
-        result['counter']              = int.from_bytes(rest[0:8], byteorder='big')
+        result['counter']              = rest[0:8]
         (result['enc_data'], rest)     = self.decode_data (rest[8:])
         result['mac']                  = rest[0:20]
         return result

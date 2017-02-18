@@ -1,11 +1,10 @@
 import socket
 import threading
 
-from potr import AESCTR, Counter
-
 from Crypto.Hash import HMAC, SHA, SHA256
 from Crypto.PublicKey import DSA
 from Crypto import Random
+from Crypto import Cipher
 
 exitval = 0
 quiet = 0
@@ -45,6 +44,30 @@ class InvalidArgument (Exception):
 class InvalidData (Exception):
     def __init__ (self, text):
         Exception.__init__(self, text)
+
+class Ctr (object):
+
+    def __init__(self, prefix):
+        self.prefix = prefix
+        self.val = 0
+
+    def inc(self):
+        self.prefix += 1
+        self.val = 0
+
+    def to_bytes(self):
+        byteprefix = self.prefix.to_bytes (8, byteorder='big')
+        bytesuffix = self.val.to_bytes (8, byteorder='big')
+        return byteprefix + bytesuffix
+
+    def prefix_bytes(self):
+        b = self.to_bytes()
+        return self.prefix.to_bytes (8, byteorder='big')
+
+    def __call__(self):
+        b = self.to_bytes()
+        self.val += 1
+        return b
 
 class MPI:
 
@@ -208,7 +231,7 @@ class encrypt (counter_mode):
         # IV must only be set once
         if self.ctr != None: return
 
-        self.ctr = Counter(ctr)
+        self.ctr = Ctr(ctr)
         self.encrypt_if_valid ()
 
     def recv_key (self, key):
@@ -234,7 +257,7 @@ class encrypt (counter_mode):
                 self.ctr.inc()
 
             self.send_ctr(self.ctr.prefix_bytes())
-            self.send ('ciphertext', AESCTR(self.key, self.ctr).encrypt(self.pt))
+            self.send ('ciphertext', Cipher.AES.new(self.key, Cipher.AES.MODE_CTR, counter=self.ctr).encrypt(self.pt))
 
             self.pt = None
             self.key_changed = False
@@ -252,7 +275,7 @@ class decrypt (counter_mode):
 
     def recv_ctr (self, ctr):
 
-        self.ctr = Counter(ctr)
+        self.ctr = Ctr(ctr)
         self.decrypt_if_valid ()
 
     def recv_key (self, key):
@@ -271,7 +294,7 @@ class decrypt (counter_mode):
 
         if self.ctr != None and self.key != None and self.ct != None:
 
-            self.send ('plaintext', AESCTR(self.key, self.ctr).decrypt(self.ct))
+            self.send ('plaintext', Cipher.AES.new (self.key, Cipher.AES.MODE_CTR, counter=self.ctr).decrypt(self.ct))
             self.ct = None
 
 class env (SPG_thread):

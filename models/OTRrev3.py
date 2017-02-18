@@ -247,11 +247,11 @@ class xform_select_pubkeys (libspg.SPG_base, libspg.MPI):
         info ("Checking pubkey")
 
         if self.current_remote == None:
-            info ("No remote key!")
+            err ("No remote key")
             return
 
         if self.current_local == None:
-            info ("No local key!")
+            err ("No local key")
             return
 
         if self.latest_local_keyid == self.local_keyid:
@@ -259,7 +259,6 @@ class xform_select_pubkeys (libspg.SPG_base, libspg.MPI):
         elif self.latest_local_keyid == self.local_keyid - 1:
             self.send ('current_pubkey', self.previous_local)
         else:
-            err ("No local pubkey")
             return
 
         # send current local keyid

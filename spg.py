@@ -1421,8 +1421,7 @@ class Primitive_hmac (Primitive):
         super ().setup (name, G, attributes, interfaces)
 
         # If integrity is not guaranteed for the input data, HMAC cannot
-        # protect anything. Hence, it does not harm if the key is released
-        # to or chosen by an attacker.
+        # protect anything.
         self.rule.append (Conf(self.input.key))
         self.rule.append (Intg(self.input.key))
 
@@ -1595,20 +1594,10 @@ class Primitive_comp (Primitive):
         interfaces = { 'inputs': ['data1', 'data2'], 'outputs': ['result'] }
         super ().setup (name, G, attributes, interfaces)
 
-        # If an attacker can chose data1_in, she can influence the integrity
-        # of result_out (at least, make result_out false with a very high
-        # likelihood by choosing a random value for data1_in)
-        self.rule.append (Implies (Intg(self.output.result), Intg(self.input.data1)))
-
-        # If an attacker can chose data2_in, she can influence the integrity
-        # of result_out (at least, make result_out false with a very high
-        # likelihood by choosing a random value for data2_in)
-        self.rule.append (Implies (Intg(self.output.result), Intg(self.input.data2)))
-
         # If an attacker knows data1 and data2 she can derive result_out by comparing both values
         # FIXME: Need both input values be confidential or is confidentiality for on input sufficient
         # (we assume the latter right now)
-        self.rule.append (Implies (Conf(self.output.result), Or (Conf (self.input.data1), Conf (self.input.data2))))
+        self.rule.append (Implies (Or (Conf (self.input.data1), Conf (self.input.data2)), Conf(self.output.result)))
 
 class Primitive_verify_commit (Primitive):
     """

@@ -547,12 +547,24 @@ class verify_hmac_out (verify_hmac):
 
     def calculate_if_valid (self):
 
-        if self.key != None and self.msg != None and self.auth != None:
-            hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
-            if hmac.digest() == self.auth:
-                self.send ('msg', self.msg)
-            self.msg  = None
-            self.auth = None
+        if self.key == None:
+            err ("No key")
+            return
+
+        if self.msg == None:
+            err ("No msg")
+            return
+
+        if self.auth == None:
+            err ("No auth")
+            return
+
+        hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
+        if hmac.digest() == self.auth:
+            self.send ('msg', self.msg)
+
+        self.msg  = None
+        self.auth = None
 
 class pubkey (MPI):
 
@@ -764,6 +776,7 @@ class xform_concat (SPG_xform):
             except:
                 err ("Error sending '" + a + "'")
                 raise
+        info (self.name + ": Sending result to output")
         self.send ('result', result)
 
 class xform_prefix (SPG_xform):

@@ -1759,12 +1759,8 @@ def latex_expression (prefix, exp, level = 0, label = 1):
                     result += "\\\\ &"
                 result += "\land{}"
             result += latex_expression (prefix, exp.arg(idx), level + 1, label)
-        if level == 0:
-            if prefix:
-                if label:
+        if level == 0 and prefix and label:
                     result += "\\label{eq:" + prefix + "_" + str(na) + "}"
-                else:
-                    result += "\\label{eq:" + prefix + "_rule}"
     elif is_or (exp):
         if na > 1: result += "("
         for idx in range (0, na):

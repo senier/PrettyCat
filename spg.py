@@ -880,6 +880,7 @@ class Graph:
 
             classobj = libclass (node, G.node[node]['primitive'].config, G.node[node]['primitive'].attributes)
             G.node[node]['class'] = classobj
+            G.node[node]['classname'] = name
 
         for node in G.node:
 
@@ -894,6 +895,24 @@ class Graph:
                 sendmethods[data['sarg']] = recvmethod
 
             G.node[node]['class'].set_sendmethods (sendmethods)
+
+        # Log which code is used by which primitives (per partition)
+        code = {}
+        for p in sorted(self.get_partitions()):
+            if not p in code:
+                code[p] = {}
+            for node in G.node:
+                if self.get_pnum (node) == p:
+                    cn = G.node[node]['classname']
+                    if not cn in code[p]:
+                        code[p][cn] = []
+                    code[p][cn].append (node)
+
+        with open ("code.log", "w") as f:
+            for p in code:
+                f.write (str(p) + "\n")
+                for cn in code[p]:
+                    f.write ("   " + cn + ": " + str(len(code[p][cn])) + " - " + str (code[p][cn]) + "\n")
 
         for node in G.node:
             G.node[node]['class'].setDaemon (True)

@@ -391,7 +391,8 @@ class Graph:
 
         self.mark_expression (simplify (And (unsat_core)))
         info ("Full, simplified unsat core:")
-        info (latex_expression (None, simplify (And (unsat_core))))
+        e = Z3Latex (simplify (And (unsat_core)))
+        info (e.str ())
 
     def analyze (self, dumpfile):
 
@@ -427,7 +428,8 @@ class Graph:
                 for a in solver.solver.assertions():
                     f.write ("\\begin{figure}[H]\n")
                     f.write ("\\begin{align*}\n")
-                    f.write ("R &= " + latex_expression (None, a.arg(1), 0, 0) + " \n")
+                    e = Z3Latex (a.arg(1))
+                    f.write ("R &= " + e.str() + " \n")
                     f.write ("\\end{align*}\n")
                     caption = str(a.arg(0))
                     caption = re.sub ('ASSERT>RULE>', 'Rule: ', caption)
@@ -1764,45 +1766,110 @@ def set_style (o, c, i, style = None):
 
     o['fillcolor'] = o['color']
 
-def latex_expression (prefix, exp, level = 0, label = 1):
+class Z3Expr:
 
-    result = ""
-    na  = exp.num_args()
+    def __init__ (self, exp):
+        self.exp = exp
 
-    if is_and (exp):
-        for idx in range (0, na):
-            if idx != 0:
-                if level == 0:
-                    if prefix and label:
-                        result += "\\label{eq:" + prefix + "_" + str(idx) + "}"
-                    result += "\\\\ &"
-                result += "\land{}"
-            result += latex_expression (prefix, exp.arg(idx), level + 1, label)
-        if level == 0 and prefix and label:
-                    result += "\\label{eq:" + prefix + "_" + str(na) + "}"
-    elif is_or (exp):
-        if na > 1: result += "("
-        for idx in range (0, na):
-            if idx != 0:
-                result += "\lor{}"
-            result += latex_expression (prefix, exp.arg(idx), level + 1, label)
-        if na > 1: result += ")"
-    elif is_eq(exp):
-        result += latex_expression (prefix, exp.arg(0), level + 1, label)
-        result += " \equiv{} "
-        result += latex_expression (prefix, exp.arg(1), level + 1, label)
-    elif is_app_of(exp, Z3_OP_IMPLIES):
-        result += latex_expression (prefix, exp.arg(0), level + 1, label)
-        result += " \\rightarrow{} "
-        result += latex_expression (prefix, exp.arg(1), level + 1, label)
-    elif is_not(exp):
-        result += " \\neg{} " + latex_expression (prefix, exp.arg(0), level + 1, label)
-    elif is_const(exp):
+    def handle_and_pre     (self, level, num_args): pass
+    def handle_and_elem    (self, level, arg_no):   pass
+    def handle_and_post    (self, level, num_args): pass
+    def handle_or_pre      (self, level, num_args): pass
+    def handle_or_elem     (self, level, arg_no):   pass
+    def handle_or_post     (self, level, num_args): pass
+    def handle_eq_op       (self, level, num_args): pass
+    def handle_implies_op  (self, level, num_args): pass
+    def handle_neg_op      (self, level, num_args): pass
+    def handle_invalid_op  (self, level, num_args): pass
+    def handle_const_op    (self, exp, level, num_args): pass
+
+    def __iterate__ (self, exp, level = 0):
+
+        num_args  = exp.num_args()
+        if is_and (exp):
+            self.handle_and_pre (level, num_args)
+            for idx in range (0, num_args):
+                self.handle_and_elem (level, idx)
+                self.__iterate__ (exp.arg(idx), level + 1)
+            self.handle_and_post (level, num_args)
+        elif is_or (exp):
+            self.handle_or_pre (level, num_args)
+            for idx in range (0, num_args):
+                self.handle_or_elem (level, idx)
+                self.__iterate__ (exp.arg(idx), level + 1)
+            self.handle_or_post (level, num_args)
+        elif is_eq(exp):
+            self.__iterate__ (exp.arg(0), level + 1)
+            self.handle_eq_op (level, num_args)
+            self.__iterate__ (exp.arg(1), level + 1)
+        elif is_app_of(exp, Z3_OP_IMPLIES):
+            self.__iterate__ (exp.arg(0), level + 1)
+            self.handle_implies_op (level, num_args)
+            self.__iterate__ (exp.arg(1), level + 1)
+        elif is_not(exp):
+            self.handle_neg_op (level, num_args)
+            self.__iterate__ (exp.arg(0), level + 1)
+        elif is_const(exp):
+            self.handle_const_op (exp, level, num_args)
+        elif exp == None:
+            self.handle_invalid_op (level, num_args)
+        else:
+            raise Exception ("Unhandled expression: " + str(exp))
+
+class Z3Latex (Z3Expr):
+
+    def __init__ (self, exp):
+        super().__init__ (exp)
+
+    def str (self, prefix = None, label = False):
+        self.prefix = prefix
+        self.label  = label
+        self.result = ""
+        self.__iterate__ (self.exp, 0)
+        return self.result
+
+    def handle_and_elem (self, level, arg_no):
+        if arg_no != 0:
+            if level == 0:
+                if self.prefix and self.label:
+                    result += "\\label{eq:" + prefix + "_" + str(arg_no) + "}"
+                self.result += "\\\\ &"
+            self.result += "\land{}"
+
+    def handle_and_post (self, level, num_args):
+        if level == 0 and self.prefix and self.label:
+            self.result += "\\label{eq:" + self.prefix + "_" + str(num_args) + "}"
+
+    def handle_or_pre (self, level, num_args):
+        if num_args > 1:
+            self.result += "("
+
+    def handle_or_elem (self, level, arg_no):
+        if arg_no != 0:
+            self.result += "\lor{}"
+
+    def handle_or_post  (self, level, num_args):
+        if num_args > 1:
+            self.result += ")"
+
+    def handle_eq_op (self, level, num_args):
+        self.result += " \equiv{} "
+
+    def handle_implies_op (self, level, num_args):
+        self.result += " \\rightarrow{} "
+
+    def handle_neg_op (self, level, num_args):
+        self.result += " \\neg{} "
+
+    def handle_invalid_op (self, level, num_args):
+        self.result += "\Downarrow"
+
+    def handle_const_op (self, exp, level, num_args):
 
         var = str(exp)
 
         if var == "True" or var == "False":
-            result += var
+            self.result += var
         else:
             # demangle variable name
             intg   = False
@@ -1812,8 +1879,8 @@ def latex_expression (prefix, exp, level = 0, label = 1):
 
             (pr, var) = var.split('>', 1)
 
-            if prefix != None and pr != prefix:
-                raise Exception ("Invalid variable " + var + ": does not start with prefix " + prefix)
+            if self.prefix != None and pr != self.prefix:
+                raise Exception ("Invalid variable " + var + ": does not start with prefix " + self.prefix)
 
             if var.endswith (">intg"):
                 intg = True
@@ -1842,14 +1909,7 @@ def latex_expression (prefix, exp, level = 0, label = 1):
             if intg: var = "\\intg{" + var + "}"
             if conf: var = "\\conf{" + var + "}"
 
-            result += var
-
-    elif exp == None:
-        result += "\Downarrow"
-    else:
-        raise Exception ("Unhandled expression: " + str(exp))
-
-    return result
+            self.result += var
 
 def dump_primitive_rules (filename):
 
@@ -1859,8 +1919,9 @@ def dump_primitive_rules (filename):
         if not name in ['env', 'xform', 'const']:
             p = primitive_class (None, name, { 'guarantees': None, 'config': None, 'inputs': None, 'outputs': None, 'arguments': None})
             n = name.replace ("_", '')
-            rules.append ("\\newcommand{\\" + n + "rule}{" + latex_expression(name, And (p.rule), 0, 1) + "}" + "\n")
-            rules.append ("\\newcommand{\\" + n + "rulenolabel}{" + latex_expression(name, And (p.rule), 0, 0) + "}" + "\n")
+            e = Z3Latex (And (p.rule))
+            rules.append ("\\newcommand{\\" + n + "rule}{" + e.str(label = False) + "}" + "\n")
+            rules.append ("\\newcommand{\\" + n + "rulenolabel}{" + e.str() + "}" + "\n")
 
     with open (filename, 'w') as outfile:
         for r in sorted(rules): outfile.write (r)

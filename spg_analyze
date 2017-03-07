@@ -16,7 +16,7 @@ from os.path import dirname
 from io   import StringIO
 from lxml import etree
 
-from spg.z3exp import Z3Latex
+from spg.z3exp import Z3Latex, Z3Unsat
 
 sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
@@ -236,7 +236,6 @@ class Graph:
         self._pmap      = {}
         self._pnum      = 0
         self._id        = 0
-        self.unsat      = None
         self.tracelog   = []
 
         # Create primitive objects
@@ -358,40 +357,10 @@ class Graph:
         info ("Checked %d assertions for %d edges" % (checked, edges))
         return success
 
-    def mark_expression (self, uc):
-        if is_and (uc) or is_or (uc):
-            for idx in range (0, uc.num_args()):
-                self.mark_expression (uc.arg(idx))
-        elif is_eq(uc):
-            self.mark_expression (uc.arg(0))
-            self.mark_expression (uc.arg(1))
-        elif is_not(uc):
-            self.mark_expression (uc.arg(0))
-        elif is_const(uc):
-
-            var = str(uc)
-            (name, inout, arg, kind) = var.split ('>')
-
-            if self.unsat == None:
-                self.unsat = {}
-
-            if not name in self.unsat:
-                self.unsat[name] = {}
-
-            if not inout in self.unsat[name]:
-                self.unsat[name][inout] = {}
-
-            if not arg in self.unsat[name][inout]:
-                self.unsat[name][inout][arg] = {}
-
-            self.unsat[name][inout][arg][kind] = True
-
-        else:
-            raise Exception ("Unhandled expression: " + str(uc))
-
     def safe_unsat_core (self, unsat_core):
 
-        self.mark_expression (simplify (And (unsat_core)))
+        u = Z3Unsat (simplify (And (unsat_core)))
+        self.unsat = u.get_unsat()
 
         info ("Full, simplified unsat core:")
         e = Z3Latex (simplify (And (unsat_core)))
@@ -726,7 +695,7 @@ class Graph:
             cg = G.node[child]['primitive'].input.guarantees()[darg]
             set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
 
-        # Make unsat core if present
+        # Mark  unsat core if present
         if self.unsat:
             for node in self.unsat:
                 intg = False

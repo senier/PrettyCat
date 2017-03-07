@@ -62,7 +62,7 @@ class Z3Latex (Z3Expr):
         self.prefix = prefix
         self.label  = label
         self.result = ""
-        self.__iterate__ (self.exp, 0)
+        self.__iterate__ (self.exp)
         return self.result
 
     def handle_and_elem (self, level, arg_no):
@@ -123,3 +123,31 @@ class Z3Latex (Z3Expr):
             name = re.sub ('_', '\_', name)
 
             self.result += "\\" + kind + "{\\" + texname[inout] + "{" + name + "}}"
+
+class Z3Unsat (Z3Expr):
+
+    def __init__ (self, exp):
+        self.unsat = None
+        self.__iterate__ (exp)
+
+    def get_unsat (self):
+        return self.unsat
+
+    def handle_const_op (self, exp, level, num_args):
+
+        var = str(exp)
+        (name, inout, arg, kind) = var.split ('>')
+
+        if self.unsat == None:
+            self.unsat = {}
+
+        if not name in self.unsat:
+            self.unsat[name] = {}
+
+        if not inout in self.unsat[name]:
+            self.unsat[name][inout] = {}
+
+        if not arg in self.unsat[name][inout]:
+            self.unsat[name][inout][arg] = {}
+
+        self.unsat[name][inout][arg][kind] = True

@@ -23,24 +23,24 @@ endif
 
 export MALLOC_CHECK_=0
 
-otr.svg: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+otr.svg: models/OTRrev3.spg spg_analyze
+	./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
-otr.json: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+otr.json: models/OTRrev3.spg spg_analyze
+	./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
-otr.dot: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+otr.dot: models/OTRrev3.spg spg_analyze
+	./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
-otr.run: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@ --run
+otr.run: models/OTRrev3.spg spg_analyze
+	./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@ --run
 	mv TEMP_$@ $@
 
-otr.graph: models/OTRrev3.spg spg.py
-	./spg.py $(SPG_ARGS) --input $< --output TEMP_$@
+otr.graph: models/OTRrev3.spg spg_analyze
+	./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
 	mv TEMP_$@ $@
 
 tests:: $(sort $(TESTS:.spg=.test))
@@ -49,22 +49,22 @@ tests:: $(sort $(TESTS:.spg=.test))
 run:: $(sort $(RUNS:.spg=.run))
 	@echo "$(words $^) RUNS DONE."
 
-tests/%.svg: tests/%.spg spg.py
+tests/%.svg: tests/%.spg spg_analyze
 	@echo "=== Graph $@"
-	@./spg.py $(SPG_ARGS) --input $< --output $@
+	@./spg_analyze $(SPG_ARGS) --input $< --output $@
 
-tests/%.test: tests/%.spg spg.py
+tests/%.test: tests/%.spg spg_analyze
 	@echo "=== Testing $<"
-	-@./spg.py $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
+	./spg_analyze $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output tests/$*.FAILED.svg --test
 	-@mv tests/$*.FAILED.svg $@
 
-tests/%.dot:: tests/%.spg spg.py
+tests/%.dot:: tests/%.spg spg_analyze
 	@echo "=== Graph $@"
-	./spg.py $(SPG_ARGS) --input $< --output $@
+	./spg_analyze $(SPG_ARGS) --input $< --output $@
 
-tests/%.run:: tests/%.spg spg.py $(FORCE_TESTS)
+tests/%.run:: tests/%.spg spg_analyze $(FORCE_TESTS)
 	@echo "=== Running $@"
-	@./spg.py $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output $@.svg --run
+	@./spg_analyze $(filter-out --partition --verbose, $(SPG_ARGS)) --input $< --output $@.svg --run
 	@mv $@.svg $@
 
 FORCE:

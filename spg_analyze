@@ -16,7 +16,7 @@ from os.path import dirname
 from io   import StringIO
 from lxml import etree
 
-from spg.z3exp import Z3Latex, Z3Unsat
+from spg.z3exp import Z3Latex, Z3Unsat, Z3Text
 
 sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 from z3 import *
@@ -363,8 +363,8 @@ class Graph:
         self.unsat = u.get_unsat()
 
         info ("Full, simplified unsat core:")
-        e = Z3Latex (simplify (And (unsat_core)))
-        info (e.str ())
+        t = Z3Text (And (unsat_core))
+        info (t.str ())
 
     def analyze (self, dumpfile):
 

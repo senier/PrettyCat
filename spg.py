@@ -1871,45 +1871,21 @@ class Z3Latex (Z3Expr):
         if var == "True" or var == "False":
             self.result += var
         else:
-            # demangle variable name
-            intg   = False
-            conf   = False
-            invar  = False
-            outvar = False
+            (name, inout, arg, kind) = var.split ('>')
 
-            (pr, var) = var.split('>', 1)
+            texname = {"input": "invar", "output": "outvar"}
 
-            if self.prefix != None and pr != self.prefix:
-                raise Exception ("Invalid variable " + var + ": does not start with prefix " + self.prefix)
-
-            if var.endswith (">intg"):
-                intg = True
-            elif var.endswith (">conf"):
-                conf = True
-            else:
+            if kind != 'intg' and kind != 'conf':
                 raise Exception ("Invalid variable " + var + ": neither integrity nor confidentiality")
-            var = var[:-5]
 
-            if var.startswith ("input>"):
-                invar = True
-                var = var[6:]
-            elif var.startswith ("output>"):
-                outvar = True
-                var = var[7:]
-            else:
+            if inout != 'input' and inout != 'output':
                 raise Exception ("Invalid variable " + var + ": neither input nor output")
 
-            var = var.capitalize()
-            var = re.sub ('>', '\>', var)
-            var = re.sub ('_', '\_', var)
+            name = name.capitalize()
+            name = re.sub ('>', '\>', name)
+            name = re.sub ('_', '\_', name)
 
-            if invar:  var = "\\invar{" + var + "}"
-            if outvar: var = "\\outvar{" + var + "}"
-
-            if intg: var = "\\intg{" + var + "}"
-            if conf: var = "\\conf{" + var + "}"
-
-            self.result += var
+            self.result += "\\" + kind + "{\\" + texname[inout] + "{" + name + "}}"
 
 def dump_primitive_rules (filename):
 

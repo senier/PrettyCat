@@ -367,26 +367,7 @@ class Graph:
         t = Z3Text (And (unsat_core))
         info (t.str ())
 
-    def analyze (self, dumpfile):
-
-        solver = SPG_Solver()
-        assertno = 0
-
-        # Put node rules into solver
-        for n in self.graph.nodes():
-            self.graph.node[n]['primitive'].populate (solver)
-
-        # Put edge (channel) rules into solver
-        for (parent, child, data) in self.graph.edges(data=True):
-            pog = self.graph.node[parent]['primitive'].output.guarantees()
-            cig = self.graph.node[child]['primitive'].input.guarantees()
-            darg = data['darg']
-            sarg = data['sarg']
-            channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
-            solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
-            solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
-            #solver.assert_and_track (Implies (Conf(pog[sarg]), Conf(cig[darg])), channel + ">conf")
-            #solver.assert_and_track (Implies (Intg(cig[darg]), Intg(pog[sarg])), channel + ">intg")
+    def dump_rules (self, dumpfile):
 
         # Dump all rules if requested
         if dumpfile:
@@ -400,7 +381,7 @@ class Graph:
                 f.write ("\\newcommand{\invar}[1]{\mathit{#1}}\n")
                 f.write ("\\newcommand{\outvar}[1]{\overrightharpoon{#1}}\n")
                 f.write ("\\begin{document}\n")
-                for a in solver.solver.assertions():
+                for a in self.solver.solver.assertions():
                     f.write ("\\begin{figure}[H]\n")
                     f.write ("\\begin{align*}\n")
                     e = Z3Latex (a.arg(1))
@@ -417,17 +398,38 @@ class Graph:
                     f.write ("\\end{figure}\n")
                 f.write ("\\end{document}")
 
-        if solver.check() == sat:
+    def analyze (self):
+
+        self.solver = SPG_Solver()
+        assertno = 0
+
+        # Put node rules into solver
+        for n in self.graph.nodes():
+            self.graph.node[n]['primitive'].populate (self.solver)
+
+        # Put edge (channel) rules into solver
+        for (parent, child, data) in self.graph.edges(data=True):
+            pog = self.graph.node[parent]['primitive'].output.guarantees()
+            cig = self.graph.node[child]['primitive'].input.guarantees()
+            darg = data['darg']
+            sarg = data['sarg']
+            channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
+            self.solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
+            self.solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
+            #solver.assert_and_track (Implies (Conf(pog[sarg]), Conf(cig[darg])), channel + ">conf")
+            #solver.assert_and_track (Implies (Intg(cig[darg]), Intg(pog[sarg])), channel + ">intg")
+
+        if self.solver.check() == sat:
 
             # Update all guarantee values
             for n in self.graph.nodes():
                 primitive = self.graph.node[n]['primitive']
                 ig = primitive.input.guarantees()
                 for g in ig:
-                    ig[g].update (solver.model())
+                    ig[g].update (self.solver.model())
                 og = primitive.output.guarantees()
                 for g in og:
-                    og[g].update (solver.model())
+                    og[g].update (self.solver.model())
 
             # Check assertions
             result = self.check_assertions()
@@ -445,7 +447,7 @@ class Graph:
             return result
 
         else:
-            self.safe_unsat_core(solver.unsat_core())
+            self.safe_unsat_core(self.solver.unsat_core())
 
             # We expect a failure - exit without error
             if self.fail:
@@ -873,24 +875,6 @@ class Graph:
 
             G.node[node]['class'].set_sendmethods (sendmethods)
 
-        # Log which code is used by which primitives (per partition)
-        code = {}
-        for p in sorted(self.get_partitions()):
-            if not p in code:
-                code[p] = {}
-            for node in G.node:
-                if self.get_pnum (node) == p:
-                    cn = G.node[node]['classname']
-                    if not cn in code[p]:
-                        code[p][cn] = []
-                    code[p][cn].append (node)
-
-        with open ("code.log", "w") as f:
-            for p in code:
-                f.write (str(p) + "\n")
-                for cn in code[p]:
-                    f.write ("   " + cn + ": " + str(len(code[p][cn])) + " - " + str (code[p][cn]) + "\n")
-
         for node in G.node:
             G.node[node]['class'].setDaemon (True)
             G.node[node]['class'].start ()
@@ -919,6 +903,26 @@ class Graph:
                 partitions[sp][dp][(parent, child)] += 1
 
         return partitions
+
+    def dump_code (self, filename):
+
+        # Log which code is used by which primitives (per partition)
+        code = {}
+        for p in sorted(self.get_partitions()):
+            if not p in code:
+                code[p] = {}
+            for node in G.node:
+                if self.get_pnum (node) == p:
+                    cn = G.node[node]['classname']
+                    if not cn in code[p]:
+                        code[p][cn] = []
+                    code[p][cn].append (node)
+
+        with open (filename, "w") as f:
+            for p in code:
+                f.write (str(p) + "\n")
+                for cn in code[p]:
+                    f.write ("   " + cn + ": " + str(len(code[p][cn])) + " - " + str (code[p][cn]) + "\n")
 
     def dump_partitions (self, filename):
 
@@ -1335,10 +1339,10 @@ class Primitive_dhsec (Primitive):
         self.rule.append (Conf(self.output.ssec))
 
         # If shared secret requires integrity, so does modulus, generator, pub and psec
-        self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.modulus)))
-        self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.generator)))
-        self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.pub)))
-        self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.psec)))
+        # self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.modulus)))
+        # self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.generator)))
+        # self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.pub)))
+        # self.rule.append (Implies (Intg(self.output.ssec), Intg(self.input.psec)))
 
 
 class Primitive_encrypt (Primitive):
@@ -1776,11 +1780,14 @@ def main():
         G.label()
         G.write ("initial_" + args.output[0])
       
-    solved = G.analyze(args.dumpfile[0])
+    solved = G.analyze()
     G.label()
 
     if args.dump_latex:
         dump_primitive_rules(args.dump_latex[0])
+
+    if args.dumpfile:
+        G.dump_rules (args.dumpfile[0])
 
     libspg.exitval = 0
     if solved:
@@ -1789,6 +1796,7 @@ def main():
             G.run()
         if args.partition and args.pgraph:
             G.dump_partitions(args.pgraph[0])
+            G.dump_code(args.code[0])
         G.statistics()
 
     G.write (args.output[0])
@@ -1815,6 +1823,7 @@ if __name__ == "__main__":
     pgroup.add_argument('--merge_branch', action='store_true', help='Marge branched constants into compatible domains', dest='merge_branch');
     pgroup.add_argument('--concentrate', action='store_true', help='Try to concentrate inter-cluster edges', dest='concentrate');
     pgroup.add_argument('--pgraph', action='store', nargs=1, required=False, help='Dump partition graph to file', dest='pgraph');
+    pgroup.add_argument('--code', action='store', nargs=1, required=False, help='Dump code used by partitions to file', dest='code');
 
     parser.add_argument('--dump', action='store', nargs=1, help='Dump rules to file', dest='dumpfile');
     parser.add_argument('--schema', action='store_true', help='Dump XML Schema');

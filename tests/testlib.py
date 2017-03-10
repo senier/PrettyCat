@@ -50,6 +50,8 @@ class env_check_fixed (SPG_base):
             self.values = [x.strip().encode() for x in config.attrib['result'].split(',')]
         elif 'hexresult' in config.attrib:
             self.values = [bytearray.fromhex (x.strip()) for x in config.attrib['hexresult'].split(',')]
+        elif 'intresult' in config.attrib:
+            self.values = [int(x.strip()) for x in config.attrib['intresult'].split(',')]
         else:
             raise Exception ("No result set for output check")
 
@@ -60,7 +62,7 @@ class env_check_fixed (SPG_base):
         if data == value:
             libspg.exitval = 0
         else:
-            info ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
+            err ("[" + self.name + "] Output '" + str(data) + "' did not match expected value '" + str(value) + "'")
 
 class xform_get_random (SPG_base):
 

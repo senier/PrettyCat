@@ -237,6 +237,7 @@ class Graph:
         self._pnum      = 0
         self._id        = 0
         self.tracelog   = []
+        self.unsat      = None
 
         # Create primitive objects
         for node in graph.nodes():

@@ -72,7 +72,7 @@
         <description>
             Check whether comparison yields true
         </description>
-        <config result="True,True,True"/>
+        <config intresult="1,1,1"/>
         <arg name="data"/>
     </env>
 

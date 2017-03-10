@@ -112,7 +112,7 @@
         <description>
             Output result
         </description>
-        <config result="True"/>
+        <config intresult="1"/>
         <arg name="data"/>
     </env>
 

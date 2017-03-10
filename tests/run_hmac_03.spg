@@ -61,7 +61,7 @@
         <description>
             Check whether messages are equal
         </description>
-        <config result="True"/>
+        <config intresult="1"/>
         <arg name="data"/>
     </env>
 

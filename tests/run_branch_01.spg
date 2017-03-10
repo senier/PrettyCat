@@ -30,7 +30,7 @@
         <description>
             Check whether comparison yields true
         </description>
-        <config result="True"/>
+        <config intresult="1"/>
         <arg name="data"/>
     </env>
 

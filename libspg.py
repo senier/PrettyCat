@@ -48,8 +48,11 @@ class InvalidData (Exception):
 class Ctr (object):
 
     def __init__(self, prefix):
-        self.prefix = prefix
         self.val = 0
+        if not isinstance(prefix, int):
+            self.prefix = int.from_bytes (prefix, byteorder='big')
+        else:
+            self.prefix = prefix
 
     def inc(self):
         self.prefix += 1
@@ -61,7 +64,6 @@ class Ctr (object):
         return byteprefix + bytesuffix
 
     def prefix_bytes(self):
-        b = self.to_bytes()
         return self.prefix.to_bytes (8, byteorder='big')
 
     def __call__(self):
@@ -528,13 +530,14 @@ class verify_hmac (hmac):
                 digest = hmac.digest()
 
             if digest == self.auth:
-                return 1
+                result = 1
             else:
                 err ("Error checking HMAC:")
                 err ("   " + dump(digest) + " (calculated) vs. " + dump(self.auth) + " (got)")
                 err ("   Msg = " + dump(self.msg))
                 err ("   Key = " + dump(self.key))
-                return 0
+                result = 0
+
             self.send ('result', result)
             self.msg  = None
             self.auth = None
@@ -548,15 +551,15 @@ class verify_hmac_out (verify_hmac):
     def calculate_if_valid (self):
 
         if self.key == None:
-            err ("No key")
+            info ("No key")
             return
 
         if self.msg == None:
-            err ("No msg")
+            info ("No msg")
             return
 
         if self.auth == None:
-            err ("No auth")
+            info ("No auth")
             return
 
         hmac = HMAC.new (self.key, msg=self.msg, digestmod=SHA256.new())
@@ -666,7 +669,7 @@ class verify_sig (__sig_base):
             if self.pubkey.verify (self.msg, self.auth):
                 result = 1
             else:
-                err ("Signature did not validate")
+                info ("Signature did not validate")
                 result = 0
             self.send ('result', result)
             self.auth = None

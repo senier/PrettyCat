@@ -1,0 +1,6 @@
+#!/usr/bin/env python3
+
+import spg.graph
+
+if __name__ == "__main__":
+    print (str(spg.graph.schema_src.read()))

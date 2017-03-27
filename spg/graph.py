@@ -1,8 +1,12 @@
+import sys
 import os
+
 import networkx as nx
 
 from lxml import etree
 from io   import StringIO
+
+from spg.error import info, warn, err
 
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -156,7 +160,7 @@ class Graph:
 
         try:
             schema_doc = etree.parse(schema_src)
-            schema = etree.XMLSchema (schema_doc)
+            self.schema = etree.XMLSchema (schema_doc)
         except etree.XMLSchemaParseError as e:
             err ("Error compiling schema: " + str(e))
             sys.exit(1)
@@ -167,9 +171,9 @@ class Graph:
             err (inpath + ": " + str(e))
             sys.exit(1)
     
-        if not schema.validate (tree):
+        if not self.schema.validate (tree):
             err (inpath)
-            print (schema.error_log.last_error)
+            err (self.schema.error_log.last_error)
             sys.exit(1)
     
         root = tree.getroot()
@@ -186,50 +190,40 @@ class Graph:
         # read in graph
         for child in root.iterchildren(tag = etree.Element):
     
-            name  = child.attrib["id"]
-    
-            descnode = child.find('description')
-            # if descnode is not None:
-            #     desc = "<" + child.tag + ":&#10;" + re.sub ('\n\s*', '&#10;', descnode.text.strip()) + ">"
-            # else:
-            #     warn ("No description for " + name)
-            #     desc = "<No description&#10;available.>"
-    
-            kind       = child.tag
-            classname  = child.attrib['code'] if 'code' in child.attrib else None
+            name = child.attrib["id"]
+            desc = child.find('description')
+            kind = child.tag
+            code = child.attrib['code'] if 'code' in child.attrib else None
     
             config     = child.find('config')
-            guarantees = self.parse_guarantees (child.attrib)
+            guarantees = self.__parse_guarantees (child.attrib)
     
             self.graph.add_node \
                 (name, \
                  kind       = kind, \
-                 classname  = classname, \
+                 classname  = code, \
                  config     = config, \
                  guarantees = guarantees, \
                  arguments  = [ arg.attrib['name'] for arg in child.findall('arg')],
                  controlled = [ arg.attrib['name'] for arg in child.findall('arg') if 'controlled' in arg.attrib],
                  outputs    = [ arg.attrib['sarg'] for arg in child.findall('flow')],
-                 desc       = descnode)
+                 desc       = desc)
     
             for element in child.findall('flow'):
                 sarg       = element.attrib['sarg']
                 darg       = element.attrib['darg']
     
-                assert_c = None
-                assert_i = None
+                assertion = None
     
-                for assertion in element.findall('assert'):
-                    assert_c = self.parse_bool (assertion.attrib, 'confidentiality')
-                    assert_i = self.parse_bool (assertion.attrib, 'integrity')
+                for ass in element.findall('assert'):
+                    assertion = self.__parse_guarantees (ass.attrib)
     
                 self.graph.add_edge (name, element.attrib['sink'], \
                     sarg = sarg, \
                     darg = darg, \
-                    assert_c = assert_c, \
-                    assert_i = assert_i)
+                    assertion = assertion)
 
-    def parse_bool (self, attrib, name):
+    def __parse_bool (self, attrib, name):
         if not name in attrib:
             return None
         if attrib[name] == "true":
@@ -238,12 +232,69 @@ class Graph:
             return False
         raise Exception ("Invalid boolean value for '" + name + "'")
 
-    def parse_guarantees (self, attribs):
+    def __parse_guarantees (self, attribs):
         return {
-            'c': self.parse_bool (attribs, 'confidentiality'),
-            'i': self.parse_bool (attribs, 'integrity'),
+            'c': self.__parse_bool (attribs, 'confidentiality'),
+            'i': self.__parse_bool (attribs, 'integrity'),
         }
 
     def num_nodes (self):
         return len(self.graph.node)
 
+    def __set_bool (self, value):
+        return 'true' if value else 'false'
+
+    def __add_guarantees (self, attrib, guarantees):
+
+        if 'c' in guarantees:
+            c = guarantees['c']
+            if not c is None:
+                attrib['confidentiality'] = self.__set_bool (c)
+
+        if 'i' in guarantees:
+            i = guarantees['i']
+            if not i is None:
+                attrib['integrity'] = self.__set_bool (i)
+
+    def write (self, outpath):
+
+        G = self.graph
+        attrib = {}
+
+        if 'assert_fail' in G:
+            attrib['assert_fail'] = self.__set_bool (G['assert_fail'])
+
+        if 'code' in G:
+            attrib['code'] = G['code']
+
+        doc = etree.Element('spg', attrib = attrib)
+
+        for node in G.node:
+
+            attrib = {'id': node}
+
+            if 'classname' in G.node[node] and G.node[node]['classname'] != None:
+                attrib['code'] = G.node[node]['classname']
+
+            self.__add_guarantees (attrib, G.node[node]['guarantees'])
+
+            n = etree.SubElement (doc, G.node[node]['kind'], attrib = attrib)
+            n.append (G.node[node]['desc'])
+
+            if not G.node[node]['config'] is None:
+                n.append (G.node[node]['config'])
+
+            for (parent, child, data) in G.out_edges (nbunch = node, data = True):
+                flow = etree.SubElement (n, 'flow', attrib = {'sarg': data['sarg'], 'sink': child, 'darg': data['darg']})
+                if 'assertion' in data and not data['assertion'] is None:
+                    assert_attrib = {}
+                    self.__add_guarantees (assert_attrib, data['assertion'])
+                    etree.SubElement (flow, 'assert', attrib = assert_attrib)
+
+            for arg in G.node[node]['arguments']:
+                etree.SubElement (n, 'arg', attrib = {'name': arg})
+            for arg in G.node[node]['controlled']:
+                etree.SubElement (n, 'arg', attrib = {'name': arg, 'controlled': 'true'})
+
+        if not self.schema.validate (doc):
+            raise InternalError ("Output document does not validate: " + self.schema.error_log.last_error)

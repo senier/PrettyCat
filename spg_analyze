@@ -84,7 +84,9 @@ def main(args):
     # Read in graph
     G = Analyze (args.input[0])
     solved = G.analyze()
-    G.write (args.output[0])
+
+    if args.output:
+        G.write (args.output[0])
 
     if not solved:
         err ("No solution")
@@ -93,7 +95,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
-    parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+    parser.add_argument('--output', action='store', nargs=1, required=False, help='Output file', dest='output');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
 
     try:

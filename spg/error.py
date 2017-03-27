@@ -1,3 +1,5 @@
+quiet = False
+
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 

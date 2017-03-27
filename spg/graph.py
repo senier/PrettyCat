@@ -163,18 +163,17 @@ class Graph:
             self.schema = etree.XMLSchema (schema_doc)
         except etree.XMLSchemaParseError as e:
             err ("Error compiling schema: " + str(e))
-            sys.exit(1)
+            raise
     
         try:
             tree = etree.parse (inpath)
         except (IOError, etree.XMLSyntaxError) as e:
             err (inpath + ": " + str(e))
-            sys.exit(1)
+            raise
     
         if not self.schema.validate (tree):
-            err (inpath)
-            err (self.schema.error_log.last_error)
-            sys.exit(1)
+            err (inpath + self.schema.error_log.last_error)
+            raise
     
         root = tree.getroot()
         if 'assert_fail' in root.attrib and root.attrib['assert_fail'] == 'true':
@@ -267,9 +266,9 @@ class Graph:
         if 'code' in G:
             attrib['code'] = G['code']
 
-        doc = etree.Element('spg', attrib = attrib)
+        root = etree.Element('spg', attrib = attrib)
 
-        for node in G.node:
+        for node in sorted(G.node):
 
             attrib = {'id': node}
 
@@ -278,23 +277,26 @@ class Graph:
 
             self.__add_guarantees (attrib, G.node[node]['guarantees'])
 
-            n = etree.SubElement (doc, G.node[node]['kind'], attrib = attrib)
+            n = etree.SubElement (root, G.node[node]['kind'], attrib = attrib)
             n.append (G.node[node]['desc'])
 
             if not G.node[node]['config'] is None:
                 n.append (G.node[node]['config'])
 
-            for (parent, child, data) in G.out_edges (nbunch = node, data = True):
+            for (parent, child, data) in sorted(G.out_edges (nbunch = node, data = True), key=(lambda e: e[1] + e[2]['darg'])):
                 flow = etree.SubElement (n, 'flow', attrib = {'sarg': data['sarg'], 'sink': child, 'darg': data['darg']})
                 if 'assertion' in data and not data['assertion'] is None:
                     assert_attrib = {}
                     self.__add_guarantees (assert_attrib, data['assertion'])
                     etree.SubElement (flow, 'assert', attrib = assert_attrib)
 
-            for arg in G.node[node]['arguments']:
+            for arg in sorted([arg for arg in G.node[node]['arguments'] if arg not in G.node[node]['controlled']]):
                 etree.SubElement (n, 'arg', attrib = {'name': arg})
-            for arg in G.node[node]['controlled']:
+            for arg in sorted(G.node[node]['controlled']):
                 etree.SubElement (n, 'arg', attrib = {'name': arg, 'controlled': 'true'})
 
-        if not self.schema.validate (doc):
+        if not self.schema.validate (root):
             raise InternalError ("Output document does not validate: " + self.schema.error_log.last_error)
+
+        doc = etree.ElementTree (root)
+        doc.write (outpath, encoding='UTF-8', xml_declaration=True)

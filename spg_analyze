@@ -3,13 +3,15 @@
 import argparse
 import sys
 
+import spg.graph
 from spg.error import warn, info, err
-from spg.graph import Graph
+
+class Analyze (spg.graph.Graph): pass
 
 def main(args):
 
     # Read in graph
-    G = Graph (args.input[0])
+    G = Analyze (args.input[0])
     G.write (args.output[0])
 
 if __name__ == "__main__":

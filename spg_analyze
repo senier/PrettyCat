@@ -2,17 +2,93 @@
 
 import argparse
 import sys
+import inspect
+
+# FIXME: The Z3 package is not found my Debian. Investigate.
+sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 
 import spg.graph
+import spg.primitives
+from spg.guarantees import Conf, Intg
 from spg.error import warn, info, err
 
-class Analyze (spg.graph.Graph): pass
+import z3
+from z3 import sat
+
+class Analyze (spg.graph.Graph, z3.Solver):
+
+    def __init__ (self, infile):
+
+        spg.graph.Graph.__init__ (self, infile)
+        z3.Solver.__init__ (self)
+
+        primitives = {}
+        for name, obj in inspect.getmembers (sys.modules['spg.primitives']):
+            if inspect.isclass (obj):
+                primitives[name] = obj
+
+        # Create primitive objects
+        for node in self.graph.nodes():
+
+            attrs = { \
+               'inputs'     : [ data['darg'] for (unused1, unused2, data) in self.graph.in_edges (nbunch = node, data = True) ], \
+               'arguments'  : self.graph.node[node]['arguments'], \
+               'outputs'    : self.graph.node[node]['outputs'], \
+               'controlled' : self.graph.node[node]['controlled'], \
+               'config'     : self.graph.node[node]['config'], \
+               'guarantees' : self.graph.node[node]['guarantees'] }
+
+            objname = "Primitive_" + self.graph.node[node]['kind']
+
+            try:
+                primitive = primitives[objname](self, node, attrs)
+            except AttributeError as e:
+                raise PrimitiveInvalidAttributes (node, kind, str(e))
+
+            self.graph.node[node]['primitive'] = primitive
+
+    def analyze (self):
+
+        # Put node rules into solver
+        for n in self.graph.nodes():
+            primitive = self.graph.node[n]['primitive']
+            self.assert_and_track (primitive.rule(), "RULE>" + primitive.name)
+
+        # Put edge (channel) rules into solver
+        for (parent, child, data) in self.graph.edges (data=True):
+            pog = self.graph.node[parent]['primitive'].output.guarantees()
+            cig = self.graph.node[child]['primitive'].input.guarantees()
+            darg = data['darg']
+            sarg = data['sarg']
+            channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
+            self.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
+            self.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
+
+        if self.check() != sat:
+            return False
+
+        # Update all guarantee values
+        for n in self.graph.nodes():
+            primitive = self.graph.node[n]['primitive']
+            ig = primitive.input.guarantees()
+            for g in ig:
+                ig[g].update (self.model())
+            og = primitive.output.guarantees()
+            for g in og:
+                og[g].update (self.model())
+
+        return True
 
 def main(args):
 
     # Read in graph
     G = Analyze (args.input[0])
+    solved = G.analyze()
     G.write (args.output[0])
+
+    if not solved:
+        err ("No solution")
+        sys.exit (1)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

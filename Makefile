@@ -1,7 +1,7 @@
 all: otr.svg
 
 clean:
-	rm -f otr.* tests/*.test tests/*.run *.graph TEMP_* partitions.svg
+	rm -f otr.* tests/*.test tests/*.run tests/unittests.log *.graph TEMP_* partitions.svg
 	rm -rf __pycache__
 
 RUNS  = $(wildcard tests/run_*.spg)
@@ -46,8 +46,12 @@ otr.graph: models/OTRrev3.spg spg_analyze
 	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
 	$(V)mv TEMP_$@ $@
 
-test:: $(sort $(TESTS:.spg=.test)) $(sort $(RUNS:.spg=.run))
+test:: tests/unittests.log $(sort $(TESTS:.spg=.test)) $(sort $(RUNS:.spg=.run))
 	@echo "$(words $^) TESTS DONE."
+
+tests/unittests.log:
+	@PYTHONPATH=. ./tests/unittests.py
+	@touch $@
 
 tests/%.svg: tests/%.spg spg_analyze
 	@echo "=== Graph $@"

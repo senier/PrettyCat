@@ -88,9 +88,11 @@ def main(args):
     if args.output:
         G.write (args.output[0])
 
-    if not solved:
+    if not G.fail and not solved:
         err ("No solution")
         sys.exit (1)
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Analyzer')

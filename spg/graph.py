@@ -6,7 +6,7 @@ import networkx as nx
 from lxml import etree
 from io   import StringIO
 
-from spg.error import info, warn, err
+from spg.error import info, warn, err, InternalError
 
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -92,6 +92,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                 <xs:sequence minOccurs="0" maxOccurs="unbounded">
                     <xs:choice>
                         <xs:element name="flow" type="flowElement"/>
+                        <xs:element name="arg" type="argElement"/>
                    </xs:choice>
                 </xs:sequence>
         </xs:extension>
@@ -290,13 +291,15 @@ class Graph:
                     self.__add_guarantees (assert_attrib, data['assertion'])
                     etree.SubElement (flow, 'assert', attrib = assert_attrib)
 
-            for arg in sorted([arg for arg in G.node[node]['arguments'] if arg not in G.node[node]['controlled']]):
-                etree.SubElement (n, 'arg', attrib = {'name': arg})
-            for arg in sorted(G.node[node]['controlled']):
-                etree.SubElement (n, 'arg', attrib = {'name': arg, 'controlled': 'true'})
+            for (parent, child, data) in sorted(G.in_edges (nbunch = node, data = True), key=(lambda e: e[1] + e[2]['darg'])):
+                attrib = {'name': data['darg']}
+                if data['darg'] in G.node[node]['controlled']:
+                    attrib['controlled'] = 'true'
+                etree.SubElement (n, 'arg', attrib = attrib)
 
         if not self.schema.validate (root):
-            raise InternalError ("Output document does not validate: " + self.schema.error_log.last_error)
+            etree.dump (root)
+            raise InternalError ("Output document does not validate: " + str(self.schema.error_log.last_error))
 
         doc = etree.ElementTree (root)
         doc.write (outpath, encoding='UTF-8', xml_declaration=True)

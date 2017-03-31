@@ -15,28 +15,23 @@ class Layout (spg.graph.Graph):
                 G.node[node]['shape'] = "rectangle"
 
             G.node[node]['label'] = "<<b>" + G.node[node]['kind'] + ": </b>" + node + ">"
+
             val_c = False
             val_i = False
 
-            #if G.node[node]['primitive'].guarantees != None:
-            #    val_c = G.node[node]['primitive'].guarantees['c']
-            #    val_i = G.node[node]['primitive'].guarantees['i']
+            for (name, guarantee) in G.node[node]['inputs']:
+                if guarantee.get_conf_val():
+                    val_c = True
+                if guarantee.get_intg_val():
+                    val_i = True
 
-            #for (parent, current, data) in G.in_edges (nbunch=node, data=True):
-            #    darg = data['darg']
-            #    val_c = val_c or G.node[current]['primitive'].input.guarantees()[darg].val_c()
-            #    val_i = val_i or G.node[current]['primitive'].input.guarantees()[darg].val_i()
+            for (name, guarantee) in G.node[node]['outputs']:
+                if guarantee.get_conf_val():
+                    val_c = True
+                if guarantee.get_intg_val():
+                    val_i = True
 
-            #for (current, child, data) in G.out_edges (nbunch=node, data=True):
-            #    sarg = data['sarg']
-            #    val_c = val_c or G.node[current]['primitive'].output.guarantees()[sarg].val_c()
-            #    val_i = val_i or G.node[current]['primitive'].output.guarantees()[sarg].val_i()
-
-            #set_style (G.node[node], val_c, val_i)
-
-            ## Store node guarantees
-            #G.node[node]['primitive'].guarantees['c'] = val_c
-            #G.node[node]['primitive'].guarantees['i'] = val_i
+            self.set_style (G.node[node], val_c, val_i)
 
         # add edge labels
         for (parent, child, data) in G.edges(data=True):
@@ -49,9 +44,9 @@ class Layout (spg.graph.Graph):
             data['headlabel'] = data['darg']
             data['tooltip'] = parent + ":" + data['sarg'] + " ==> " + child + ":" + data['darg']
 
-            #pg = G.node[parent]['primitive'].output.guarantees()[sarg]
-            #cg = G.node[child]['primitive'].input.guarantees()[darg]
-            #set_style (data, pg.val_c() and cg.val_c(), pg.val_i() and cg.val_i())
+            pg = G.node[parent]['outputs'][sarg]
+            cg = G.node[child]['inputs'][darg]
+            self.set_style (data, pg.get_conf_val() and cg.get_conf_val(), pg.get_intg_val() and cg.get_intg_val())
 
         # Mark  unsat core if present
         #if self.unsat:
@@ -83,3 +78,22 @@ class Layout (spg.graph.Graph):
         self.pd.set ("size", "15.6,10.7")
         self.pd.set ("labelloc", "t")
         self.pd.set ("concentrate", "true")
+
+    def set_style (self, o, c, i, style = None):
+
+        if style:
+            o['style'] = style
+    
+        if (c and i):
+            o['color'] = "purple"
+        elif not c and not i:
+            o['color'] = "black"
+        elif c:
+            o['color'] = "red"
+        elif i:
+            o['color'] = "blue"
+        else:
+            o['color'] = "orange"
+    
+        o['fillcolor'] = o['color']
+    

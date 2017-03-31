@@ -725,24 +725,6 @@ class SPG_Solver (SPG_Solver_Base):
 
 ####################################################################################################
 
-def set_style (o, c, i, style = None):
-
-    if style:
-        o['style'] = style
-
-    if (c and i):
-        o['color'] = "purple"
-    elif not c and not i:
-        o['color'] = "black"
-    elif c:
-        o['color'] = "red"
-    elif i:
-        o['color'] = "blue"
-    else:
-        o['color'] = "orange"
-
-    o['fillcolor'] = o['color']
-
 def dump_primitive_rules (filename):
 
     rules = []

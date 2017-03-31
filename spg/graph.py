@@ -193,7 +193,7 @@ class Graph:
         for child in root.iterchildren(tag = etree.Element):
     
             name = child.attrib["id"]
-            desc = child.find('description')
+            desc = child.find('description').text
             kind = child.tag
             code = child.attrib['code'] if 'code' in child.attrib else None
     
@@ -212,7 +212,8 @@ class Graph:
 
                 assertion = None
                 for ass in f.findall('assert'):
-                    assertion = self.__parse_guarantees (f.attrib)
+                    assertion = self.__parse_guarantees (ass.attrib)
+                    assertion['description'] = ass.text
     
                 guarantee = self.__parse_guarantees (f.attrib)
                 outputs.add_arg  \
@@ -222,7 +223,7 @@ class Graph:
                      conf = guarantee['c'], \
                      intg = guarantee['i'],
                      assertion = assertion)
-    
+
             self.graph.add_node \
                 (name, \
                  kind      = kind, \
@@ -230,7 +231,7 @@ class Graph:
                  config    = config, \
                  inputs    = inputs,
                  outputs   = outputs,
-                 desc       = desc)
+                 desc      = desc)
     
             for element in child.findall('flow'):
                 sarg       = element.attrib['sarg']
@@ -257,7 +258,9 @@ class Graph:
         return len(self.graph.node)
 
     def __set_bool (self, value):
-        return 'true' if value else 'false'
+        if value == True:  return 'true'
+        if value == False: return 'false'
+        raise InternalError ("Invalid input passed to '__set_bool': " + str(value))
 
     def __add_guarantees (self, attrib, guarantees):
 
@@ -290,7 +293,9 @@ class Graph:
                 attrib['code'] = G.node[node]['classname']
 
             n = etree.SubElement (root, G.node[node]['kind'], attrib = attrib)
-            n.append (G.node[node]['desc'])
+            d = etree.SubElement (n, 'description')
+            d.text = G.node[node]['desc']
+            n.append (d)
 
             if not G.node[node]['config'] is None:
                 n.append (G.node[node]['config'])
@@ -302,10 +307,14 @@ class Graph:
                 flow = etree.SubElement (n, 'flow', attrib = attrib)
 
                 if 'assertion' in data and not data['assertion'] is None:
+                    ass = data['assertion']
                     assert_attrib = {}
-                    assert_attrib['confidentiality'] = self.__set_bool (data['assertion']['c'])
-                    assert_attrib['integrity']       = self.__set_bool (data['assertion']['i'])
-                    etree.SubElement (flow, 'assert', attrib = assert_attrib)
+                    if ass['c'] != None:
+                        assert_attrib['confidentiality'] = self.__set_bool (ass['c'])
+                    if ass['i'] != None:
+                        assert_attrib['integrity'] = self.__set_bool (ass['i'])
+                    aelem = etree.SubElement (flow, 'assert', attrib = assert_attrib)
+                    aelem .text = ass['description']
 
             for (name, guarantee) in sorted(G.node[node]['inputs']):
                 attrib = {'name': name}

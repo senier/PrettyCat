@@ -59,7 +59,8 @@ tests/%.svg: tests/%.spg spg_analyze
 
 tests/%.test: tests/%.spg spg_analyze
 	@echo "=== Testing $<"
-	$(V)./spg_analyze --input $<
+	$(V)./spg_analyze --input $< --output $@.out
+	$(V)./spg_assert --input $@.out
 	@touch $@
 
 TEST_ARGS = $(filter-out --partition --verbose, $(SPG_ARGS))

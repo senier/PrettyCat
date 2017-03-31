@@ -90,5 +90,18 @@ class PrimitiveNotImplemented (Exception):
     def __init__ (self, kind):
         Exception.__init__(self, "No implementation for primitive '" + kind + "'")
 
-class InternalError (Exception): pass
+class AssertionFailed (Exception):
+    def __init__ (self, name, kind, found, expected, description):
+        self._name        = name
+        self._kind        = kind
+        self._found       = found
+        self._expected    = expected
+        self._description = description
 
+    def name(self): return self._name.split('>')
+    def kind(self): return self._kind
+    def found(self): return self._found
+    def expected(self): return self._expected
+    def description(self): return self._description
+
+class InternalError (Exception): pass

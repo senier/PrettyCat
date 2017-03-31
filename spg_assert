@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+
+from spg.graph import Graph
+from spg.error import err, AssertionFailed
+
+def main(args):
+
+    exitval = 0
+
+    # Read in graph
+    G = Graph (args.input[0])
+
+    for node in G.graph.node:
+        ig = [(name, guarantee) for name, guarantee in G.graph.node[node]['inputs']]
+        og = [(name, guarantee) for name, guarantee in G.graph.node[node]['outputs']]
+        for (name, guarantee) in ig + og:
+            try:
+                guarantee.check()
+            except AssertionFailed as e:
+                name = e.name()
+                err ("Failed %s assertion for %s interface '%s' of instance '%s'" % (e.kind().upper(), name[1], name[2], name[0]))
+                err ("Expected '%s', but found '%s'" % (e.expected(), e.found()))
+                err ("Description: " + " ".join(e.description().replace('\n', '').split()) + "\n")
+                exitval = 1
+
+    sys.exit (exitval)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='SPG Assertion Checker')
+    parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
+
+    try:
+        args = parser.parse_args ()
+        main(args)
+    except Exception as e:
+        err (e)
+        raise

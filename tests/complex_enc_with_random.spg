@@ -1,21 +1,21 @@
 <?xml version="1.0"?>
 <spg code="testlib">
 
-    <env id="recv" confidentiality="true" integrity="false">
+    <env id="recv">
         <description>
             Plaintext
         </description>
-        <flow sarg="msg" sink="enc" darg="plaintext"/>
+        <flow sarg="msg" sink="enc" darg="plaintext" confidentiality="true" integrity="false"/>
     </env>
 
-    <const id="iv" confidentiality="false">
+    <const id="iv">
         <description>
             Initial counter
         </description>
         <flow sarg="const" sink="enc" darg="ctr"/>
     </const>
 
-    <const id="len" confidentiality="false">
+    <const id="len">
         <description>
             key length
         </description>
@@ -36,11 +36,11 @@
         <flow sarg="ciphertext" sink="send" darg="data"/>
     </encrypt>
 
-    <env id="send" confidentiality="false" integrity="false">
+    <env id="send">
         <description>
             Network
         </description>
-        <arg name="data"/>
+        <arg name="data" confidentiality="false" integrity="false"/>
     </env>
 
 </spg>

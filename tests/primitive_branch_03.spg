@@ -6,11 +6,11 @@
       ** protected in Output_Conf1 and Output_Conf2
       ** -->
 
-    <env id="Input" integrity="false" confidentiality="true">
+    <env id="Input">
         <description>
             Confidential input
         </description>
-        <flow sarg="data" sink="Branch" darg="data"/>
+        <flow sarg="data" sink="Branch" darg="data" integrity="false" confidentiality="true"/>
     </env>
 
     <xform id="Branch" code="branch">
@@ -26,17 +26,17 @@
         <arg name="data"/>
     </xform>
 
-    <env id="Output_Conf1" integrity="false" confidentiality="true">
+    <env id="Output_Conf1">
         <description>
             Conf output1
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="true"/>
     </env>
 
-    <env id="Output_Conf2" integrity="false" confidentiality="true">
+    <env id="Output_Conf2">
         <description>
             Conf output2
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="true"/>
     </env>
 </spg>

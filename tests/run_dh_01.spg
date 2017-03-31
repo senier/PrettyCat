@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg code="testlib">
 
-    <const id="Modulus" confidentiality="false">
+    <const id="Modulus">
         <description>
             Modulus for D-H operations
         </description>
@@ -20,7 +20,7 @@
         <arg name="data"/>
     </xform>
 
-    <const id="Generator" confidentiality="false">
+    <const id="Generator">
         <description>
             Generator for D-H operations
         </description>

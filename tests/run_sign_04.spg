@@ -61,7 +61,7 @@
     </sign>
 
 
-    <env id="Verify sig" code="verify_sig_ext" confidentiality="true">
+    <env id="Verify sig" code="verify_sig_ext">
         <description>
             Compare generated signature using external tool
         </description>

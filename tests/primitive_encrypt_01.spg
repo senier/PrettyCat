@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <spg>
 
-    <env id="Plaintext_Input" integrity="false" confidentiality="true">
+    <env id="Plaintext_Input">
         <description>
             Trusted plaintext input
         </description>
         <config port="10000"/>
-        <flow sarg="data" sink="Encrypt" darg="plaintext"/>
+        <flow sarg="data" sink="Encrypt" darg="plaintext" integrity="false" confidentiality="true"/>
     </env>
 
     <env id="Key_Input">
@@ -17,12 +17,12 @@
         <flow sarg="data" sink="Encrypt" darg="key"/>
     </env>
 
-    <env id="Ctr_Input" integrity="true" confidentiality="false">
+    <env id="Ctr_Input">
         <description>
             Trusted ctr input
         </description>
         <config port="10002"/>
-        <flow sarg="data" sink="Encrypt" darg="ctr"/>
+        <flow sarg="data" sink="Encrypt" darg="ctr" integrity="true" confidentiality="false"/>
     </env>
 
     <encrypt_ctr id="Encrypt">
@@ -43,12 +43,12 @@
         <flow sarg="ciphertext" sink="Ciphertext_Output" darg="data"/>
     </xform>
 
-    <env id="Ciphertext_Output" integrity="false" confidentiality="false">
+    <env id="Ciphertext_Output">
         <description>
             Ciphertext output
         </description>
         <config port="10003"/>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="false"/>
     </env>
 
 </spg>

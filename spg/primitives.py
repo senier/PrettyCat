@@ -1,5 +1,6 @@
 from z3 import Or, And, Implies, Not
 from spg.guarantees import Intg, Conf
+from spg.error import *
 import spg.arguments
 
 class Primitive:
@@ -12,51 +13,31 @@ class Primitive:
 
     def setup (self, name, G, attributes, interfaces = { 'inputs': None, 'outputs': None} ):
 
-        self.input  = spg.arguments.Input_Args (name)
-        self.output = spg.arguments.Output_Args (name)
         self.name   = name
         self._rule  = []
+        self.interfaces = interfaces
 
         # FIXME: Remove
         self.G = G
 
         self.attributes = attributes
-        self.guarantees = attributes['guarantees']
         self.config     = attributes['config']
-        self.inputs     = attributes['inputs']
-        self.outputs    = attributes['outputs']
-        self.arguments  = attributes['arguments']
+        self.output     = attributes['outputs']
+        self.input      = attributes['inputs']
 
-        if interfaces['inputs'] == None:
-            for arg in self.inputs:
-                self.input.add_guarantee (arg)
-        else:
-            for in_if in interfaces['inputs']:
-                self.input.add_guarantee (in_if)
+        if interfaces['inputs'] != None:
 
-            if self.inputs:
-                missing_args = set(interfaces['inputs']) - set(self.inputs)
-                excess_args = set(self.inputs) - set(interfaces['inputs'])
+            for inp in self.interfaces['inputs']:
+                self.input.add_arg (inp)
 
-                if missing_args and excess_args: raise MissingAndExcessIncomingEdges (name, missing_args, excess_args)
-                if missing_args:                 raise MissingIncomingEdges (name, missing_args)
-                if excess_args:                  raise ExcessIncomingEdges (name, excess_args)
+            if self.input:
+                missing_args = [arg[0] for arg in self.input if not arg[0] in interfaces['inputs']]
+                if len(missing_args) > 0: raise MissingIncomingEdges (name, missing_args)
 
-        if interfaces['outputs'] == None:
-            for arg in self.outputs:
-                self.output.add_guarantee (arg)
-        else:
-            for out_if in interfaces['outputs']:
-                self.output.add_guarantee (out_if)
-
-            if self.outputs:
-                missing_args = set(interfaces['outputs']) - set(self.outputs)
-                excess_args = set(self.outputs) - set(interfaces['outputs'])
-
-                if missing_args and excess_args: raise MissingAndExcessOutgoingEdges (name, missing_args, excess_args)
-                if missing_args:                 raise MissingOutgoingEdges (name, missing_args)
-                if excess_args:                  raise ExcessOutgoingEdges (name, excess_args)
-
+        if interfaces['outputs'] != None:
+            if self.output:
+                missing_args = [outp[0] for outp in self.output if not outp[0] in interfaces['outputs']]
+                if len(missing_args) > 0: raise MissingOutgoingEdges (name, missing_args)
 
     def rule (self):
         return And (self._rule)
@@ -83,24 +64,6 @@ class Primitive_env (Primitive):
     def __init__ (self, G, name, attributes):
         super ().setup (name, G, attributes)
 
-        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.output.add_guarantee (data['sarg'])
-
-        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
-            self.input.add_guarantee (data['darg'])
-
-        for (name, ig) in self.input.guarantees().items():
-            if self.guarantees['c'] != None:
-                self.append_rule (Conf (ig) == self.guarantees['c'])
-            if self.guarantees['i'] != None:
-                self.append_rule (Intg (ig) == self.guarantees['i'])
-
-        for (name, og) in self.output.guarantees().items():
-            if self.guarantees['c'] != None:
-                self.append_rule (Conf (og) == self.guarantees['c'])
-            if self.guarantees['i'] != None:
-                self.append_rule (Intg (og) == self.guarantees['i'])
-
 class Primitive_xform (Primitive):
     """
     The xform primitive
@@ -111,12 +74,6 @@ class Primitive_xform (Primitive):
 
     def __init__ (self, G, name, attributes):
         super ().setup (name, G, attributes)
-
-        for (parent, current, data) in G.graph.in_edges (nbunch=name, data=True):
-            self.input.add_guarantee (data['darg'])
-
-        for (current, child, data) in G.graph.out_edges (nbunch=name, data=True):
-            self.output.add_guarantee (data['sarg'])
 
         # Input from a source lacking integrity guarantees can influence
         # any output of an xform in undetermined ways. Hence, integrity
@@ -129,10 +86,10 @@ class Primitive_xform (Primitive):
         #
         # (Intg(output_if) ⇒ Intg(input_if)) ∨ Controlled (input_if)
 
-        for (in_name, input_if) in self.input.guarantees().items():
+        for (unused, input_if) in self.input:
             input_if_rules = []
-            for (out_name, output_if) in self.output.guarantees().items():
-                input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if)), in_name in attributes['controlled']))
+            for (unused, output_if) in self.output:
+                input_if_rules.append (Or (Implies (Intg(output_if), Intg(input_if))))
             self.append_rule (And (input_if_rules))
 
         # Input from a source demanding confidentiality guarantees can
@@ -140,9 +97,9 @@ class Primitive_xform (Primitive):
         # confidentiality must be guaranteed by all output interfaces.
         #
         #   Conf(input_if) -> Conf(output_if)
-        for (out_name, output_if) in self.output.guarantees().items():
+        for (unused, output_if) in self.output:
             output_if_rules = []
-            for (in_name, input_if) in self.input.guarantees().items():
+            for (unused, input_if) in self.input:
                 output_if_rules.append (Implies (Conf(input_if), Conf(output_if)))
             self.append_rule (And (output_if_rules))
 

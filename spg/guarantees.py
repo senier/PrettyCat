@@ -1,65 +1,73 @@
+# FIXME: The Z3 package is not found my Debian. Investigate.
+import sys
+sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
+
 from z3 import Bool, is_true
 
 class Guarantees:
 
-    def __init__ (self, name):
-        self.name  = name
+    def __init__ (self, name, conf = None, intg = None, data = None):
+
+        self.__name = name
+        self.__data = data
 
         # Rules defining integrity and confidentiality
         # This is assigned by the primitive init function
-        self.__conf  = None
-        self.__intg  = None
+        self.__conf_rule  = None
+        self.__intg_rule  = None
 
         # Z3 variables representing confidentiality and
         # integrity within the solver. These values are
         # used in the rules.
-        self.__c   = Bool(name + ">conf")
-        self.__i   = Bool(name + ">intg")
+        self.__conf_var = Bool (name + ">conf")
+        self.__intg_var = Bool (name + ">intg")
 
         # The actual boolean value. This is filled in from
-        # a valid model found by the solver
-        self.__val_c = None
-        self.__val_i = None
+        # a valid model found by the solver or initialized
+        # from config
+        self.__conf_val = conf
+        self.__intg_val = intg
 
     def conf (self, value):
-        if self.__conf != None:
+        if self.__conf_rule != None:
             raise PrimitiveDuplicateConfRule (self.name)
-        self.__conf = value
+        self.__conf_rule = value
 
     def intg (self, value):
-        if self.__intg != None:
+        if self.__intg_rule != None:
             raise PrimitiveDuplicateIntgRule (self.name)
-        self.__intg = value
+        self.__intg_rule = value
 
-    def get_conf (self):
-        return self.__conf
+    def get_conf_var (self):
+        return self.__conf_var
 
-    def get_intg (self):
-        return self.__intg
+    def get_intg_var (self):
+        return self.__intg_var
 
     def name (self):
-        return name
+        return self.__name
 
-    def get_i (self):
-        return self.__i
+    def data (self):
+        return self.__data
 
-    def get_c (self):
-        return self.__c
+    def get_intg_rule (self):
+        return self.__intg_rule
 
-    def val_c (self):
-        return self.__val_c
+    def get_conf_rule (self):
+        return self.__conf_rule
 
-    def val_i (self):
-        return self.__val_i
+    def get_conf_val (self):
+        return self.__conf_val
+
+    def get_intg_val (self):
+        return self.__intg_val
 
     def update (self, model):
-        self.__val_c = is_true(model[self.__c])
-        self.__val_i = is_true(model[self.__i])
+        self.__conf_val = is_true(model[self.__conf_var])
+        self.__intg_val = is_true(model[self.__intg_var])
     
 def Intg (guarantee):
-    return guarantee.get_i()
+    return guarantee.get_intg_var()
 
 def Conf (guarantee):
-    return guarantee.get_c()
-
-
+    return guarantee.get_conf_var()

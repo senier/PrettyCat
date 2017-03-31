@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <spg code="testlib">
 
-    <const id="Modulus" confidentiality="false">
+    <const id="Modulus">
         <description>
             Modulus for D-H operations
         </description>
@@ -18,7 +18,7 @@
         <arg name="data"/>
     </xform>
 
-    <const id="Generator" confidentiality="false">
+    <const id="Generator">
         <description>
             Generator for D-H operations
         </description>
@@ -35,7 +35,7 @@
         <arg name="data"/>
     </xform>
 
-    <const id="Sec length" confidentiality="false">
+    <const id="Sec length">
         <description>
             Length of secret key for D-H
         </description>
@@ -71,6 +71,7 @@
             Serialize pub value before sending
         </description>
         <flow sarg="data" sink="Network" darg="data"/>
+        <arg name="data"/>
     </xform>
 
     <xform id="Unserialize pub" code="unmpi">
@@ -88,20 +89,20 @@
         <flow sarg="ssec" sink="Keystore" darg="data"/>
     </dhsec>
 
-    <env id="Network" confidentiality="false">
+    <env id="Network">
         <description>
             Output result
         </description>
         <config mode="server" host="localhost" port="12000"/>
         <flow sarg="data" sink="Unserialize pub" darg="data"/>
-        <arg name="data"/>
+        <arg name="data" confidentiality="false"/>
     </env>
 
-    <env id="Keystore" confidentiality="true" code="print">
+    <env id="Keystore" code="print">
         <description>
             Output result
         </description>
         <config mode="server" port="12002"/>
-        <arg name="data"/>
+        <arg name="data" confidentiality="true"/>
     </env>
 </spg>

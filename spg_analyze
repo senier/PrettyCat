@@ -10,10 +10,10 @@ sys.path.append ("/home/alex/.python_venv/lib/python2.7/site-packages/")
 import spg.graph
 import spg.primitives
 from spg.guarantees import Conf, Intg
-from spg.error import warn, info, err
+from spg.error import *
 
 import z3
-from z3 import sat
+from z3 import sat, is_true
 
 class Analyze (spg.graph.Graph, z3.Solver):
 
@@ -30,18 +30,11 @@ class Analyze (spg.graph.Graph, z3.Solver):
         # Create primitive objects
         for node in self.graph.nodes():
 
-            attrs = { \
-               'inputs'     : [ data['darg'] for (unused1, unused2, data) in self.graph.in_edges (nbunch = node, data = True) ], \
-               'arguments'  : self.graph.node[node]['arguments'], \
-               'outputs'    : self.graph.node[node]['outputs'], \
-               'controlled' : self.graph.node[node]['controlled'], \
-               'config'     : self.graph.node[node]['config'], \
-               'guarantees' : self.graph.node[node]['guarantees'] }
-
-            objname = "Primitive_" + self.graph.node[node]['kind']
+            kind    = self.graph.node[node]['kind']
+            objname = "Primitive_" + kind
 
             try:
-                primitive = primitives[objname](self, node, attrs)
+                primitive = primitives[objname](self, node, self.graph.node[node])
             except AttributeError as e:
                 raise PrimitiveInvalidAttributes (node, kind, str(e))
 
@@ -56,8 +49,8 @@ class Analyze (spg.graph.Graph, z3.Solver):
 
         # Put edge (channel) rules into solver
         for (parent, child, data) in self.graph.edges (data=True):
-            pog = self.graph.node[parent]['primitive'].output.guarantees()
-            cig = self.graph.node[child]['primitive'].input.guarantees()
+            pog = self.graph.node[parent]['primitive'].output
+            cig = self.graph.node[child]['primitive'].input
             darg = data['darg']
             sarg = data['sarg']
             channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
@@ -70,12 +63,10 @@ class Analyze (spg.graph.Graph, z3.Solver):
         # Update all guarantee values
         for n in self.graph.nodes():
             primitive = self.graph.node[n]['primitive']
-            ig = primitive.input.guarantees()
-            for g in ig:
-                ig[g].update (self.model())
-            og = primitive.output.guarantees()
-            for g in og:
-                og[g].update (self.model())
+            for (unused, g) in primitive.input:
+                g.update (self.model())
+            for (unused, g) in primitive.output:
+                g.update (self.model())
 
         return True
 
@@ -91,6 +82,9 @@ def main(args):
     if not G.fail and not solved:
         err ("No solution")
         sys.exit (1)
+
+    if args.verbose:
+        print (G.model())
 
     sys.exit(0)
 

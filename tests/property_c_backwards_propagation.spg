@@ -1,25 +1,25 @@
 <?xml version="1.0"?>
 <spg>
 
-    <env id="Input" integrity="true" confidentiality="true">
+    <env id="Input">
         <description>
             Trusted input
         </description>
-        <flow sarg="data" sink="Encrypt" darg="plaintext"/>
+        <flow sarg="data" sink="Encrypt" darg="plaintext" integrity="true" confidentiality="true"/>
     </env>
 
-    <const id="IV" confidentiality="false">
+    <const id="IV">
         <description>
             Static IV
         </description>
         <flow sarg="const" sink="Encrypt" darg="ctr"/>
     </const>
 
-    <env id="Encryption key" confidentiality="true" integrity="true">
+    <env id="Encryption key">
         <description>
             Static key
         </description>
-        <flow sarg="data" sink="Encrypt" darg="key"/>
+        <flow sarg="data" sink="Encrypt" darg="key" confidentiality="true" integrity="true"/>
     </env>
 
     <encrypt_ctr id="Encrypt">
@@ -39,11 +39,11 @@
        <arg name="data"/>
     </xform>
 
-    <env id="MAC key" confidentiality="true" integrity="true">
+    <env id="MAC key">
         <description>
             Static key
         </description>
-        <flow sarg="data" sink="HMAC" darg="key"/>
+        <flow sarg="data" sink="HMAC" darg="key" confidentiality="true" integrity="true"/>
     </env>
 
     <hmac id="HMAC">
@@ -63,10 +63,10 @@
         <arg name="auth"/>
     </xform>
 
-    <env id="Output" integrity="false" confidentiality="false">
+    <env id="Output">
         <description>
             Send out encrypted/integrity protected message
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="false"/>
     </env>
 </spg>

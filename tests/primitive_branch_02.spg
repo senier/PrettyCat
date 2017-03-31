@@ -6,11 +6,11 @@
       ** but Input hasn't
       ** -->
 
-    <env id="Input" integrity="false" confidentiality="false">
+    <env id="Input">
         <description>
             Confidential input
         </description>
-        <flow sarg="data" sink="Branch" darg="data"/>
+        <flow sarg="data" sink="Branch" darg="data" integrity="false" confidentiality="false"/>
     </env>
 
     <xform id="Branch" code="branch">
@@ -26,17 +26,17 @@
         <arg name="data"/>
     </xform>
 
-    <env id="Output_Intg" integrity="true" confidentiality="false">
+    <env id="Output_Intg">
         <description>
             Integrity output
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="true" confidentiality="false"/>
     </env>
 
-    <env id="Output_Nonintg" integrity="false" confidentiality="false">
+    <env id="Output_Nonintg">
         <description>
             Non-integrity output
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="false"/>
     </env>
 </spg>

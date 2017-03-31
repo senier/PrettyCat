@@ -1,10 +1,10 @@
 <?xml version="1.0"?>
 <spg>
-    <env id="Msg" confidentiality="false" integrity="true">
+    <env id="Msg">
         <description>
             Message
         </description>
-        <flow sarg="data" sink="Sign" darg="msg"/>
+        <flow sarg="data" sink="Sign" darg="msg" confidentiality="false" integrity="true"/>
     </env>
 
     <const id="Public key">
@@ -16,13 +16,11 @@
         </flow>
     </const>
 
-    <env id="Private key" confidentiality="true" integrity="true">
+    <env id="Private key">
         <description>
             Private key
         </description>
-        <flow sarg="const" sink="Branch Key" darg="data">
-            <assert confidentiality="true"/>
-        </flow>
+        <flow sarg="const" sink="Branch Key" darg="data" confidentiality="true" integrity="true"/>
     </env>
 
     <xform id="Branch Key" code="branch">
@@ -56,11 +54,11 @@
         <flow sarg="auth" sink="Output" darg="auth"/>
     </sign>
 
-    <env id="Output" confidentiality="false" integrity="false">
+    <env id="Output">
         <description>
             Output guaranteeing integrity
         </description>
-        <arg name="auth"/>
+        <arg name="auth" confidentiality="false" integrity="false"/>
     </env>
 </spg>
 

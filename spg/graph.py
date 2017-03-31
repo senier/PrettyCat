@@ -6,7 +6,8 @@ import networkx as nx
 from lxml import etree
 from io   import StringIO
 
-from spg.error import info, warn, err, InternalError
+from spg.error import info, warn, err, InternalError, ExcessIncomingEdges
+from spg.arguments import Input_Args, Output_Args
 
 schema_src = StringIO ('''<?xml version="1.0"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
@@ -27,11 +28,15 @@ schema_src = StringIO ('''<?xml version="1.0"?>
     <xs:attribute name="sink" use="required" />
     <xs:attribute name="sarg" use="required" />
     <xs:attribute name="darg" use="required" />
+    <xs:attribute name="confidentiality" type="xs:boolean"/>
+    <xs:attribute name="integrity" type="xs:boolean"/>
 </xs:complexType>
 
 <xs:complexType name="argElement">
     <xs:attribute name="name" use="required" />
     <xs:attribute name="controlled" type="xs:boolean"/>
+    <xs:attribute name="confidentiality" type="xs:boolean"/>
+    <xs:attribute name="integrity" type="xs:boolean"/>
 </xs:complexType>
 
 <xs:complexType name="baseElement">
@@ -51,7 +56,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                     <xs:element name="flow" type="flowElement"/>
                 </xs:choice>
             </xs:sequence>
-            <xs:attribute name="confidentiality" type="xs:boolean"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -66,8 +70,6 @@ schema_src = StringIO ('''<?xml version="1.0"?>
                 </xs:choice>
             </xs:sequence>
             <xs:attribute name="code" type="xs:string"/>
-            <xs:attribute name="confidentiality" type="xs:boolean"/>
-            <xs:attribute name="integrity" type="xs:boolean"/>
         </xs:extension>
     </xs:complexContent>
 </xs:complexType>
@@ -173,7 +175,7 @@ class Graph:
             raise
     
         if not self.schema.validate (tree):
-            err (inpath + self.schema.error_log.last_error)
+            err (str(self.schema.error_log.last_error))
             raise
     
         root = tree.getroot()
@@ -196,32 +198,48 @@ class Graph:
             code = child.attrib['code'] if 'code' in child.attrib else None
     
             config     = child.find('config')
-            guarantees = self.__parse_guarantees (child.attrib)
+
+            inputs = Input_Args (name)
+            for arg in child.findall('arg'):
+                guarantee = self.__parse_guarantees (arg.attrib)
+                inputs.add_arg \
+                    (name = arg.attrib['name'],
+                     conf = guarantee['c'],
+                     intg = guarantee['i'])
+
+            outputs = Output_Args (name)
+            for f in child.findall('flow'):
+
+                assertion = None
+                for ass in f.findall('assert'):
+                    assertion = self.__parse_guarantees (f.attrib)
+    
+                guarantee = self.__parse_guarantees (f.attrib)
+                outputs.add_arg  \
+                    (name = f.attrib['sarg'], \
+                     sink = f.attrib['sink'], \
+                     darg = f.attrib['darg'], \
+                     conf = guarantee['c'], \
+                     intg = guarantee['i'],
+                     assertion = assertion)
     
             self.graph.add_node \
                 (name, \
-                 kind       = kind, \
-                 classname  = code, \
-                 config     = config, \
-                 guarantees = guarantees, \
-                 arguments  = [ arg.attrib['name'] for arg in child.findall('arg')],
-                 controlled = [ arg.attrib['name'] for arg in child.findall('arg') if 'controlled' in arg.attrib],
-                 outputs    = [ arg.attrib['sarg'] for arg in child.findall('flow')],
+                 kind      = kind, \
+                 classname = code, \
+                 config    = config, \
+                 inputs    = inputs,
+                 outputs   = outputs,
                  desc       = desc)
     
             for element in child.findall('flow'):
                 sarg       = element.attrib['sarg']
                 darg       = element.attrib['darg']
+                sink       = element.attrib['sink']
     
-                assertion = None
-    
-                for ass in element.findall('assert'):
-                    assertion = self.__parse_guarantees (ass.attrib)
-    
-                self.graph.add_edge (name, element.attrib['sink'], \
+                self.graph.add_edge (name, sink, \
                     sarg = sarg, \
-                    darg = darg, \
-                    assertion = assertion)
+                    darg = darg)
 
     def __parse_bool (self, attrib, name):
         if not name in attrib:
@@ -233,10 +251,7 @@ class Graph:
         raise Exception ("Invalid boolean value for '" + name + "'")
 
     def __parse_guarantees (self, attribs):
-        return {
-            'c': self.__parse_bool (attribs, 'confidentiality'),
-            'i': self.__parse_bool (attribs, 'integrity'),
-        }
+        return {'c': self.__parse_bool (attribs, 'confidentiality'), 'i': self.__parse_bool (attribs, 'integrity')}
 
     def num_nodes (self):
         return len(self.graph.node)
@@ -246,15 +261,13 @@ class Graph:
 
     def __add_guarantees (self, attrib, guarantees):
 
-        if 'c' in guarantees:
-            c = guarantees['c']
-            if not c is None:
-                attrib['confidentiality'] = self.__set_bool (c)
+        c = guarantees.get_conf_val()
+        if not c is None:
+            attrib['confidentiality'] = self.__set_bool (c)
 
-        if 'i' in guarantees:
-            i = guarantees['i']
-            if not i is None:
-                attrib['integrity'] = self.__set_bool (i)
+        i = guarantees.get_intg_val()
+        if not i is None:
+            attrib['integrity'] = self.__set_bool (i)
 
     def write (self, outpath):
 
@@ -276,25 +289,27 @@ class Graph:
             if 'classname' in G.node[node] and G.node[node]['classname'] != None:
                 attrib['code'] = G.node[node]['classname']
 
-            self.__add_guarantees (attrib, G.node[node]['guarantees'])
-
             n = etree.SubElement (root, G.node[node]['kind'], attrib = attrib)
             n.append (G.node[node]['desc'])
 
             if not G.node[node]['config'] is None:
                 n.append (G.node[node]['config'])
 
-            for (parent, child, data) in sorted(G.out_edges (nbunch = node, data = True), key=(lambda e: e[1] + e[2]['darg'])):
-                flow = etree.SubElement (n, 'flow', attrib = {'sarg': data['sarg'], 'sink': child, 'darg': data['darg']})
+            for (sarg, guarantee) in sorted(G.node[node]['outputs']):
+                data = guarantee.data()
+                attrib = {'sarg': sarg, 'sink': data['sink'], 'darg': data['darg']}
+                self.__add_guarantees (attrib, guarantee)
+                flow = etree.SubElement (n, 'flow', attrib = attrib)
+
                 if 'assertion' in data and not data['assertion'] is None:
                     assert_attrib = {}
-                    self.__add_guarantees (assert_attrib, data['assertion'])
+                    assert_attrib['confidentiality'] = self.__set_bool (data['assertion']['c'])
+                    assert_attrib['integrity']       = self.__set_bool (data['assertion']['i'])
                     etree.SubElement (flow, 'assert', attrib = assert_attrib)
 
-            for (parent, child, data) in sorted(G.in_edges (nbunch = node, data = True), key=(lambda e: e[1] + e[2]['darg'])):
-                attrib = {'name': data['darg']}
-                if data['darg'] in G.node[node]['controlled']:
-                    attrib['controlled'] = 'true'
+            for (name, guarantee) in sorted(G.node[node]['inputs']):
+                attrib = {'name': name}
+                self.__add_guarantees (attrib, guarantee)
                 etree.SubElement (n, 'arg', attrib = attrib)
 
         if not self.schema.validate (root):

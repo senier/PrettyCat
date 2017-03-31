@@ -5,11 +5,11 @@
       ** Output_Nonconf hasn't
       ** -->
 
-    <env id="Input" integrity="false" confidentiality="true">
+    <env id="Input">
         <description>
             Confidential input
         </description>
-        <flow sarg="data" sink="Branch" darg="data"/>
+        <flow sarg="data" sink="Branch" darg="data" integrity="false" confidentiality="true"/>
     </env>
 
     <xform id="Branch" code="branch">
@@ -25,17 +25,17 @@
         <arg name="data"/>
     </xform>
 
-    <env id="Output_Nonconf" integrity="false" confidentiality="false">
+    <env id="Output_Nonconf">
         <description>
             Non-confidential output
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="false"/>
     </env>
 
-    <env id="Output_Conf" integrity="false" confidentiality="true">
+    <env id="Output_Conf">
         <description>
             Confidential output
         </description>
-        <arg name="data"/>
+        <arg name="data" integrity="false" confidentiality="true"/>
     </env>
 </spg>

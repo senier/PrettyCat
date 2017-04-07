@@ -45,11 +45,8 @@ class Primitive:
     def append_rule (self, rule):
         self._rule.append (rule)
 
-    def populate (self, solver):
-        solver.assert_and_track (And (self._rule), "RULE>" + self.name)
-
     def prove (self, solver):
-        self.populate (solver)
+        solver.assert_and_track (And (self._rule), "RULE>" + self.name)
         if solver.check() != sat:
             raise PrimitiveInvalidRule (self.__class__.__name__, self.name)
         del solver

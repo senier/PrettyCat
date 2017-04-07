@@ -15,6 +15,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG PDF output')
     parser.add_argument('--input',  action='store', nargs=1, required=True, help='Input file',  dest='input');
     parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
+    parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
     args = parser.parse_args ()
 
     PDF (args.input[0], args.output[0])

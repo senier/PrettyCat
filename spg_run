@@ -1,0 +1,24 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import inspect
+
+from spg.error import err
+
+def main(args):
+
+    err ("Not implemented")
+    sys.exit(1)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='SPG Python Runner')
+    parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
+
+    try:
+        args = parser.parse_args ()
+        main(args)
+    except Exception as e:
+        err (e)
+        raise

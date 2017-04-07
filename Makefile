@@ -1,7 +1,16 @@
-all: otr.svg
+#
+# File formats:
+#
+# spg  - SPG input
+# spga - Analyzed SPG file
+# spgc - Assertion-checked SPG file
+# spgr - SPG run log
+#
+
+all: tests/complex_OTRrev3.spgc
 
 clean:
-	rm -f otr.* tests/*.test tests/*.run tests/unittests.log *.graph TEMP_* partitions.svg
+	rm -f otr.* tests/*.spg? tests/unittests.log *.graph TEMP_* partitions.svg
 	rm -rf __pycache__
 
 RUNS  = $(wildcard tests/run_*.spg)
@@ -26,52 +35,29 @@ V ?= @
 
 export MALLOC_CHECK_=0
 
-otr.svg: models/OTRrev3.spg spg_analyze
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
-	$(V)mv TEMP_$@ $@
-
-otr.json: models/OTRrev3.spg spg_analyze
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
-	$(V)mv TEMP_$@ $@
-
-otr.dot: models/OTRrev3.spg spg_analyze
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
-	$(V)mv TEMP_$@ $@
-
-otr.run: models/OTRrev3.spg spg_analyze
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@ --run
-	$(V)mv TEMP_$@ $@
-
-otr.graph: models/OTRrev3.spg spg_analyze
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output TEMP_$@
-	$(V)mv TEMP_$@ $@
-
-test:: tests/unittests.log $(sort $(TESTS:.spg=.test)) $(sort $(RUNS:.spg=.run))
+test:: $(sort $(TESTS:.spg=.spgc)) $(sort $(RUNS:.spg=.spgr)) tests/unittests.log 
 	@echo "$(words $^) TESTS DONE."
 
 tests/unittests.log:
 	@PYTHONPATH=. ./tests/unittests.py
 	@touch $@
 
-tests/%.svg: tests/%.spg spg_analyze
-	@echo "=== Graph $@"
+tests/%.spga: tests/%.spg spg_analyze
+	@echo "=== Analyzing $<"
 	$(V)./spg_analyze $(SPG_ARGS) --input $< --output $@
 
-tests/%.test: tests/%.spg spg_analyze
-	@echo "=== Testing $<"
-	$(V)./spg_analyze --input $< --output $@.out
-	$(V)./spg_assert --input $@.out
+tests/%.spgc: tests/%.spga spg_assert
+	@echo "=== Checking $<"
+	$(V)$(F)./spg_assert --input $<
 	@touch $@
 
-TEST_ARGS = $(filter-out --partition --verbose, $(SPG_ARGS))
+tests/%.spgr: tests/%.spgc spg_run $(FORCE_TESTS)
+	@echo "=== Running $<"
+	$(V)$(F)./spg_run $(SPG_ARGS) --input $< > $@.tmp
+	$(V)$(F)mv $@.tmp $@
 
-tests/%.dot:: tests/%.spg spg_analyze
-	@echo "=== Graph $@"
-	$(V)./spg_analyze $(TEST_ARGS) --input $< --output $@
-
-tests/%.run:: tests/%.spg spg_analyze $(FORCE_TESTS)
-	@echo "=== Running $@"
-	$(V)$(F)./spg_analyze $(TEST_ARGS) --input $< --output $@.svg --run
-	$(V)$(F)mv $@.svg $@
+tests/%.pdf: tests/% spg_pdf
+	@echo "=== PDF $@"
+	$(V)./spg_pdf $(SPG_ARGS) --input $< --output $@
 
 FORCE:

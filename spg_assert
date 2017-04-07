@@ -23,7 +23,8 @@ def main(args):
                 name = e.name()
                 err ("Failed %s assertion for %s interface '%s' of instance '%s'" % (e.kind().upper(), name[1], name[2], name[0]))
                 err ("Expected '%s', but found '%s'" % (e.expected(), e.found()))
-                err ("Description: " + " ".join(e.description().replace('\n', '').split()) + "\n")
+                if e.description() != None:
+                    err ("Description: " + " ".join(e.description().replace('\n', '').split()) + "\n")
                 exitval = 1
 
     sys.exit (exitval)

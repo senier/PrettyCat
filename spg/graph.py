@@ -326,4 +326,5 @@ class Graph:
             raise InternalError ("Output document does not validate: " + str(self.schema.error_log.last_error))
 
         doc = etree.ElementTree (root)
-        doc.write (outpath, encoding='UTF-8', xml_declaration=True)
+        with open (outpath, 'w') as outfile:
+            outfile.write (etree.tostring (doc, encoding='unicode', pretty_print=True))

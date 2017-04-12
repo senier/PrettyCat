@@ -39,6 +39,20 @@ class Primitive:
                 missing_args = [outp[0] for outp in self.output if not outp[0] in interfaces['outputs']]
                 if len(missing_args) > 0: raise MissingOutgoingEdges (name, missing_args)
 
+        # Insert rules for all pre-initialize input variables
+        for (unused, input_if) in self.input:
+            if input_if.get_conf_val() != None:
+                self.append_rule (input_if.get_conf_var() == input_if.get_conf_val())
+            if input_if.get_intg_val() != None:
+                self.append_rule (input_if.get_intg_var() == input_if.get_intg_val())
+
+        # Insert rules for all pre-initialize input variables
+        for (unused, output_if) in self.output:
+            if output_if.get_conf_val() != None:
+                self.append_rule (output_if.get_conf_var() == output_if.get_conf_val())
+            if output_if.get_intg_val() != None:
+                self.append_rule (output_if.get_intg_var() == output_if.get_intg_val())
+
     def rule (self):
         return And (self._rule)
 

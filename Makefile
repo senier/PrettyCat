@@ -56,8 +56,8 @@ tests/%.spgr: tests/%.spgc spg_run $(FORCE_TESTS)
 	$(V)$(F)./spg_run $(SPG_ARGS) --input $< > $@.tmp
 	$(V)$(F)mv $@.tmp $@
 
-tests/%.pdf: tests/% spg_pdf
-	@echo "=== PDF $@"
+tests/%.pdf: tests/%.spga spg_pdf
+	@echo "=== PDF from SPGA $@"
 	$(V)./spg_pdf $(SPG_ARGS) --input $< --output $@
 
 FORCE:

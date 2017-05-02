@@ -44,7 +44,7 @@ tests/unittests.log:
 
 tests/%.spga: tests/%.spg spg_analyze
 	@echo "=== Analyzing $<"
-	$(V)./spg_analyze $(SPG_ARGS) --input $< --output $@
+	$(V)$(F)./spg_analyze $(SPG_ARGS) --input $< --output $@
 
 tests/%.spgc: tests/%.spga spg_assert
 	@echo "=== Checking $<"

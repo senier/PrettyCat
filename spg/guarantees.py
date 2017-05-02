@@ -29,6 +29,10 @@ class Guarantees:
         self.__conf_val = conf
         self.__intg_val = intg
 
+    def __str__ (self):
+
+        return self.name() + ": c=" + str(self.__conf_val) + " i=" + str(self.__intg_val)
+
     def conf (self, value):
         if self.__conf_rule != None:
             raise PrimitiveDuplicateConfRule (self.name)

@@ -22,12 +22,8 @@ class Layout (spg.graph.Graph):
             for (name, guarantee) in G.node[node]['inputs']:
                 if guarantee.get_conf_val():
                     val_c = True
-                if guarantee.get_intg_val():
-                    val_i = True
 
             for (name, guarantee) in G.node[node]['outputs']:
-                if guarantee.get_conf_val():
-                    val_c = True
                 if guarantee.get_intg_val():
                     val_i = True
 

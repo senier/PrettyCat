@@ -10,7 +10,7 @@
         <description>
             Confidential input
         </description>
-        <flow sarg="data" sink="Branch" darg="data" integrity="false" confidentiality="false"/>
+        <flow sarg="data" sink="Branch" darg="data" integrity="false" confidentiality="true"/>
     </env>
 
     <xform id="Branch" code="branch">

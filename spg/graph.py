@@ -265,11 +265,11 @@ class Graph:
     def __add_guarantees (self, attrib, guarantees):
 
         c = guarantees.get_conf_val()
-        if not c is None:
+        if c != None:
             attrib['confidentiality'] = self.__set_bool (c)
 
         i = guarantees.get_intg_val()
-        if not i is None:
+        if c != None:
             attrib['integrity'] = self.__set_bool (i)
 
     def write (self, outpath):
@@ -277,8 +277,8 @@ class Graph:
         G = self.graph
         attrib = {}
 
-        if 'assert_fail' in G:
-            attrib['assert_fail'] = self.__set_bool (G['assert_fail'])
+        if self.fail:
+            attrib['assert_fail'] = self.__set_bool (self.fail)
 
         if 'code' in G:
             attrib['code'] = G['code']

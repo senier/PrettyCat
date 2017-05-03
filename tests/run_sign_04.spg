@@ -6,7 +6,7 @@
             Private DSA key
         </description>
         <config hexbytes="2053b83265c791be4266bc8c1eeebe92e16bb12d"/>
-        <flow sarg="data" sink="Sign" darg="privkey"/>
+        <flow sarg="data" sink="Sign" darg="privkey" confidentiality="true" />
     </env>
 
     <const id="Public key">
@@ -22,7 +22,7 @@
             Branch public key to sign/verify
         </description>
         <flow sarg="data#1" sink="Sign" darg="pubkey"/>
-        <flow sarg="data#2" sink="Verify sig" darg="pubkey"/>
+        <flow sarg="data#2" sink="Verify sig" darg="pubkey" integrity="true" />
         <arg name="data"/>
     </xform>
 
@@ -31,7 +31,7 @@
             Input message
         </description>
         <config hexbytes="f7ff9e8b7bb2e09b70935a5d785e0cc5d9d0abf0"/>
-        <flow sarg="const" sink="Branch message" darg="data"/>
+        <flow sarg="const" sink="Branch message" darg="data" integrity="true" />
     </const>
 
     <xform id="Branch message" code="branch">
@@ -39,7 +39,7 @@
             Branch message for sign/verify components
         </description>
         <flow sarg="data#1" sink="Sign" darg="msg"/>
-        <flow sarg="data#2" sink="Verify sig" darg="msg"/>
+        <flow sarg="data#2" sink="Verify sig" darg="msg" integrity="true" />
         <arg name="data"/>
     </xform>
 
@@ -57,7 +57,7 @@
         <description>
             Sign message
         </description>
-        <flow sarg="auth" sink="Verify sig" darg="auth"/>
+        <flow sarg="auth" sink="Verify sig" darg="auth" integrity="true"/>
     </sign>
 
 

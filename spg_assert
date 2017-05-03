@@ -4,11 +4,13 @@ import argparse
 import sys
 
 from spg.graph import Graph
-from spg.error import err, AssertionFailed
+from spg.error import err, AssertionFailed, verbose
 
 def main(args):
 
     exitval = 0
+
+    verbose (args.verbose)
 
     # Read in graph
     G = Graph (args.input[0])
@@ -27,11 +29,15 @@ def main(args):
                     err ("Description: " + " ".join(e.description().replace('\n', '').split()) + "\n")
                 exitval = 1
 
+    if exitval == 0:
+        G.write (args.output[0])
+
     sys.exit (exitval)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Assertion Checker')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--output', action='store', nargs=1, required=True, help='Output file', dest='output');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
 
     try:

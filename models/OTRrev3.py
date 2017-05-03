@@ -24,7 +24,7 @@ class Data_parser (libspg.MPI):
 
 class not_implemented (libspg.SPG_base):
 
-    def __init__ (self, name, config, arguments, needconfig = False):
+    def __init__ (self, name, attributes, needconfig = False):
         raise libspg.NotImplemented (name + " (" + self.__class__.__name__ + ")")
 
 
@@ -107,8 +107,8 @@ class xform_dh_key_r (libspg.SPG_base):
 class xform_network_mux (libspg.SPG_base):
 
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
         self.match_query    = re.compile ("\?OTR\??([^\?]*)\?")
         self.match_otr      = re.compile ("\?OTR:(.*)$")
@@ -230,8 +230,8 @@ class xform_reveal_signature_r (libspg.SPG_base, libspg.MPI):
 
 class xform_select_pubkeys (libspg.SPG_base, libspg.MPI):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
         self.current_local       = None
         self.previous_local      = None
@@ -316,8 +316,8 @@ class xform_select_pubkeys (libspg.SPG_base, libspg.MPI):
 
 class xform_select_secret_key (libspg.SPG_base):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
         current_keyid  = None
         current_psec   = None
@@ -376,8 +376,8 @@ class xform_split_x (libspg.SPG_base):
 
 class xform_verify_counter (libspg.SPG_base, Data_parser):
 
-    def __init__ (self, name, config, arguments):
-        super().__init__ (name, config, arguments)
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
         self.last_counter         = 0
         self.last_recipient_keyid = 0

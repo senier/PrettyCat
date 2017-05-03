@@ -1,11 +1,14 @@
-quiet = False
+_verbose = False
 
 def warn (message):
     print ("[1m[35mWARNING: [2m" + str(message) + "[0m")
 
 def info (message):
-    if not quiet:
+    if _verbose:
         print ("[1m[34mINFO: [2m" + str(message) + "[0m")
+
+def verbose (verbose):
+    _verbose = verbose
 
 def err (message):
     print ("[1m[31mERROR: [2m" + str(message) + "[0m")

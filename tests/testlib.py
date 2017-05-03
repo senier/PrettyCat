@@ -7,32 +7,30 @@ from subprocess import call
 
 class env_static (libspg.SPG_thread):
 
-    def __init__ (self, name, config, arguments):
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
-        super().__init__ (name, config, arguments)
-
-        if not 'hexbytes' in config.attrib:
+        if not 'hexbytes' in self.config.attrib:
             raise Exception ("No hexbytes configured")
 
-        self.value = bytearray.fromhex(config.attrib['hexbytes'])
+        self.value = bytearray.fromhex(self.config.attrib['hexbytes'])
 
     def run (self):
         self.send ('data', self.value)
 
 class env_list (libspg.SPG_thread):
 
-    def __init__ (self, name, config, arguments):
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments)
 
-        super().__init__ (name, config, arguments)
-
-        if not 'data' in config.attrib:
+        if not 'data' in self.config.attrib:
             raise Exception ("No input data configured")
 
         self.delay = 0
-        if 'delay' in config.attrib:
-            self.delay = float(config.attrib['delay'])
+        if 'delay' in self.config.attrib:
+            self.delay = float(self.config.attrib['delay'])
 
-        self.values = [x.strip() for x in config.attrib['data'].split(',')]
+        self.values = [x.strip() for x in self.config.attrib['data'].split(',')]
 
     def run (self):
 
@@ -42,16 +40,15 @@ class env_list (libspg.SPG_thread):
 
 class env_check_fixed (SPG_base):
 
-    def __init__ (self, name, config, arguments):
+    def __init__ (self, name, arguments):
+        super().__init__ (name, arguments, needconfig = True)
 
-        super().__init__ (name, config, arguments, needconfig = True)
-
-        if 'result' in config.attrib:
-            self.values = [x.strip().encode() for x in config.attrib['result'].split(',')]
-        elif 'hexresult' in config.attrib:
-            self.values = [bytearray.fromhex (x.strip()) for x in config.attrib['hexresult'].split(',')]
-        elif 'intresult' in config.attrib:
-            self.values = [int(x.strip()) for x in config.attrib['intresult'].split(',')]
+        if 'result' in self.config.attrib:
+            self.values = [x.strip().encode() for x in self.config.attrib['result'].split(',')]
+        elif 'hexresult' in self.config.attrib:
+            self.values = [bytearray.fromhex (x.strip()) for x in self.config.attrib['hexresult'].split(',')]
+        elif 'intresult' in self.config.attrib:
+            self.values = [int(x.strip()) for x in self.config.attrib['intresult'].split(',')]
         else:
             raise Exception ("No result set for output check")
 

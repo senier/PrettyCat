@@ -18,4 +18,5 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
     args = parser.parse_args ()
 
+    err.verbose (args.verbose)
     PDF (args.input[0], args.output[0])

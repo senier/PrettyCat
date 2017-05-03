@@ -161,6 +161,8 @@ class Graph:
         self.graph = None
         self.fail  = False
 
+        self.basename = os.path.splitext(os.path.basename (inpath))[0]
+
         try:
             schema_doc = etree.parse(schema_src)
             self.schema = etree.XMLSchema (schema_doc)
@@ -185,8 +187,8 @@ class Graph:
         if 'code' in root.attrib:
             self.code = root.attrib['code']
         else:
-            self.code = os.path.splitext(os.path.basename (inpath))[0]
-    
+            self.code = None
+
         self.graph = nx.MultiDiGraph()
     
         # read in graph
@@ -197,7 +199,7 @@ class Graph:
             kind = child.tag
             code = child.attrib['code'] if 'code' in child.attrib else None
     
-            config     = child.find('config')
+            config = child.find('config')
 
             inputs = Input_Args (name)
             for arg in child.findall('arg'):
@@ -269,7 +271,7 @@ class Graph:
             attrib['confidentiality'] = self.__set_bool (c)
 
         i = guarantees.get_intg_val()
-        if c != None:
+        if i != None:
             attrib['integrity'] = self.__set_bool (i)
 
     def write (self, outpath):
@@ -280,8 +282,8 @@ class Graph:
         if self.fail:
             attrib['assert_fail'] = self.__set_bool (self.fail)
 
-        if 'code' in G:
-            attrib['code'] = G['code']
+        if self.code:
+            attrib['code'] = self.code
 
         root = etree.Element('spg', attrib = attrib)
 

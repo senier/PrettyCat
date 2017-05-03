@@ -10,15 +10,16 @@
 all: tests/complex_OTRrev3.spgc
 
 clean:
-	rm -f otr.* tests/*.spg? tests/unittests.log *.graph TEMP_* partitions.svg
+	rm -f otr.* tests/*.spg? tests/*.pdf tests/unittests.log *.graph TEMP_* partitions.svg
 	rm -rf __pycache__
 
-RUNS  = $(wildcard tests/run_*.spg)
-TESTS = $(filter-out $(RUNS), $(wildcard tests/*.spg))
+EXCLUDE = tests/complex_OTRrev3.spg
+RUNS    = $(wildcard tests/run_*.spg)
+TESTS   = $(filter-out $(RUNS) $(EXCLUDE), $(wildcard tests/*.spg))
 
 #SPG_ARGS = --latex ../../Papers/ESSoS17/rules.tex
 
-SPG_ARGS += --verbose
+#SPG_ARGS += --verbose
 #SPG_ARGS += --partition
 #SPG_ARGS += --merge_const
 #SPG_ARGS += --merge_branch
@@ -38,6 +39,9 @@ export MALLOC_CHECK_=0
 test:: $(sort $(TESTS:.spg=.spgc)) $(sort $(RUNS:.spg=.spgr)) tests/unittests.log 
 	@echo "$(words $^) TESTS DONE."
 
+run:: $(sort $(RUNS:.spg=.spgr))
+	@echo "$(words $^) MODELS EXECUTED."
+
 tests/unittests.log:
 	@PYTHONPATH=. ./tests/unittests.py
 	@touch $@
@@ -48,16 +52,14 @@ tests/%.spga: tests/%.spg spg_analyze
 
 tests/%.spgc: tests/%.spga spg_assert
 	@echo "=== Checking $<"
-	$(V)$(F)./spg_assert --input $<
-	@touch $@
+	$(V)$(F)./spg_assert --input $< --output $@
 
 tests/%.spgr: tests/%.spgc spg_run $(FORCE_TESTS)
 	@echo "=== Running $<"
-	$(V)$(F)./spg_run $(SPG_ARGS) --input $< > $@.tmp
-	$(V)$(F)mv $@.tmp $@
+	$(V)$(F)./spg_run $(SPG_ARGS) --input $< --output $@
 
-tests/%.pdf: tests/%.spga spg_pdf
-	@echo "=== PDF from SPGA $@"
+tests/%.pdf: tests/% spg_pdf
+	@echo "=== PDF from SPGx $@"
 	$(V)./spg_pdf $(SPG_ARGS) --input $< --output $@
 
 FORCE:

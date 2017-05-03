@@ -521,57 +521,6 @@ class Graph (spg.graph.Graph):
 
     def run (self):
 
-        G = self.graph
-
-        # import global library
-        libspg   = __import__ ("libspg")
-        liblocal = __import__ (self.code)
-
-        for node in G.node:
-
-            kind = G.node[node]['kind']
-            lib  = libspg
-            name = kind
-
-            if kind == "env" or kind == "xform":
-                classname = G.node[node]['classname']
-                if classname != None:
-                    name = kind + "_" + G.node[node]['classname']
-
-            try:
-                libclass = getattr (libspg, name)
-            except AttributeError:
-                try:
-                    libclass = getattr (liblocal, name)
-                except AttributeError:
-                    raise PrimitiveNotImplemented (name)
-
-            classobj = libclass (node, G.node[node]['primitive'].config, G.node[node]['primitive'].attributes)
-            G.node[node]['class'] = classobj
-            G.node[node]['classname'] = name
-
-        for node in G.node:
-
-            # Insert send methods into class object
-            sendmethods = {}
-            for (parent, child, data) in G.out_edges (nbunch=node, data=True):
-                try:
-                    recvmethod = getattr (G.node[child]['class'], "recv_" + data['darg'])
-                except AttributeError:
-                    warn ("Implementation of '" + child + "' does not have receive method for parameter '" + data['darg'] + "'")
-                    raise
-                sendmethods[data['sarg']] = recvmethod
-
-            G.node[node]['class'].set_sendmethods (sendmethods)
-
-        for node in G.node:
-            G.node[node]['class'].setDaemon (True)
-            G.node[node]['class'].start ()
-
-        # join all threads
-        for node in G.node:
-            G.node[node]['class'].join ()
-
     def get_partitions (self):
 
         partitions = {}
@@ -742,9 +691,7 @@ def dump_primitive_rules (filename):
 
 def main():
 
-    # Add directory containing our model to search path so we can find the
-    # local library there
-    sys.path.append (dirname(args.input[0]))
+    err.verbose (args.verbose)
 
     # Read in graph
     G = Graph (args.input[0])

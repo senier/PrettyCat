@@ -61,14 +61,14 @@ class MPI:
 
 class SPG_base:
 
-    def __init__ (self, name, config, attributes, needconfig = False):
+    def __init__ (self, name, attributes, needconfig = False):
 
-        if needconfig and config == None:
+        if needconfig == True and attributes['config'] == None:
             raise Exception ("Missing config for " + name)
 
         self.name       = name
-        self.config     = config
         self.attributes = attributes
+        self.config     = attributes['config']
         self.arguments  = attributes['inputs']
 
         self.__sendmethods = None
@@ -93,15 +93,15 @@ class SPG_base:
 
 class SPG_thread (threading.Thread):
 
-    def __init__ (self, name, config, attributes, needconfig = False):
+    def __init__ (self, name, attributes, needconfig = False):
 
-        if needconfig and config == None:
+        if needconfig and attributes['config'] == None:
             raise Exception ("Missing config for " + name)
 
         super().__init__ ()
         self.name       = name
-        self.config     = config
         self.attributes = attributes
+        self.config     = attributes['config']
         self.arguments  = attributes['inputs']
 
     def set_sendmethods (self, sendmethods):
@@ -117,11 +117,11 @@ class SPG_thread (threading.Thread):
 
 class SPG_xform (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.args = {}
-        for a in self.arguments:
+        for (a, unused) in self.arguments:
             self.args["recv_" + a] = None
 
     def __update_arg (self, name, value):
@@ -130,14 +130,14 @@ class SPG_xform (SPG_base):
             self.finish()
 
     def __getattr__ (self, name):
-        if not name in [("recv_" + a) for a in self.arguments]:
+        if not name in [("recv_" + a) for (a, unused) in self.arguments]:
             raise InvalidArgument (name)
         return lambda value: (self.__update_arg(name, value))
 
 class comp (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
         self.data1 = None
         self.data2 = None
 
@@ -163,16 +163,16 @@ class comp (SPG_base):
 
 class counter_mode (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
-        if config == None:
+        if self.config == None:
             raise Exception ("Counter mode encryption not configured for '" + name + "'")
 
-        if not 'keylen' in config.attrib:
+        if not 'keylen' in self.config.attrib:
             raise Exception ("No keylen set for encrypt")
 
-        keylen = int(config.attrib['keylen'])
+        keylen = int(self.config.attrib['keylen'])
 
         if (keylen == 128):
             self.keylen = 16
@@ -188,8 +188,8 @@ class counter_mode (SPG_base):
 
 class encrypt (counter_mode):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.pt          = None
         self.key_changed = False
@@ -237,8 +237,8 @@ class encrypt_ctr (encrypt):
 
 class decrypt (counter_mode):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
         self.ct = None
 
     def recv_ctr (self, ctr):
@@ -267,16 +267,17 @@ class decrypt (counter_mode):
 
 class env (SPG_thread):
 
-    def __init__ (self, name, config, attributes, needconfig = True):
+    def __init__ (self, name, attributes, needconfig = True):
 
-        if not 'mode' in config.attrib:
+        super().__init__ (name, attributes, needconfig)
+
+        if not 'mode' in self.config.attrib:
             raise InvalidConfiguration ("'mode' not configured for env")
 
-        super().__init__ (name, config, attributes, needconfig)
-        self.port        = int(config.attrib['port'])
-        self.host        = config.attrib['host'] if 'host' in config.attrib else "127.0.0.1"
-        self.bufsize     = config.attrib['bufsize'] if 'bufsize' in config.attrib else 1024
-        self.mode        = config.attrib['mode']
+        self.port        = int(self.config.attrib['port'])
+        self.host        = self.config.attrib['host'] if 'host' in self.config.attrib else "127.0.0.1"
+        self.bufsize     = self.config.attrib['bufsize'] if 'bufsize' in self.config.attrib else 1024
+        self.mode        = self.config.attrib['mode']
         self.conn        = None
         self.ready       = threading.Semaphore(0)
 
@@ -341,30 +342,30 @@ class env (SPG_thread):
 
 class const (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes, needconfig = True)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes, needconfig = True)
 
-        if 'string' in config.attrib:
+        if 'string' in self.config.attrib:
             self.value = self.config.attrib['string']
-        elif 'bytes' in config.attrib:
+        elif 'bytes' in self.config.attrib:
             self.value = bytearray (self.config.attrib['bytes'], 'utf-8')
-        elif 'hexbytes' in config.attrib:
+        elif 'hexbytes' in self.config.attrib:
             try:
                 self.value = bytearray.fromhex(self.config.attrib['hexbytes'])
             except ValueError:
                 warn ("Invalid hex value for " + name)
                 raise
-        elif 'uint8' in config.attrib:
+        elif 'uint8' in self.config.attrib:
             self.value = int(self.config.attrib['uint8']).to_bytes(1, byteorder='big')
-        elif 'uint16' in config.attrib:
+        elif 'uint16' in self.config.attrib:
             self.value = int(self.config.attrib['uint16']).to_bytes(2, byteorder='big')
-        elif 'uint32' in config.attrib:
+        elif 'uint32' in self.config.attrib:
             self.value = int(self.config.attrib['uint32']).to_bytes(4, byteorder='big')
-        elif 'int' in config.attrib:
+        elif 'int' in self.config.attrib:
             self.value = int(self.config.attrib['int'])
-        elif 'hex' in config.attrib:
+        elif 'hex' in self.config.attrib:
             self.value = int(self.config.attrib['hex'], 16)
-        elif 'bool' in config.attrib:
+        elif 'bool' in self.config.attrib:
             attrib = self.config.attrib['bool'].lower()
             if attrib == "true":
                 self.value = True
@@ -380,16 +381,16 @@ class const (SPG_base):
 
 class xform_branch (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
     def recv_data (self, data):
         for send_data in self.sendmethods():
             self.send (send_data, data)
 
 class dh (SPG_base):
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
         self.generator = None
         self.modulus   = None
         self.psec      = None
@@ -420,8 +421,8 @@ class dhpub (dh):
 
 class dhsec (dh):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
         self.pub = None
 
     def calculate_if_valid (self):
@@ -441,8 +442,8 @@ class dhsec (dh):
 
 class hmac (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.key = None
         self.msg = None
@@ -474,8 +475,8 @@ class hmac_out (hmac):
 
 class verify_hmac (hmac):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.trunc = None
         self.auth = None
@@ -552,8 +553,8 @@ class pubkey (MPI):
 
 class __sig_base (SPG_base, pubkey):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.pubkey = None
         self.msg    = None
@@ -572,8 +573,8 @@ class __sig_base (SPG_base, pubkey):
 
 class sign (__sig_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.privkey = None
         self.pubkey  = None
@@ -625,8 +626,8 @@ class sign (__sig_base):
 
 class verify_sig (__sig_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.auth = None
 
@@ -658,13 +659,13 @@ class verify_sig (__sig_base):
 
 class hash (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes, needconfig=True)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes, needconfig=True)
 
-        if not 'algo' in config.attrib:
+        if not 'algo' in self.config.attrib:
             raise Exception ("No hash algorithm configured")
 
-        algo = config.attrib['algo']
+        algo = self.config.attrib['algo']
         if algo == "SHA":
             self.hashalgo = SHA
         elif algo == "SHA256":
@@ -676,8 +677,8 @@ class hash (SPG_base):
 
 class guard (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         self.cond = None
         self.data = None
@@ -703,8 +704,8 @@ class release (SPG_base):
 
 class rng (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
     def recv_len (self, length):
         # Length must be multiples of a byte
@@ -714,8 +715,8 @@ class rng (SPG_base):
 
 class verify_commit (hash):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
         self.hash = None
 
     def recv_hash (self, data):
@@ -731,15 +732,15 @@ class verify_commit (hash):
 
 class xform_concat (SPG_xform):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes)
 
         if len(self.attributes['outputs']) != 1 or not 'result' in self.attributes['outputs']:
             raise InvalidConfiguration ("Single flow with source argument 'result' expected for " + self.name)
 
     def finish (self):
         result = bytearray()
-        for a in self.attributes['arguments']:
+        for (a, unused) in self.arguments:
             try:
                 result.extend(bytearray(self.args["recv_" + a]))
             except:
@@ -767,14 +768,14 @@ class xform_prefix (SPG_xform):
 class xform_mpi (SPG_base, MPI):
 
     def recv_data (self, data):
-        for output in self.attributes['outputs']:
+        for (output, unused) in self.attributes['outputs']:
             self.send (output, self.encode_mpi (data))
 
 class xform_data (SPG_base):
 
     def recv_data (self, data):
         length = len(data)
-        for output in self.attributes['outputs']:
+        for (output, unused) in self.attributes['outputs']:
             self.send (output, length.to_bytes (4, byteorder='big') + data)
 
 class xform_split (SPG_xform):
@@ -816,10 +817,10 @@ class env_print (SPG_base):
 
 class env_file (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes, True)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes, True)
 
-        if not 'source' in config.attrib:
+        if not 'source' in self.config.attrib:
             raise InvalidConfiguration ("No file configured")
 
     def run(self):
@@ -828,10 +829,10 @@ class env_file (SPG_base):
 
 class env_const (SPG_base):
 
-    def __init__ (self, name, config, attributes):
-        super().__init__ (name, config, attributes, True)
+    def __init__ (self, name, attributes):
+        super().__init__ (name, attributes, True)
 
-        if not 'hexbytes' in config.attrib:
+        if not 'hexbytes' in self.config.attrib:
             raise InvalidConfiguration ("No hexbytes configured for env_const")
 
         try:

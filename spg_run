@@ -4,16 +4,86 @@ import argparse
 import sys
 import inspect
 
-from spg.error import err
+import spg.graph
+from spg.error import err, verbose
+
+class Runner (spg.graph.Graph):
+
+    def run (self, outfile, libdir):
+
+        with open (outfile, 'w') as f:
+            f.write ("Running...")
+
+        G = self.graph
+
+        # Add directory containing our model to search path so we can find the
+        # local library there
+        sys.path.append (libdir)
+
+        # import global library
+        libspg   = __import__ ("libspg")
+        if self.code:
+            liblocal = __import__ (self.code)
+
+        for node in G.node:
+
+            kind = G.node[node]['kind']
+            lib  = libspg
+            name = kind
+
+            if kind == "env" or kind == "xform":
+                classname = G.node[node]['classname']
+                if classname != None:
+                    name = kind + "_" + G.node[node]['classname']
+
+            try:
+                libclass = getattr (libspg, name)
+            except AttributeError:
+                try:
+                    libclass = getattr (liblocal, name)
+                except AttributeError:
+                    raise PrimitiveNotImplemented (name)
+
+            classobj = libclass (node, G.node[node])
+            G.node[node]['class'] = classobj
+            G.node[node]['classname'] = name
+
+        for node in G.node:
+
+            # Insert send methods into class object
+            sendmethods = {}
+            for (parent, child, data) in G.out_edges (nbunch=node, data=True):
+                try:
+                    recvmethod = getattr (G.node[child]['class'], "recv_" + data['darg'])
+                except AttributeError:
+                    warn ("Implementation of '" + child + "' does not have receive method for parameter '" + data['darg'] + "'")
+                    raise
+                sendmethods[data['sarg']] = recvmethod
+
+            G.node[node]['class'].set_sendmethods (sendmethods)
+
+        for node in G.node:
+            G.node[node]['class'].setDaemon (True)
+            G.node[node]['class'].start ()
+
+        # join all threads
+        for node in G.node:
+            G.node[node]['class'].join ()
 
 def main(args):
 
-    err ("Not implemented")
-    sys.exit(1)
+    import os.path
+
+    verbose (args.verbose)
+
+    model  = args.input[0]
+    libdir = os.path.dirname(model)
+    Runner (model).run(args.output[0], libdir)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='SPG Python Runner')
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--output', action='store', nargs=1, required=True, help='Run log file', dest='output');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
 
     try:

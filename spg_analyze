@@ -72,6 +72,8 @@ class Analyze (spg.graph.Graph, z3.Solver):
 
 def main(args):
 
+    spg.error.verbose (args.verbose)
+
     # Read in graph
     G = Analyze (args.input[0])
     solved = G.analyze()
@@ -82,9 +84,6 @@ def main(args):
     if not G.fail and not solved:
         err ("No solution")
         sys.exit (1)
-
-    if args.verbose:
-        print (G.model())
 
     sys.exit(0)
 

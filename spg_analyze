@@ -85,6 +85,10 @@ def main(args):
         err ("No solution")
         sys.exit (1)
 
+    if G.fail and solved:
+        err ("Failure expected, but solution found");
+        sys.exit (1)
+
     sys.exit(0)
 
 if __name__ == "__main__":

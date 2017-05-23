@@ -5,6 +5,7 @@
 # spga - Analyzed SPG file
 # spgc - Assertion-checked SPG file
 # spgr - SPG run log
+# spgp - Partitioned SPG file
 #
 
 all: tests/complex_OTRrev3.spgc
@@ -57,6 +58,10 @@ tests/%.spgc: tests/%.spga spg_assert
 tests/%.spgr: tests/%.spgc spg_run $(FORCE_TESTS)
 	@echo "=== Running $<"
 	$(V)$(F)./spg_run $(SPG_ARGS) --input $< --output $@
+
+tests/%.spgp: tests/%.spgc spg_partition
+	@echo "=== Partitioning $<"
+	$(V)$(F)./spg_partition $(SPG_ARGS) --input $< --output $@
 
 tests/%.pdf: tests/% spg_pdf
 	@echo "=== PDF from SPGx $@"

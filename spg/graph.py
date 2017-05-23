@@ -46,6 +46,7 @@ schema_src = StringIO ('''<?xml version="1.0"?>
         <xs:element name="config" type="xs:anyType" minOccurs="0" maxOccurs="1"/>
     </xs:sequence>
     <xs:attribute name="id" use="required" />
+    <xs:attribute name="partition" />
 </xs:complexType>
 
 <xs:complexType name="constElement">
@@ -198,6 +199,7 @@ class Graph:
             desc = child.find('description').text
             kind = child.tag
             code = child.attrib['code'] if 'code' in child.attrib else None
+            partition = child.attrib['partition'] if 'partition' in child.attrib else None
     
             config = child.find('config')
 
@@ -230,6 +232,7 @@ class Graph:
                 (name, \
                  kind      = kind, \
                  classname = code, \
+                 partition = partition, \
                  config    = config, \
                  inputs    = inputs,
                  outputs   = outputs,
@@ -293,6 +296,9 @@ class Graph:
 
             if 'classname' in G.node[node] and G.node[node]['classname'] != None:
                 attrib['code'] = G.node[node]['classname']
+
+            if 'partition' in G.node[node] and G.node[node]['partition'] != None:
+                attrib['partition'] = G.node[node]['partition']
 
             n = etree.SubElement (root, G.node[node]['kind'], attrib = attrib)
             d = etree.SubElement (n, 'description')

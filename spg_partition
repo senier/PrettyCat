@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import spg.graph
+from spg.error import err, verbose
+
+class Partition (spg.graph.Graph):
+
+    def __init__ (self, infile):
+
+        self._pmap      = {}
+        self._pnum      = 0
+        self._id        = 0
+
+        super().__init__ (infile)
+
+    def partition (self):
+        for node in self.graph.node:
+            err ("Partitioning " + node)
+            self.partition_exact (node, self.new_id())
+
+    def has_pid (self, node):
+        return 'partition' in self.graph.node[node] and self.graph.node[node]['partition'] != None
+
+    def set_pid (self, node, pid):
+        if self.has_pid (node):
+            raise Exception ("Overwriting partition")
+        self.graph.node[node]['partition'] = pid
+        new_pnum        = self._pnum if pid in self._pmap else self._pnum + 1
+        self._pmap[pid] = self._pnum
+        self._pnum      = new_pnum
+
+    def get_pid (self, node):
+        pid = self.graph.node[node]['partition']
+        return pid
+
+    def set_pnum (self, node, pnum):
+        pid = self.graph.node[node]['partition']
+        self._pmap[pid] = pnum
+
+    def get_pnum (self, node):
+        pid = self.graph.node[node]['partition']
+        return self._pmap[pid]
+
+    def new_id (self):
+        self._id += 1
+        return self._id
+
+    def guarantees_lt (self, src, dst):
+        G = self.graph
+        return G.node[src]['primitive'].guarantees['c'] <= G.node[dst]['primitive'].guarantees['c'] and \
+               G.node[src]['primitive'].guarantees['i'] <= G.node[dst]['primitive'].guarantees['i']
+
+    def partition_exact (self, node, new_pid):
+
+        G = self.graph
+    
+        # Partition already set
+        if self.has_pid (node):
+            err ("Already partitioned")
+            return
+        
+        # Always put env primitive into a new partition
+        if G.node[node]['kind'] == 'env':
+            self.set_pid (node, self.new_id())
+            return
+
+        self.set_pid (node, new_pid)
+    
+        # Partition towards parents
+        for (parent, child, data) in G.in_edges (nbunch=node, data=True):
+
+            sarg = data['sarg']
+            darg = data['darg']
+    
+
+            print (sarg + " => " + darg)
+
+            if G.node[parent]['inputs'][sarg].conf == G.node[child]['outputs'][darg].conf and \
+               G.node[parent]['inputs'][sarg].intg == G.node[child]['outputs'][darg].intg:
+                self.partition_exact (parent, new_pid)
+    
+        # Partition towards children
+        for (parent, child, data) in G.out_edges (nbunch=node, data=True):
+    
+            sarg = data['sarg']
+            darg = data['darg']
+    
+            if G.node[parent]['inputs'][sarg].conf == G.node[child]['outputs'][darg].conf and \
+               G.node[parent]['inputs'][sarg].intg == G.node[child]['outputs'][darg].intg:
+                self.partition_exact (child, new_pid)
+
+def main(args):
+
+    verbose (args.verbose)
+
+    g = Partition (args.input[0])
+    g.partition();
+    g.write (args.output[0])
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='SPG Partitioner')
+    parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
+    parser.add_argument('--output', action='store', nargs=1, required=True, help='Run log file', dest='output');
+    parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
+
+    try:
+        args = parser.parse_args ()
+        main(args)
+    except Exception as e:
+        err (e)
+        raise

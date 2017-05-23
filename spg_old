@@ -29,18 +29,6 @@ def jdefault (o):
 
 class Graph (spg.graph.Graph):
 
-    def __init__ (self, infile):
-
-        self.pd         = None
-        self.subgraphs  = {}
-        self._pmap      = {}
-        self._pnum      = 0
-        self._id        = 0
-        self.tracelog   = []
-        self.unsat      = None
-
-        super().__init__ (infile)
-
     def graph (self):
         return self.graph
 
@@ -107,38 +95,6 @@ class Graph (spg.graph.Graph):
                  t['Nodes'], t['No Guarantees'], t['Integrity'], t['Confidentiality'], t['Both']))
             num += 1
 
-    def check_assertions (self):
-
-        edges = 0
-        checked = 0
-        success = True
-
-        for (parent, child, data) in self.graph.edges (data=True):
-            has_assertions = False
-            edges += 1
-            darg = data['darg']
-            sarg = data['sarg']
-
-            if data['assert_c'] != None:
-                has_assertions = True
-                val_c = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_c()
-                if val_c != data['assert_c']:
-                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": confidentiality assertion failed: " + str(val_c) + ", expected: " + str(data['assert_c']))
-                    success = False
-
-            if data['assert_i'] != None:
-                has_assertions = True
-                val_i = self.graph.node[parent]['primitive'].output.guarantees()[sarg].val_i()
-                if val_i != data['assert_i']:
-                    err (parent + "/" + sarg + " => " + child + "/" + darg + ": integrity assertion failed: " + str(val_i) + ", expected: " + str(data['assert_i']))
-                    success = False
-
-            if has_assertions:
-                checked += 1
-
-        info ("Checked %d assertions for %d edges" % (checked, edges))
-        return success
-
     def safe_unsat_core (self, unsat_core):
 
         u = Z3Unsat (simplify (And (unsat_core)))
@@ -181,112 +137,8 @@ class Graph (spg.graph.Graph):
 
     def analyze (self):
 
-        self.solver = SPG_Solver()
-        assertno = 0
-
-        # Put node rules into solver
-        for n in self.graph.nodes():
-            self.graph.node[n]['primitive'].populate (self.solver)
-
-        # Put edge (channel) rules into solver
-        for (parent, child, data) in self.graph.edges(data=True):
-            pog = self.graph.node[parent]['primitive'].output.guarantees()
-            cig = self.graph.node[child]['primitive'].input.guarantees()
-            darg = data['darg']
-            sarg = data['sarg']
-            channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
-            self.solver.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
-            self.solver.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
-            #solver.assert_and_track (Implies (Conf(pog[sarg]), Conf(cig[darg])), channel + ">conf")
-            #solver.assert_and_track (Implies (Intg(cig[darg]), Intg(pog[sarg])), channel + ">intg")
-
-        if self.solver.check() == sat:
-
-            # Check assertions
-            result = self.check_assertions()
-            if result:
-                info ("Assertions checked")
-            else:
-                warn ("Assertions failed")
-
-            if self.fail:
-                err ("Failure expected, but solution found");
-                return False
-
-            info ("Solution found")
-
-            return result
-
-        else:
+            # When not satisfied:
             self.safe_unsat_core(self.solver.unsat_core())
-
-            # We expect a failure - exit without error
-            if self.fail:
-                return True
-
-            err ("No solution")
-            return False
-
-    def has_pid (self, node):
-        return 'partition' in self.graph.node[node]
-
-    def set_pid (self, node, pid):
-        if self.has_pid (node):
-            raise Exception ("Overwriting partition")
-        self.graph.node[node]['partition'] = pid
-        new_pnum        = self._pnum if pid in self._pmap else self._pnum + 1
-        self._pmap[pid] = self._pnum
-        self._pnum      = new_pnum
-
-    def get_pid (self, node):
-        pid = self.graph.node[node]['partition']
-        return pid
-
-    def set_pnum (self, node, pnum):
-        pid = self.graph.node[node]['partition']
-        self._pmap[pid] = pnum
-
-    def get_pnum (self, node):
-        pid = self.graph.node[node]['partition']
-        return self._pmap[pid]
-
-    def new_id (self):
-        self._id += 1
-        return self._id
-
-    def partition_exact (self, node, new_pid):
-
-        G = self.graph
-    
-        # Partition already set
-        if self.has_pid (node):
-            return
-        
-        # Always put env primitive into a new partition
-        if G.node[node]['kind'] == 'env':
-            self.set_pid (node, self.new_id())
-            return
-
-        self.set_pid (node, new_pid)
-    
-        # Partition towards parents
-        for (parent, child) in G.in_edges (nbunch=node):
-    
-            if G.node[parent]['primitive'].guarantees['c'] == G.node[child]['primitive'].guarantees['c'] and \
-               G.node[parent]['primitive'].guarantees['i'] == G.node[child]['primitive'].guarantees['i']:
-                self.partition_exact (parent, new_pid)
-    
-        # Partition towards children
-        for (parent, child) in G.out_edges (nbunch=node):
-    
-            if G.node[parent]['primitive'].guarantees['c'] == G.node[child]['primitive'].guarantees['c'] and \
-               G.node[parent]['primitive'].guarantees['i'] == G.node[child]['primitive'].guarantees['i']:
-                self.partition_exact (child, new_pid)
-
-    def guarantees_lt (self, src, dst):
-        G = self.graph
-        return G.node[src]['primitive'].guarantees['c'] <= G.node[dst]['primitive'].guarantees['c'] and \
-               G.node[src]['primitive'].guarantees['i'] <= G.node[dst]['primitive'].guarantees['i']
 
     def merge_const (self):
 
@@ -346,8 +198,6 @@ class Graph (spg.graph.Graph):
 
         self.trace_partition ("Merge none")
 
-        for node in G.node:
-            self.partition_exact (node, self.new_id())
         self.trace_partition ("Merge Basic")
 
         # Partition graph exactly by guarantees

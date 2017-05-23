@@ -3,6 +3,7 @@
 import sys
 import argparse
 import spg.layout
+from spg.error import verbose
 
 class PDF (spg.layout.Layout):
 
@@ -18,5 +19,5 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
     args = parser.parse_args ()
 
-    err.verbose (args.verbose)
+    verbose (args.verbose)
     PDF (args.input[0], args.output[0])

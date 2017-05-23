@@ -2,7 +2,6 @@
 
 import argparse
 import sys
-import inspect
 
 import spg.graph
 from spg.error import err, verbose

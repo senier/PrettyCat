@@ -9,7 +9,7 @@ class Args:
         return { (k, v) for k, v in self.__dict__.items() if not k.startswith("_") }.__iter__()
 
     def __len__ (self):
-        return len([k for k, v in self.__dict__.items() if not k.startswith("_")])
+        return len([(k, v) for k, v in self.__dict__.items() if not k.startswith("_")])
 
     def __contains__ (self, name):
         return name in self.__dict__

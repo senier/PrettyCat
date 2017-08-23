@@ -11,9 +11,10 @@ import spg.graph
 import spg.primitives
 from spg.guarantees import Conf, Intg
 from spg.error import *
+from spg.z3exp import Z3Text
 
 import z3
-from z3 import sat, is_true
+from z3 import sat, is_true, And, simplify
 
 class Analyze (spg.graph.Graph, z3.Solver):
 
@@ -21,6 +22,8 @@ class Analyze (spg.graph.Graph, z3.Solver):
 
         spg.graph.Graph.__init__ (self, infile)
         z3.Solver.__init__ (self)
+        self.set (unsat_core=True)
+        self.assert_db = {}
 
         primitives = {}
         for name, obj in inspect.getmembers (sys.modules['spg.primitives']):
@@ -40,12 +43,25 @@ class Analyze (spg.graph.Graph, z3.Solver):
 
             self.graph.node[node]['primitive'] = primitive
 
+    def print_unsat_core (self):
+
+        unsat_core = []
+        for p in self.unsat_core():
+            unsat_core.append (simplify (self.assert_db[str(p)]))
+
+        t = Z3Text (simplify (And (unsat_core)))
+        err (t.str())
+
+    def add_rule (self, rule, name):
+        self.assert_and_track (rule, name)
+        self.assert_db[name] = rule
+
     def analyze (self):
 
         # Put node rules into solver
         for n in self.graph.nodes():
             primitive = self.graph.node[n]['primitive']
-            self.assert_and_track (primitive.rule(), "RULE>" + primitive.name)
+            self.add_rule (primitive.rule(), "RULE>" + primitive.name)
 
         # Put edge (channel) rules into solver
         for (parent, child, data) in self.graph.edges (data=True):
@@ -54,8 +70,8 @@ class Analyze (spg.graph.Graph, z3.Solver):
             darg = data['darg']
             sarg = data['sarg']
             channel = "CHNL>" + parent + "/" + sarg + " -> " + child + "/" + darg
-            self.assert_and_track (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
-            self.assert_and_track (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
+            self.add_rule (Conf(pog[sarg]) == Conf(cig[darg]), channel + ">conf")
+            self.add_rule (Intg(pog[sarg]) == Intg(cig[darg]), channel + ">intg")
 
         if self.check() != sat:
             return False
@@ -83,6 +99,8 @@ def main(args):
 
     if not G.fail and not solved:
         err ("No solution")
+        if args.unsat:
+            G.print_unsat_core()
         sys.exit (1)
 
     if G.fail and solved:
@@ -96,6 +114,7 @@ if __name__ == "__main__":
     parser.add_argument('--input', action='store', nargs=1, required=True, help='Input file', dest='input');
     parser.add_argument('--output', action='store', nargs=1, required=False, help='Output file', dest='output');
     parser.add_argument('--verbose', action='store_true', required=False, help='Verbose output', dest='verbose');
+    parser.add_argument('--unsat', action='store_true', required=False, help='Print unsat core', dest='unsat');
 
     try:
         args = parser.parse_args ()

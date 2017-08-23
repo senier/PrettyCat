@@ -1,13 +1,13 @@
+sudo: true
 language: python
 cache: pip
 python:
     - "3.5"
     - "3.6"
 
-addons:
-  apt:
-    packages:
-    - z3
+before_install:
+    - wget http://de.archive.ubuntu.com/ubuntu/pool/universe/z/z3/z3_4.4.0-5_amd64.deb
+    - sudo dpkg -i z3_4.4.0-5_amd64.deb
 
 install: "pip install -r requirements.txt"
 script: make test

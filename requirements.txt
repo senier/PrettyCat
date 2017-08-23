@@ -2,3 +2,4 @@ argparse
 z3-solver
 networkx
 lxml
+pycrypto
